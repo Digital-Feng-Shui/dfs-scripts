@@ -7,7 +7,8 @@
 #
 # Optional alert secrets (Settings > Secrets and variables > Actions):
 #   ALERT_EMAIL_TO, SMTP_SERVER (e.g. smtp.gmail.com), SMTP_USERNAME, SMTP_PASSWORD  -> email
-#   NTFY_TOPIC  -> push message to the ntfy app on a phone (https://ntfy.sh, free)
+#   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID -> message to the Telegram group "DFS alarms" (main phone alert since 8 Oct 2026)
+#   NTFY_TOPIC  -> push message to the ntfy app on a phone (https://ntfy.sh, free; backup, no iPhone pop-ups)
 # Optional variable: ALERT_MENTIONS (default "@rimbodesigns @258MB") -> GitHub emails them via the issue.
 name: Live monitor
 
@@ -32,6 +33,7 @@ jobs:
     env:
       HAS_EMAIL: ${{ secrets.SMTP_PASSWORD != '' && secrets.ALERT_EMAIL_TO != '' }}
       HAS_NTFY: ${{ secrets.NTFY_TOPIC != '' }}
+      HAS_TELEGRAM: ${{ secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_CHAT_ID != '' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -112,6 +114,20 @@ jobs:
           for r in "${list[@]}"; do rcpts+=(--mail-rcpt "$(echo "$r" | xargs)"); done
           curl -sS --ssl-reqd --url "smtps://$SMTP_SERVER:465" --user "$SMTP_USERNAME:$SMTP_PASSWORD" \
             --mail-from "$SMTP_USERNAME" "${rcpts[@]}" --upload-file mail.txt
+
+      - name: Phone alert (Telegram)
+        if: steps.issue.outputs.alert != '' && env.HAS_TELEGRAM == 'true'
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ALERT: ${{ steps.issue.outputs.alert }}
+          RUN: ${{ steps.issue.outputs.run }}
+        run: |
+          if [ "$ALERT" = broken ]; then msg="🔴 DFS buy flow is BROKEN on the live site"; else msg="✅ DFS buy flow works again"; fi
+          curl -sS -o /dev/null "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+            --data-urlencode "chat_id=$TELEGRAM_CHAT_ID" --data-urlencode "text=$msg
+          $RUN"
 
       - name: Phone push (ntfy)
         if: steps.issue.outputs.alert != '' && env.HAS_NTFY == 'true'

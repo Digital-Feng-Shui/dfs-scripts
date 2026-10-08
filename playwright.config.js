@@ -1,8 +1,8 @@
 // Buy-flow tests for digital-fengshui.com. See tests/buy-flow.spec.js for what is checked.
 //
 // Settings (environment variables):
-//   SCRIPT_SOURCE=build  (default) load the real site, but swap main.min.js for dist/main.min.js
-//   SCRIPT_SOURCE=live   load the real site exactly as visitors get it (used by the live monitor)
+//   SCRIPT_SOURCE=live   (default) load the real site exactly as visitors get it (the live monitor)
+//   SCRIPT_SOURCE=build  swap our files for a local dist/ build (needs a build step, not in this repo yet)
 //   SITES=all|live|staging   which site(s) to test (default: all = live + staging)
 const { defineConfig, devices } = require('@playwright/test');
 

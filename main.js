@@ -671,46 +671,31 @@
     // });
 
     // DFS — Get Started popup
-    // The page has more than one Enroll block (top and bottom), each with its own
-    // popup. An Enroll button opens the popup in its OWN block, so it is always in view.
     (function () {
-      var popups = Array.prototype.slice.call(
-        document.querySelectorAll('[get-started], .get_started_container'));
-      if (!popups.length || typeof gsap === 'undefined') return;
+      var popup = document.querySelector('[get-started], .get_started_container');
+      if (!popup || typeof gsap === 'undefined') return;
 
-      popups.forEach(function (p) {
-        gsap.set(p, { clearProps: 'transform' });
-        gsap.set(p, { y: 0, yPercent: 100 });
-      });
+      gsap.set(popup, { clearProps: 'transform' });
+      gsap.set(popup, { y: 0, yPercent: 100 });
 
-      var openPopup = null;
+      var isOpen = false;
 
-      function popupFor(el) {
-        var box = el && el.closest('.enroll_cta');
-        var p = box && box.querySelector('[get-started], .get_started_container');
-        return p || popups[0];
-      }
-
-      function open(el) {
-        var p = popupFor(el);
-        if (openPopup === p) return;
-        if (openPopup) close();
-        openPopup = p;
-        gsap.to(p, { y: 0, yPercent: 0, duration: 0.6, ease: 'power2.out', overwrite: 'auto' });
+      function open() {
+        if (isOpen) return;
+        isOpen = true;
+        gsap.to(popup, { y: 0, yPercent: 0, duration: 0.6, ease: 'power2.out', overwrite: 'auto' });
       }
 
       function close() {
-        if (!openPopup) return;
-        var p = openPopup;
-        openPopup = null;
-        gsap.to(p, { y: 0, yPercent: 100, duration: 0.6, ease: 'power2.in', overwrite: 'auto' });
+        if (!isOpen) return;
+        isOpen = false;
+        gsap.to(popup, { y: 0, yPercent: 100, duration: 0.6, ease: 'power2.in', overwrite: 'auto' });
       }
 
       document.addEventListener('click', function (e) {
-        var opener = e.target.closest('[start-popup]');
-        if (opener) {
+        if (e.target.closest('[start-popup]')) {
           e.preventDefault();
-          open(opener);
+          open();
           return;
         }
         if (e.target.closest('[close_btn], .close_btn')) {
@@ -727,13 +712,9 @@
     })();
 
     // DFS — submit to Webflow, then go to Stripe with the email prefilled
-    // (every signup form on the page: top and bottom Enroll block)
-    var signupForms = Array.prototype.slice.call(document.querySelectorAll('.is-signup_xp'));
-    // While the old Webflow hotfix (dfs_enroll_fix) is still on the site, it handles the
-    // extra forms itself; skip them here so nobody gets two checkout records.
-    // Remove this check once the hotfix is gone from Webflow.
-    if (document.querySelector('script[src*="dfs_enroll_fix"]')) signupForms = signupForms.slice(0, 1);
-    signupForms.forEach(function (form) {
+    (function () {
+      var form = document.querySelector('.is-signup_xp');
+      if (!form) return;
 
       // Stripe link per price-test group (set by the price test script in localStorage 'dfs_pg'),
       // so the checkout shows the same price the page showed: a = $67, b = $47, c = $97
@@ -786,7 +767,7 @@
             '&prefilled_email=' + encodeURIComponent(email);
         }, 1200);
       }, true);
-    });
+    })();
 
     // --- tiny helpers -------------------------------------------------
     const q = (sel, root = document) => root.querySelector(sel);

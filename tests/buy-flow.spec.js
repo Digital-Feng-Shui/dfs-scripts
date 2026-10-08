@@ -14,7 +14,7 @@ const fs = require('fs');
 const path = require('path');
 const { test, expect } = require('@playwright/test');
 
-const SCRIPT_SOURCE = process.env.SCRIPT_SOURCE || 'build';
+const SCRIPT_SOURCE = process.env.SCRIPT_SOURCE || 'live';
 const BUILD_MODE = SCRIPT_SOURCE === 'build';
 // In build mode we also block our temporary hotfix (dfs_enroll_fix), to prove main.js works on its own.
 const BLOCK_HOTFIX = process.env.BLOCK_HOTFIX ? process.env.BLOCK_HOTFIX === '1' : BUILD_MODE;

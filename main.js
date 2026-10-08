@@ -4353,6 +4353,27 @@
   }
 
   // =========================================================
+  // FLOAT — anything with data-float bobs gently up and down.
+  // data-float="12" sets how far it moves (px, default 8).
+  // =========================================================
+  function dfsFloat() {
+    if (typeof gsap === 'undefined') return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    document.querySelectorAll('[data-float]').forEach(function (el, i) {
+      var dist = parseFloat(el.getAttribute('data-float')) || 8;
+      gsap.to(el, {
+        y: -dist,
+        rotation: 0.6,
+        duration: 2.8,
+        delay: i * 0.4,
+        ease: 'sine.inOut',
+        yoyo: true,
+        repeat: -1
+      });
+    });
+  }
+
+  // =========================================================
   // Run
   // Page sections run straight away, like the old Slater page scripts did.
   // Global + Home wait for the whole page, like their old "defer" tags.
@@ -4392,6 +4413,7 @@
     dfsGlobal();
     if (document.querySelector('.oneshot-race')) dfsRaceBars();
     if (document.querySelector('[data-pixel-reveal]')) dfsPixelReveal();
+    if (document.querySelector('[data-float]')) dfsFloat();
     if (path === '/' || path === '/course' || path === '/test-zone') dfsHome();
   });
 

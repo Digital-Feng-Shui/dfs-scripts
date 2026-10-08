@@ -4276,6 +4276,32 @@
   }
 
   // =========================================================
+  // ONE-SHOT TIME BARS — /one-shot-setup table
+  // Each "by hand" cell has a bar: .oneshot-compare_bar > .oneshot-compare_bar-fill.
+  // Its length comes from the minutes in the cell's text (~15 min = the longest = full),
+  // so changing a time in Webflow changes the bar too. The bars grow in on scroll.
+  // =========================================================
+  function dfsTimeBars() {
+    document.querySelectorAll('.oneshot-compare_table').forEach(function (table) {
+      var rows = [].slice.call(table.querySelectorAll('.oneshot-compare_bar')).map(function (bar) {
+        var m = (bar.parentNode.textContent || '').match(/(\d+(?:[.,]\d+)?)/);
+        return { fill: bar.querySelector('.oneshot-compare_bar-fill'), min: m ? parseFloat(m[1].replace(',', '.')) : 0 };
+      }).filter(function (r) { return r.fill; });
+      var max = Math.max.apply(null, rows.map(function (r) { return r.min; }).concat(1));
+      rows.forEach(function (r) { r.fill.style.width = (r.min / max * 100) + '%'; });
+
+      if (typeof gsap === 'undefined' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      gsap.from(rows.map(function (r) { return r.fill; }), {
+        width: 0,
+        duration: 1.1,
+        ease: 'power2.out',
+        stagger: 0.08,
+        scrollTrigger: typeof ScrollTrigger !== 'undefined' ? { trigger: table, start: 'top 80%' } : undefined
+      });
+    });
+  }
+
+  // =========================================================
   // PIXEL REVEAL — an image "loads" like pixel art: coarse blocks first, then sharp.
   // Put data-pixel-reveal on the wrapper of an <img>. Anything inside it marked
   // data-pixel-reveal-after (like a label) pops in once the image is sharp.
@@ -4414,6 +4440,7 @@
     if (document.querySelector('.oneshot-race')) dfsRaceBars();
     if (document.querySelector('[data-pixel-reveal]')) dfsPixelReveal();
     if (document.querySelector('[data-float]')) dfsFloat();
+    if (document.querySelector('.oneshot-compare_bar')) dfsTimeBars();
     if (path === '/' || path === '/course' || path === '/test-zone') dfsHome();
   });
 

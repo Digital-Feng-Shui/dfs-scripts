@@ -1,0 +1,15 @@
+{
+  "name": "dfs-scripts",
+  "private": true,
+  "description": "Site-wide JavaScript for digital-fengshui.com, with automatic buy-flow tests",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "npm run build && playwright test",
+    "test:live": "SCRIPT_SOURCE=live SITES=live playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "clean-css": "5.3.3",
+    "terser": "5.51.2"
+  }
+}

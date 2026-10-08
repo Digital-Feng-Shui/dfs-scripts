@@ -1,0 +1,128 @@
+# Every 15 minutes: checks the buy flow on www.digital-fengshui.com exactly as visitors get it
+# (top and bottom Enroll, popup in view, email form goes to the right Stripe link).
+# Never pays, never creates leads: the Stripe page and all trackers are blocked in the test.
+#
+# When it breaks: opens (or updates) a GitHub issue labelled "site-down" and sends alerts.
+# When it works again: closes the issue and says so.
+#
+# Optional alert secrets (Settings > Secrets and variables > Actions):
+#   ALERT_EMAIL_TO, SMTP_SERVER (e.g. smtp.gmail.com), SMTP_USERNAME, SMTP_PASSWORD  -> email
+#   NTFY_TOPIC  -> push message to the ntfy app on a phone (https://ntfy.sh, free)
+# Optional variable: ALERT_MENTIONS (default "@rimbodesigns @258MB") -> GitHub emails them via the issue.
+name: Live monitor
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: live-monitor
+  cancel-in-progress: false
+
+jobs:
+  check:
+    if: github.repository == 'Digital-Feng-Shui/dfs-scripts' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      HAS_EMAIL: ${{ secrets.SMTP_PASSWORD != '' && secrets.ALERT_EMAIL_TO != '' }}
+      HAS_NTFY: ${{ secrets.NTFY_TOPIC != '' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+
+      - name: Buy-flow check on the live site
+        id: check
+        continue-on-error: true
+        run: npx playwright test
+        env:
+          SCRIPT_SOURCE: live
+          SITES: live
+
+      - name: Save test report (screenshots and traces)
+        if: steps.check.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: live-monitor-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+      - name: Open, update or close the "site-down" issue
+        id: issue
+        uses: actions/github-script@v9
+        env:
+          FAILED: ${{ steps.check.outcome == 'failure' }}
+          MENTIONS: ${{ vars.ALERT_MENTIONS || '@rimbodesigns @258MB' }}
+        with:
+          script: |
+            const failed = process.env.FAILED === 'true';
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const label = 'site-down';
+            const { data: open } = await github.rest.issues.listForRepo({ ...context.repo, state: 'open', labels: label });
+            const existing = open[0];
+            let alert = '';
+            if (failed && !existing) {
+              await github.rest.issues.create({ ...context.repo, labels: [label],
+                title: 'Live site: buy flow is broken',
+                body: `${process.env.MENTIONS}\n\nThe live monitor found a problem with the buy flow on https://www.digital-fengshui.com (Enroll popup or the way to Stripe).\n\nDetails, screenshots and traces: ${run}\n\nIf it was caused by a code release, run the **Rollback** workflow (Actions > Rollback > Run workflow). This issue closes itself when the check is green again.` });
+              alert = 'broken';
+            } else if (failed && existing) {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: existing.number, body: `Still broken: ${run}` });
+            } else if (!failed && existing) {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: existing.number, body: `Working again: ${run}` });
+              await github.rest.issues.update({ ...context.repo, issue_number: existing.number, state: 'closed' });
+              alert = 'fixed';
+            }
+            core.setOutput('alert', alert);
+            core.setOutput('run', run);
+
+      - name: Email alert
+        if: steps.issue.outputs.alert != '' && env.HAS_EMAIL == 'true'
+        env:
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          ALERT: ${{ steps.issue.outputs.alert }}
+          RUN: ${{ steps.issue.outputs.run }}
+        run: |
+          if [ "$ALERT" = broken ]; then subject="DFS site: buy flow is BROKEN"; else subject="DFS site: buy flow works again"; fi
+          {
+            echo "From: DFS live monitor <$SMTP_USERNAME>"
+            echo "To: $ALERT_EMAIL_TO"
+            echo "Subject: $subject"
+            echo
+            echo "$subject (www.digital-fengshui.com)."
+            echo "Details: $RUN"
+          } > mail.txt
+          rcpts=()
+          IFS=',' read -ra list <<< "$ALERT_EMAIL_TO"
+          for r in "${list[@]}"; do rcpts+=(--mail-rcpt "$(echo "$r" | xargs)"); done
+          curl -sS --ssl-reqd --url "smtps://$SMTP_SERVER:465" --user "$SMTP_USERNAME:$SMTP_PASSWORD" \
+            --mail-from "$SMTP_USERNAME" "${rcpts[@]}" --upload-file mail.txt
+
+      - name: Phone push (ntfy)
+        if: steps.issue.outputs.alert != '' && env.HAS_NTFY == 'true'
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          ALERT: ${{ steps.issue.outputs.alert }}
+          RUN: ${{ steps.issue.outputs.run }}
+        run: |
+          if [ "$ALERT" = broken ]; then msg="DFS buy flow is BROKEN on the live site"; prio=urgent; else msg="DFS buy flow works again"; prio=default; fi
+          curl -sS -H "Title: DFS live monitor" -H "Priority: $prio" -H "Click: $RUN" -d "$msg" "https://ntfy.sh/$NTFY_TOPIC"
+
+      - name: Mark this run red when the check failed
+        if: steps.check.outcome == 'failure'
+        run: exit 1

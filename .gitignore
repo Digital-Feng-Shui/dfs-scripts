@@ -1,3 +1,6 @@
 .DS_Store
 node_modules/
 slater/
+dist/
+test-results/
+playwright-report/

@@ -1,0 +1,88 @@
+# Emergency button: puts an earlier, tested version live again (about 1 minute, no Webflow publish).
+# Actions > Rollback > Run workflow. Leave "version" empty to go back one version,
+# or type a version like v1.2.3 (every version tag passed the tests when it was made).
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to put live (e.g. v1.2.3). Empty = the version before the one that is live now.'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: live
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Pick the version to go back to
+        id: pick
+        env:
+          WANTED: ${{ inputs.version }}
+        run: |
+          base="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}"
+          if [ -n "$WANTED" ]; then
+            target="$WANTED"
+          else
+            current=$(curl -fsS "$base/version.json?nocache=$RANDOM" | sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' || true)
+            current="${current%%-*}"
+            tags=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' | sort -V)
+            if [ "${current%%+*}" != "$current" ] && echo "$tags" | grep -qx "${current%%+*}"; then
+              # Untagged build on top of a tag (v1.2.3+abc1234): go back to that tag
+              target="${current%%+*}"
+            elif [ -n "$current" ] && echo "$tags" | grep -qx "$current"; then
+              target=$(echo "$tags" | grep -x -B1 "$current" | head -n1)
+              [ "$target" = "$current" ] && { echo "No version before $current" >&2; exit 1; }
+            else
+              target=$(echo "$tags" | tail -n2 | head -n1)
+            fi
+            echo "Live now: ${current:-unknown}"
+          fi
+          git rev-parse -q --verify "refs/tags/$target" >/dev/null || { echo "Version $target does not exist" >&2; exit 1; }
+          git cat-file -e "$target:styles.css" 2>/dev/null || { echo "$target has no styles.css, too old to roll back to" >&2; exit 1; }
+          echo "Going back to $target"
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+
+      - name: Build that version
+        run: |
+          git show "${{ steps.pick.outputs.target }}:main.js" > main.js
+          git show "${{ steps.pick.outputs.target }}:styles.css" > styles.css
+          if git cat-file -e "${{ steps.pick.outputs.target }}:night" 2>/dev/null; then
+            git checkout "${{ steps.pick.outputs.target }}" -- night
+          fi
+          npm run build
+        env:
+          DFS_VERSION: ${{ steps.pick.outputs.target }}
+
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+      - name: Put it live
+        id: deploy
+        uses: actions/deploy-pages@v5
+
+      - name: Check the live files
+        run: bash .github/scripts/check-live.sh "${{ steps.deploy.outputs.page_url }}" "${{ steps.pick.outputs.target }}"

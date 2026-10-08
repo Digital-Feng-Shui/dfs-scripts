@@ -420,10 +420,3 @@ html.dfs-night .coming_soon .text-color-white { color: var(--brand-colors--80-da
 
 /* Phone: a narrower toggle in the nav, so the nav doesn't get squeezed. */
 @media screen and (max-width: 479px) { .dfs-night-toggle:not(.is-floating) { width: 3rem; } }
-
-/* One-shot hero: grid behind the photo + dashed line (made in Webflow with a fixed beige) */
-html.dfs-night .oneshot-hero_media {
-  background-image: linear-gradient(to right, var(--brand-colors--dark-bage) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--brand-colors--dark-bage) 1px, transparent 1px);
-}
-html.dfs-night .oneshot-hero_line { border-top-color: var(--brand-colors--dark-bage); }

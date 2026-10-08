@@ -4276,6 +4276,83 @@
   }
 
   // =========================================================
+  // PIXEL REVEAL — an image "loads" like pixel art: coarse blocks first, then sharp.
+  // Put data-pixel-reveal on the wrapper of an <img>. Anything inside it marked
+  // data-pixel-reveal-after (like a label) pops in once the image is sharp.
+  // styles.css hides the image until this runs (and shows it anyway after 3s).
+  // =========================================================
+  function dfsPixelReveal() {
+    document.querySelectorAll('[data-pixel-reveal]').forEach(function (wrap) {
+      var img = wrap.querySelector('img');
+      var after = wrap.querySelectorAll('[data-pixel-reveal-after]');
+      if (!img) return;
+
+      function show() {
+        if (typeof gsap === 'undefined') return wrap.classList.add('is-sharp', 'is-revealed');
+        gsap.set(after, { autoAlpha: 0, y: 12 });
+        wrap.classList.add('is-sharp', 'is-revealed');
+        gsap.to(after, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'back.out(2)' });
+        // One small key press
+        gsap.fromTo(wrap, { scale: 1 }, { scale: 0.985, duration: 0.09, yoyo: true, repeat: 1, ease: 'power2.inOut' });
+      }
+
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return show();
+
+      function run() {
+        var w = img.clientWidth, h = img.clientHeight;
+        if (!w || !h || !img.naturalWidth) return show();
+        var dpr = Math.min(window.devicePixelRatio || 1, 2);
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.round(w * dpr);
+        canvas.height = Math.round(h * dpr);
+        canvas.setAttribute('aria-hidden', 'true');
+        canvas.style.cssText = 'position:absolute;left:' + img.offsetLeft + 'px;top:' + img.offsetTop +
+          'px;width:' + w + 'px;height:' + h + 'px;pointer-events:none;z-index:1';
+        wrap.appendChild(canvas);
+        var ctx = canvas.getContext('2d');
+        var small = document.createElement('canvas');
+        var sctx = small.getContext('2d');
+
+        // Blocks across the width, from chunky to fine
+        var steps = [5, 9, 16, 28, 48, 90];
+        var i = 0;
+        (function draw() {
+          var cols = steps[i];
+          var rows = Math.max(1, Math.round(cols * h / w));
+          small.width = cols; small.height = rows;
+          sctx.imageSmoothingEnabled = true;
+          sctx.drawImage(img, 0, 0, cols, rows);
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(small, 0, 0, canvas.width, canvas.height);
+          i++;
+          if (i < steps.length) return setTimeout(draw, i < 3 ? 160 : 110);
+          // Last step: the sharp photo appears under the blocks, the blocks fade away
+          wrap.classList.add('is-sharp');
+          canvas.style.transition = 'opacity .35s ease';
+          requestAnimationFrame(function () { canvas.style.opacity = '0'; });
+          setTimeout(function () { canvas.remove(); }, 400);
+          setTimeout(show, 150);
+        })();
+      }
+
+      function whenVisible() {
+        if (!('IntersectionObserver' in window)) return run();
+        var io = new IntersectionObserver(function (entries) {
+          if (!entries[0].isIntersecting) return;
+          io.disconnect();
+          run();
+        }, { threshold: 0.25 });
+        io.observe(wrap);
+      }
+
+      var ready = img.complete && img.naturalWidth ? Promise.resolve() :
+        new Promise(function (res) { img.addEventListener('load', res, { once: true }); img.addEventListener('error', res, { once: true }); });
+      ready.then(function () { return img.decode ? img.decode().catch(function () {}) : null; })
+        .then(whenVisible);
+    });
+  }
+
+  // =========================================================
   // Run
   // Page sections run straight away, like the old Slater page scripts did.
   // Global + Home wait for the whole page, like their old "defer" tags.
@@ -4314,6 +4391,7 @@
   onPageReady(function () {
     dfsGlobal();
     if (document.querySelector('.oneshot-race')) dfsRaceBars();
+    if (document.querySelector('[data-pixel-reveal]')) dfsPixelReveal();
     if (path === '/' || path === '/course' || path === '/test-zone') dfsHome();
   });
 

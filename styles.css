@@ -554,3 +554,12 @@ input:-webkit-autofill:focus {
   cursor: default;
   pointer-events: none;
 }
+
+/* Pixel reveal (main.js dfsPixelReveal): image waits for the pixel animation.
+   If the script never runs, it shows anyway after 3s. */
+.w-mod-js [data-pixel-reveal]:not(.is-sharp) img,
+.w-mod-js [data-pixel-reveal]:not(.is-revealed) [data-pixel-reveal-after] {
+  opacity: 0;
+  animation: dfsPixelFallback 0s 3s forwards;
+}
+@keyframes dfsPixelFallback { to { opacity: 1; } }

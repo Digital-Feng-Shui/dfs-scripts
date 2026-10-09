@@ -471,18 +471,51 @@
       });
     });
 
-    //logo movement — an eighth turn every 4.4s (only on pages that have the logo)
+    // Logo: the Keeper, like the Rhythms app's menu bar icon. Every 4.4s the outer ring turns an eighth
+    // and the inner star turns an eighth the other way, on the Osmo button curve. The star has eight-fold
+    // symmetry, so after every tick it is the plain mark again. The embed is one even-odd path; the inner
+    // star is split off here into a mask, so the Webflow embed stays as it is.
     const logos = document.querySelectorAll("#LOGO_ICON, #LOGO_ICON_2");
     if (logos.length) {
+      const ns = "http://www.w3.org/2000/svg";
+      const inners = [];
+      logos.forEach((logo, i) => {
+        const path = logo.querySelector("svg > path");
+        const d = path && path.getAttribute("d");
+        const cut = d ? d.indexOf("ZM") : -1;
+        if (cut < 0) return;
+        const svg = path.ownerSVGElement;
+        const box = svg.viewBox.baseVal;
+        const mask = document.createElementNS(ns, "mask");
+        mask.id = "dfs-logo-hole-" + i;
+        const keep = document.createElementNS(ns, "rect");
+        keep.setAttribute("width", box.width);
+        keep.setAttribute("height", box.height);
+        keep.setAttribute("fill", "#fff");
+        const inner = document.createElementNS(ns, "path");
+        inner.setAttribute("d", "M" + d.slice(cut + 2));
+        inner.setAttribute("fill", "#000");
+        // The mask is luminance: whatever recolours the logo's paths (night mode) must not touch these two.
+        keep.style.setProperty("fill", "#fff", "important");
+        inner.style.setProperty("fill", "#000", "important");
+        mask.append(keep, inner);
+        const defs = document.createElementNS(ns, "defs");
+        defs.append(mask);
+        const ring = document.createElementNS(ns, "g");
+        ring.setAttribute("mask", "url(#" + mask.id + ")");
+        path.setAttribute("d", d.slice(0, cut + 1));
+        path.removeAttribute("fill-rule");
+        svg.insertBefore(defs, path);
+        ring.append(path);
+        svg.append(ring);
+        inners.push(inner);
+      });
+      const ease = window.CustomEase ? CustomEase.create("dfsKeeper", "0.625,0.05,0,1") : "power2.inOut";
       let angle = 0;
       setInterval(() => {
         angle += 45;
-        gsap.to(logos, {
-          rotation: angle,
-          duration: 0.6,
-          ease: "ease",
-          transformOrigin: "center center",
-        });
+        gsap.to(logos, { rotation: angle, duration: 0.6, ease, transformOrigin: "center center" });
+        gsap.to(inners, { rotation: -angle, duration: 0.6, ease, transformOrigin: "50% 50%" });
       }, 4400);
     }
 

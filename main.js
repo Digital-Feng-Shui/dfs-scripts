@@ -4331,6 +4331,54 @@
   }
 
   // =========================================================
+  // GRID ZIPS — now and then a thin blue line glides down a grid background
+  // (same effect as the Rhythms page hero, which has its own copy).
+  // Put data-grid-zips on a .grid-background. Give it a selector, e.g.
+  // data-grid-zips=".feedback_form", to keep the lines out from behind that element.
+  // The line style (.dfs-grid-zip) lives in styles.css.
+  // =========================================================
+  function dfsGridZips() {
+    if (typeof gsap === 'undefined') return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var STEP = 32; // the grid's line spacing (2rem)
+
+    document.querySelectorAll('[data-grid-zips]').forEach(function (grid) {
+      var sel = grid.getAttribute('data-grid-zips');
+      var avoid = sel ? document.querySelector(sel) : null;
+      var visible = false, live = 0;
+      new IntersectionObserver(function (entries) { visible = entries[0].isIntersecting; }).observe(grid);
+
+      function zip() {
+        setTimeout(zip, 300 + Math.random() * 700);
+        if (!visible || document.hidden || live > 6) return;
+        var box = grid.getBoundingClientRect(), cols = Math.floor(box.width / STEP);
+        var top = Math.max(0, -box.top), bottom = Math.min(box.height, window.innerHeight - box.top);
+        var length = 56 + Math.random() * 120, travel = 140 + Math.random() * 300;
+        if (cols < 2 || bottom - top < length + travel) return;
+        var x = (1 + Math.floor(Math.random() * (cols - 1))) * STEP;
+        var y = top + Math.random() * (bottom - top - length - travel);
+        if (avoid) {
+          var a = avoid.getBoundingClientRect();
+          if (x > a.left - box.left && x < a.right - box.left &&
+            y + length + travel > a.top - box.top && y < a.bottom - box.top) return;
+        }
+        var line = document.createElement('span');
+        line.className = 'dfs-grid-zip';
+        line.style.left = x + 'px';
+        line.style.top = y + 'px';
+        line.style.height = length + 'px';
+        grid.appendChild(line); live++;
+        gsap.fromTo(line, { y: 0, autoAlpha: 0 }, {
+          y: travel, duration: 1.4 + Math.random() * 1.2, ease: 'power1.inOut',
+          keyframes: { autoAlpha: [0, 1, 1, 0] },
+          onComplete: function () { line.remove(); live--; }
+        });
+      }
+      setTimeout(zip, 400);
+    });
+  }
+
+  // =========================================================
   // ONE-SHOT TIME BARS — /one-shot-setup table
   // Each "by hand" cell has a bar: .oneshot-compare_bar > .oneshot-compare_bar-fill.
   // Its length comes from the minutes in the cell's text (~15 min = the longest = full),
@@ -4497,6 +4545,7 @@
     if (document.querySelector('[data-pixel-reveal]')) dfsPixelReveal();
     if (document.querySelector('[data-float]')) dfsFloat();
     if (document.querySelector('.oneshot-compare_bar')) dfsTimeBars();
+    if (document.querySelector('[data-grid-zips]')) dfsGridZips();
     if (path === '/' || path === '/course' || path === '/test-zone') dfsHome();
   });
 

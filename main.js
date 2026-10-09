@@ -3856,14 +3856,33 @@
         return 'Detractors 1-5';
       }
 
+      // Other feedback pages (like the Rhythms app) put data-feedback-type="rhythms"
+      // on the form wrapper: they post as formType "feedback-rhythms" and don't
+      // touch the member's course flag.
+      var typeEl = formEl.closest('[data-feedback-type]');
+      var feedbackType = typeEl ? typeEl.getAttribute('data-feedback-type') : '';
+
+      // What the app puts in the link: ?v=1.4&from=settings (nothing personal)
+      function linkInfo() {
+        var p = new URLSearchParams(location.search);
+        var info = {};
+        [['v', 'appVersion'], ['from', 'appScreen']].forEach(function (k) {
+          var v = p.get(k[0]);
+          if (v) info[k[1]] = v.slice(0, 40);
+        });
+        return info;
+      }
+
       async function save(data) {
         var member = {};
 
         try {
           if (window.$memberstackDom) {
-            var res = await window.$memberstackDom.updateMember({
-              customFields: { "feedback-given": "true" }
-            });
+            var res = feedbackType ?
+              await window.$memberstackDom.getCurrentMember() :
+              await window.$memberstackDom.updateMember({
+                customFields: { "feedback-given": "true" }
+              });
             member = res?.data || {};
           }
         } catch (err) {
@@ -3871,12 +3890,12 @@
         }
 
         var payload = Object.assign({
-          formType: "feedback",
+          formType: feedbackType ? 'feedback-' + feedbackType : 'feedback',
           memberId: member.id || "",
           email: member.auth?.email || "",
           firstName: member.customFields?.["first-name"] || "",
           segment: segmentFor(data.scale)
-        }, data);
+        }, feedbackType ? linkInfo() : {}, data);
 
         try {
           await fetch(HOOK, {
@@ -4452,7 +4471,8 @@
     dfsFormValidation();
   } else if (path === '/dashboard') {
     dfsDashboard();
-  } else if (path === '/feedback') {
+  } else if (path === '/feedback' || path.indexOf('/feedback/') === 0) {
+    // /feedback/fundamentals (course), /feedback/rythems (the Rhythms app), ...
     dfsFeedback();
   } else if (path === '/onbaording-test') {
     // Order matters: Feedback sets up the form first, so Form validation skips it.

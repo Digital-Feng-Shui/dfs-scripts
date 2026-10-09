@@ -474,16 +474,17 @@
     // Logo: the Keeper, like the Rhythms app's menu bar icon. Every 4.4s the outer ring turns an eighth
     // and the inner star turns an eighth the other way, on the Osmo button curve. The star has eight-fold
     // symmetry, so after every tick it is the plain mark again. The embed is one even-odd path; the inner
-    // star is split off here into a mask, so the Webflow embed stays as it is.
+    // star is split off here into a mask, so the Webflow embed stays as it is. The ring path turns, not the
+    // wrapper: a turn of the wrapper would carry the mask (and the inner star) along with it.
     const logos = document.querySelectorAll("#LOGO_ICON, #LOGO_ICON_2");
     if (logos.length) {
       const ns = "http://www.w3.org/2000/svg";
-      const inners = [];
+      const rings = [], inners = [], plain = [];
       logos.forEach((logo, i) => {
         const path = logo.querySelector("svg > path");
         const d = path && path.getAttribute("d");
         const cut = d ? d.indexOf("ZM") : -1;
-        if (cut < 0) return;
+        if (cut < 0) { plain.push(logo); return; }
         const svg = path.ownerSVGElement;
         const box = svg.viewBox.baseVal;
         const mask = document.createElementNS(ns, "mask");
@@ -501,21 +502,23 @@
         mask.append(keep, inner);
         const defs = document.createElementNS(ns, "defs");
         defs.append(mask);
-        const ring = document.createElementNS(ns, "g");
-        ring.setAttribute("mask", "url(#" + mask.id + ")");
+        const group = document.createElementNS(ns, "g");
+        group.setAttribute("mask", "url(#" + mask.id + ")");
         path.setAttribute("d", d.slice(0, cut + 1));
         path.removeAttribute("fill-rule");
         svg.insertBefore(defs, path);
-        ring.append(path);
-        svg.append(ring);
+        group.append(path);
+        svg.append(group);
+        rings.push(path);
         inners.push(inner);
       });
       const ease = window.CustomEase ? CustomEase.create("dfsKeeper", "0.625,0.05,0,1") : "power2.inOut";
       let angle = 0;
       setInterval(() => {
         angle += 45;
-        gsap.to(logos, { rotation: angle, duration: 0.6, ease, transformOrigin: "center center" });
+        gsap.to(rings, { rotation: angle, duration: 0.6, ease, transformOrigin: "50% 50%" });
         gsap.to(inners, { rotation: -angle, duration: 0.6, ease, transformOrigin: "50% 50%" });
+        if (plain.length) gsap.to(plain, { rotation: angle, duration: 0.6, ease, transformOrigin: "center center" });
       }, 4400);
     }
 

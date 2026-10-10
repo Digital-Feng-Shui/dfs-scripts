@@ -61,6 +61,10 @@ html.dfs-night .parallax-img,
 html.dfs-night .instructor_image,
 html.dfs-night .testimonial_profile-image,
 html.dfs-night .reviews_avatar { filter: brightness(.88) saturate(.92); }
+/* Pixel avatars keep their day colours: their dark grey is drawing ink, not text,
+   so it must not turn moonlight beige like the icons do. */
+html.dfs-night .reviews_avatar svg [fill="#3D3A35" i],
+html.dfs-night .rhythms-review_avatar svg [fill="#3D3A35" i] { fill: #3d3a35; }
 /* The chapter illustrations are light paper prints. A moonlight-blue
    multiply layer turns the paper night blue while the dark ink lines stay
    crisp, like a print on the wall in a dark room. */

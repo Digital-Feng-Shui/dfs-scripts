@@ -69,11 +69,14 @@ html.dfs-night{--brand-colors--light-bage:#0e1628;--brand-colors--bage:#141e34;-
 :where(html.dfs-night) .sign_in_section{background-color:rgba(14,22,40,0.741)}
 :where(html.dfs-night) .form-field-icon{color:#2e3a57}
 :where(html.dfs-night) .form-submit-btn:focus{border-color:#2e3a57;outline-color:#ece8de}
+:where(html.dfs-night) .form-submit-btn._w-button:focus{border-color:#2e3a57;outline-color:#ece8de}
 :where(html.dfs-night) .form-input{color:#ece8de;background-color:#0e1628;border:1px solid #121b30}
 :where(html.dfs-night) .form-input:focus{border-color:#2e3a57}
 :where(html.dfs-night) .form-input.is-picked{border-color:#1a97d7}
 :where(html.dfs-night) .form-input._w-input{color:#ece8de;background-color:#0e1628;border:1px solid #121b30}
 :where(html.dfs-night) .form-input._w-input:focus{border-color:#2e3a57}
+:where(html.dfs-night) .form-input._w-input-1{color:#ece8de;background-color:#0e1628;border:1px solid #121b30}
+:where(html.dfs-night) .form-input._w-input-1:focus{border-color:#2e3a57}
 :where(html.dfs-night) .form-notifcation{background-color:#121b30}
 :where(html.dfs-night) .hero_tag.is-course.is-work{background-color:#0f172a}
 :where(html.dfs-night) .hero_tag.is-course.is-template{background-color:#0f172a}
@@ -178,6 +181,68 @@ html.dfs-night{--brand-colors--light-bage:#0e1628;--brand-colors--bage:#141e34;-
 :where(html.dfs-night) .hp_close{background-color:#0e1628;border-top:1px solid #24314f}
 :where(html.dfs-night) .hp_px{background-color:#1a97d7}
 :where(html.dfs-night) .hp_close_title{color:#ddd8cc}
+:where(html.dfs-night) .line-graph-svg__tooltip-series{color:rgba(23,33,56,0.502)}
+:where(html.dfs-night) .line-graph-svg{background-color:#172138}
+:where(html.dfs-night) .line-graph-svg__hover-dot{stroke:#172138}
+:where(html.dfs-night) .line-graph-svg__tooltip{color:#141e33;background-color:#e8e4d9}
+:where(html.dfs-night) .oneshot-compare_cell.is-lesson{color:#7c8293}
+:where(html.dfs-night) .oneshot-compare_note{color:#7c8293}
+:where(html.dfs-night) .oneshot-step{border-bottom:1px solid #25324f}
+:where(html.dfs-night) .oneshot-step_num{color:#1a97d7}
+:where(html.dfs-night) .oneshot-mac{color:#e8e4d9;background-color:#131c31}
+:where(html.dfs-night) .oneshot-mac_button{background-color:#172138}
+:where(html.dfs-night) .oneshot-mac_button.is-primary{color:#172138}
+:where(html.dfs-night) .oneshot-safe_item{border-top:3px solid #ddd8cc}
+:where(html.dfs-night) .oneshot-contact{color:#7c8293}
+:where(html.dfs-night) .oneshot-top_eyebrow{color:#1a97d7;background-color:#11233d}
+:where(html.dfs-night) .oneshot-top_title-em{color:#1a97d7}
+:where(html.dfs-night) .oneshot-race_label.is-macro{color:#1a97d7}
+:where(html.dfs-night) .oneshot-race_track{background-color:#141e34}
+:where(html.dfs-night) .oneshot-race_bar{background-color:#25324f}
+:where(html.dfs-night) .oneshot-race_bar.is-macro{background-color:#1a97d7}
+:where(html.dfs-night) .oneshot-race_value.is-macro{color:#1a97d7}
+:where(html.dfs-night) .oneshot-top_trust{color:#7c8293}
+:where(html.dfs-night) .oneshot-top_image{border:1px solid #25324f}
+:where(html.dfs-night) .oneshot-top_tag{color:#0e1628;background-color:#ddd8cc}
+:where(html.dfs-night) .leak_ticker{color:rgba(221,216,204,0.27)}
+:where(html.dfs-night) .leak_stage{border-top:1px dashed #25324f;border-bottom:1px dashed #25324f}
+:where(html.dfs-night) .leak_meter{color:rgba(221,216,204,0.27)}
+:where(html.dfs-night) .leak_bar{background-color:#141e33}
+:where(html.dfs-night) .leak_bar-fill{background-color:#1a97d7}
+:where(html.dfs-night) .leak_meter-count{color:#ddd8cc}
+:where(html.dfs-night) .leak_turn-accent{color:#1a97d7}
+:where(html.dfs-night) .leak_payoff{color:#1a97d7}
+:where(html.dfs-night) .rhythms-menu_bar{background-color:rgba(14,22,40,0.78)}
+:where(html.dfs-night) .rhythms-menu_star{background-color:rgba(221,216,204,0.058)}
+:where(html.dfs-night) .rhythms-menu_list{background-color:rgba(16,25,44,0.902)}
+:where(html.dfs-night) .rhythms-menu_label{color:rgba(232,228,217,0.226)}
+:where(html.dfs-night) .rhythms-menu_item.is-action:hover{color:#172138}
+:where(html.dfs-night) .rhythms-menu_divider{background-color:rgba(242,238,229,0.046)}
+:where(html.dfs-night) .rhythms-toast_close:hover{background-color:rgba(221,216,204,0.046)}
+:where(html.dfs-night) .rhythms-browser_tab{background-color:#172138}
+:where(html.dfs-night) .rhythms-browser_favicon{color:#dcd8cc;background-color:#222f4d}
+:where(html.dfs-night) .rhythms-browser_caret{background-color:#ddd8cc}
+:where(html.dfs-night) .rhythms-browser_placeholder{color:rgba(221,216,204,0.18)}
+:where(html.dfs-night) .rhythms-browser_start{background-color:#0e1729}
+:where(html.dfs-night) .rhythms-browser_tile{background-color:#19243d}
+:where(html.dfs-night) .rhythms-calmpage{background-color:#141e33}
+:where(html.dfs-night) .rhythms-calmpage_content{color:#dcd8cc}
+:where(html.dfs-night) .rhythms-calmpage_breath{background-color:#11233d}
+:where(html.dfs-night) .rhythms-calmpage_star{color:#dcd8cc}
+:where(html.dfs-night) .rhythms-calmpage_tag{background-color:#11233d}
+:where(html.dfs-night) .rhythms-calmpage_button-icon{color:#dcd8cc;background-color:#0e1628}
+:where(html.dfs-night) .rhythms-tip_body{border-left:1px dashed rgba(26,151,215,0.502)}
+:where(html.dfs-night) .rhythms-cta_card{background-color:rgba(14,22,40,0.859)}
+:where(html.dfs-night) .rhythms-cta_error{background-color:#0f172a}
+:where(html.dfs-night) .rhythms-menu{color:#e8e4d9}
+:where(html.dfs-night) .rhythms-chip{background-color:#172138}
+:where(html.dfs-night) .rhythms-browser{background-color:#172138}
+:where(html.dfs-night) .rhythms-browser_bar{color:#ddd8cc;background-color:#131c32;border-bottom:1px solid rgba(221,216,204,0.046)}
+:where(html.dfs-night) .rhythms-browser_address{background-color:#172138}
+:where(html.dfs-night) .rhythms-browser_view{background-color:#0e1729}
+:where(html.dfs-night) .rhythms-browser_start-title{color:rgba(221,216,204,0.247)}
+:where(html.dfs-night) .rhythms-calmpage_button{color:#0e1628;background-color:#dcd8cc}
+:where(html.dfs-night) .rhythms-review{background-color:#172138}
 @media screen and (max-width:479px){:where(html.dfs-night) .cta_content{background-color:rgba(14,22,40,0.659)}}
 /* from styles.css */
 :where(html.dfs-night) .grid-background{background-image:repeating-linear-gradient(to right, rgba(242,238,229,0.045) 0, rgba(242,238,229,0.045) 1px, transparent 1px, transparent 2rem),
@@ -255,6 +320,10 @@ html.dfs-night .parallax-img,
 html.dfs-night .instructor_image,
 html.dfs-night .testimonial_profile-image,
 html.dfs-night .reviews_avatar { filter: brightness(.88) saturate(.92); }
+/* Pixel avatars keep their day colours: their dark grey is drawing ink, not text,
+   so it must not turn moonlight beige like the icons do. */
+html.dfs-night .reviews_avatar svg [fill="#3D3A35" i],
+html.dfs-night .rhythms-review_avatar svg [fill="#3D3A35" i] { fill: #3d3a35; }
 /* The chapter illustrations are light paper prints. A moonlight-blue
    multiply layer turns the paper night blue while the dark ink lines stay
    crisp, like a print on the wall in a dark room. */

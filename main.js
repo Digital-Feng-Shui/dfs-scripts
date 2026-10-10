@@ -4921,6 +4921,47 @@
     });
   }
 
+  // Vertical marquee: a column [data-marquee-v] (value = px per second, default 18) holds one
+  // [data-marquee-v-list]. The list is copied until it fills the column, then every copy slides
+  // up by its own height (CSS keyframes in styles.css). data-marquee-v-direction="down" runs it
+  // the other way. Add data-marquee-intro to a column to let the avatars in view pop in once.
+  function dfsMarqueeV() {
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var cols = Array.prototype.slice.call(document.querySelectorAll('[data-marquee-v]'));
+    cols.forEach(function (col) {
+      var list = col.querySelector('[data-marquee-v-list]');
+      if (!list || !list.offsetHeight) return;
+      var copies = Math.max(1, Math.ceil(col.offsetHeight / list.offsetHeight));
+      for (var i = 0; i < copies; i++) {
+        var copy = list.cloneNode(true);
+        copy.setAttribute('aria-hidden', 'true');
+        col.appendChild(copy);
+      }
+      var speed = parseFloat(col.getAttribute('data-marquee-v')) || 18;
+      col.querySelectorAll('[data-marquee-v-list]').forEach(function (l) {
+        l.style.animationDuration = list.offsetHeight / speed + 's';
+      });
+      if (col.hasAttribute('data-marquee-intro') && !reduce && typeof gsap !== 'undefined') {
+        var box = col.getBoundingClientRect();
+        var inView = Array.prototype.slice.call(col.querySelectorAll('[data-marquee-v-list] > *'))
+          .filter(function (el) { return el.getBoundingClientRect().top < box.bottom; });
+        gsap.from(inView, {
+          opacity: 0, scale: 0.6, rotation: col.getAttribute('data-marquee-v-direction') === 'down' ? -20 : 20,
+          duration: 0.8, ease: 'expo.out', stagger: 0.08, delay: 0.4
+        });
+      }
+    });
+    if (reduce) return;
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        entry.target.querySelectorAll('[data-marquee-v-list]').forEach(function (l) {
+          l.style.animationPlayState = entry.isIntersecting ? 'running' : 'paused';
+        });
+      });
+    });
+    cols.forEach(function (col) { observer.observe(col); });
+  }
+
   // Star rating ([data-stars] on a row of star icons; value = delay in seconds, default 0.9):
   // the stars pop in one by one, and give a little wave when you hover the row.
   function dfsStars() {
@@ -4997,6 +5038,7 @@
     if (document.querySelector('[data-pixel-reveal]')) dfsPixelReveal();
     if (document.querySelector('[data-float]')) dfsFloat();
     if (document.querySelector('[data-stars]')) dfsStars();
+    if (document.querySelector('[data-marquee-v]')) dfsMarqueeV();
     if (document.querySelector('.oneshot-compare_bar')) dfsTimeBars();
     if (document.querySelector('[data-grid-zips]')) dfsGridZips();
     if (document.querySelector('[data-greet-name]')) dfsGreeting();

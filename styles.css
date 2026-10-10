@@ -340,6 +340,28 @@ margin: 0rem !important;
   -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 18%, #000 82%, transparent 100%);
   mask-image: linear-gradient(90deg, transparent 0, #000 18%, #000 82%, transparent 100%);
 }
+
+  /* Vertical marquee (data-marquee-v columns, see main.js): copies slide up by their own height */
+@keyframes translateY {
+  to {
+    transform: translateY(-100%);
+  }
+}
+
+[data-marquee-v-list] {
+  animation: translateY 30s linear infinite;
+  animation-play-state: paused;
+}
+
+[data-marquee-v-direction="down"] [data-marquee-v-list] {
+  animation-direction: reverse;
+}
+
+  /* Vertical fade: soft at the top, and gone by the last 1.25rem so it fades into a label below */
+[data-marquee-fade="v"] {
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 3rem, #000 calc(100% - 4.5rem), transparent calc(100% - 1.5rem));
+  mask-image: linear-gradient(180deg, transparent 0, #000 3rem, #000 calc(100% - 4.5rem), transparent calc(100% - 1.5rem));
+}
   
 
 /* Other */

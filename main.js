@@ -4493,11 +4493,13 @@
     var suggestEl = $('[data-app-suggest]');
     var suggestTpl = $('[data-app-template="suggest"]');
 
+    // The name span: Webflow drops classes without styles, so fall back to "the span that isn't the ✕"
+    var nameEl = function (el) { return $('.rhythms-app_chip-name', el) || $('span:not([data-app-remove])', el); };
     function chip(name, fresh) {
       var c = chipTpl.cloneNode(true);
       c.removeAttribute('data-app-template');
       c.setAttribute('data-app-site', name);
-      $('.rhythms-app_chip-name', c).textContent = name;
+      nameEl(c).textContent = name;
       var icon = $('.rhythms-app_chip-icon', c);
       if (SITES[name]) icon.style.backgroundImage = 'url("' + SITES[name] + '")';
       else { icon.textContent = '18+'; icon.style.fontSize = '6px'; icon.style.display = 'flex'; icon.style.alignItems = 'center'; icon.style.justifyContent = 'center'; }
@@ -4627,7 +4629,7 @@
         var s = suggestTpl.cloneNode(true);
         s.removeAttribute('data-app-template');
         s.classList.toggle('is-active', i === 0);
-        $('.rhythms-app_chip-name', s).textContent = n;
+        nameEl(s).textContent = n;
         if (SITES[n]) $('.rhythms-app_chip-icon', s).style.backgroundImage = 'url("' + SITES[n] + '")';
         s.addEventListener('mousedown', function (e) { e.preventDefault(); add(n); input.value = ''; suggest(); });
         suggestEl.appendChild(s);

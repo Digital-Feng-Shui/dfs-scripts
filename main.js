@@ -4345,12 +4345,16 @@
 
   // =========================================================
   // RHYTHMS APP DEMO — /rythems-app hero
-  // The app window is real HTML in Webflow ([data-rhythms-app]); this makes it play:
-  // pick a rhythm, switch it on/off, change days, remove or add what closes,
-  // pick a lock. Locked rhythms behave like the real app: removing or switching
-  // off is refused ("type to unlock first"), adding stays free.
-  // The list of sites + icons comes from the marquee chips further down the page.
-  // Exposes window.dfsRhythms.sitesOf(name) for the "Closed by …" toast.
+  // The app window is real HTML in Webflow ([data-rhythms-app]); this makes it behave like the
+  // Mac app (dfs-focus: RhythmsView.swift, RhythmEditor.swift, TargetPicker.swift), detail for detail:
+  // - the list: lock tile, day letters + hours, switch; with the panel closed, what each one closes
+  // - the panel edits a copy: Save keeps it, ✕ drops it, another card opens that one instead
+  // - Type to unlock opens greyed out ("Add only" / "Unlock…"); Sealed is shut while it runs;
+  //   switching on and adding are always free. One website extra: in add-only mode, what you just
+  //   added can go again (it was never part of the saved rhythm).
+  // - "All day, every day" folds the times away; Sealed can't be all day, every day
+  // Icons come from the marquee chips further down the page; names, domains and the "all at once"
+  // groups from the app's Catalog. Exposes window.dfsRhythms.sitesOf(name) for the toast.
   // =========================================================
   function dfsRhythmsApp() {
     var app = document.querySelector('[data-rhythms-app]');
@@ -4360,6 +4364,18 @@
     var gs = window.gsap;
     var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     var W = 928;
+    function make(tag, cls, html) {
+      var el = document.createElement(tag);
+      if (cls) el.className = cls;
+      if (html != null) el.innerHTML = html;
+      return el;
+    }
+    function shake(el) {
+      if (!gs || reduce || !el) return;
+      gs.fromTo(el, { x: 0 }, { x: 0, duration: 0.4, keyframes: { x: [-5, 5, -3, 3, 0] }, ease: 'power2.out' });
+    }
+    var copy = function (o) { return JSON.parse(JSON.stringify(o)); };
+    var changed = function () { window.dispatchEvent(new Event('dfs-rhythms-change')); };
 
     // Scale the 928px-wide window to whatever width it gets
     var frame = app.parentNode;
@@ -4369,356 +4385,792 @@
     var shot = document.querySelector('.rhythms-window_image');
     if (shot) shot.classList.add('is-replaced');
 
-    // Sites and icons, from the marquee
-    var SITES = {};
-    var firstList = document.querySelector('.rhythms-marquee_list');
-    $$('.rhythms-chip', firstList || document).forEach(function (chip) {
-      var name = (chip.querySelector('.rhythms-chip_name') || {}).textContent;
-      var img = chip.querySelector('img');
-      if (name) SITES[name.trim()] = img ? img.getAttribute('src') : '';
+    // ---------- icons ----------
+    var svg = function (w, inner, extra) {
+      return '<svg viewBox="0 0 24 24" width="' + w + '" height="' + w + '" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"' + (extra || '') + '>' + inner + '</svg>';
+    };
+    var lockIcon = function (lock) { var el = $('[data-app-lock="' + lock + '"] .rhythms-app_lock-icon'); return el ? el.innerHTML : ''; };
+    var ICON = {
+      none: lockIcon('none'), type: lockIcon('type'), sealed: lockIcon('sealed'),
+      x: svg(11, '<path d="M6 6l12 12M18 6 6 18"/>'),
+      plus: svg(14, '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>'),
+      added: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor"/>' +
+        '<path d="M7.5 12.5l3 3 6-6.5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      check: svg(10, '<path d="M5 12.5l4.5 4.5L19 7.5"/>', ' stroke-width="3.2"'),
+      gear: svg(14, '<path d="M10.3 3.2h3.4l.5 2.4 1.7.9 2.3-.9 1.7 2.9-1.8 1.6v1.9l1.8 1.6-1.7 2.9-2.3-.9-1.7.9-.5 2.4h-3.4l-.5-2.4-1.7-.9-2.3.9-1.7-2.9 1.8-1.6v-1.9L3.9 8.5l1.7-2.9 2.3.9 1.7-.9z"/><circle cx="12" cy="12" r="2.8"/>'),
+      chat: svg(12, '<path d="M4 4.5h10a2 2 0 0 1 2 2V12a2 2 0 0 1-2 2H9l-3.5 3v-3H4a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z"/><path d="M19 9h1a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-1.5v3L15 18h-3a2 2 0 0 1-2-1.6"/>')
+    };
+
+    // ---------- what can be closed ----------
+    var ICONS = {};
+    $$('.rhythms-chip', document.querySelector('.rhythms-marquee_list') || document).forEach(function (chip) {
+      var name = (chip.querySelector('.rhythms-chip_name') || {}).textContent, img = chip.querySelector('img');
+      if (name && img) ICONS[name.trim()] = img.getAttribute('src');
     });
+    // The app's Catalog: each name and the domain shown under it ('' = only a Mac app)
+    var DOMAIN = {
+      'Instagram': 'instagram.com', 'Facebook': 'facebook.com', 'TikTok': 'tiktok.com', 'X (Twitter)': 'x.com',
+      'Reddit': 'reddit.com', 'LinkedIn': 'linkedin.com', 'Pinterest': 'pinterest.com', 'Snapchat': 'snapchat.com',
+      'Threads': 'threads.net', 'Bluesky': 'bsky.app', 'Tumblr': 'tumblr.com',
+      'YouTube': 'youtube.com', 'Netflix': 'netflix.com', 'Hulu': 'hulu.com', 'Max': 'max.com', 'Disney+': 'disneyplus.com',
+      'Prime Video': 'primevideo.com', 'Peacock': 'peacocktv.com', 'Paramount+': 'paramountplus.com', 'Twitch': 'twitch.tv',
+      'CNN': 'cnn.com', 'Fox News': 'foxnews.com', 'The New York Times': 'nytimes.com', 'The Washington Post': 'washingtonpost.com',
+      'The Wall Street Journal': 'wsj.com', 'NBC News': 'nbcnews.com', 'CBS News': 'cbsnews.com', 'ABC News': 'abcnews.go.com',
+      'NPR': 'npr.org', 'USA Today': 'usatoday.com', 'Yahoo News': 'news.yahoo.com', 'ESPN': 'espn.com',
+      'Amazon': 'amazon.com', 'eBay': 'ebay.com', 'Etsy': 'etsy.com', 'Walmart': 'walmart.com', 'Target': 'target.com',
+      'Temu': 'temu.com', 'Shein': 'shein.com', 'AliExpress': 'aliexpress.com', 'Best Buy': 'bestbuy.com',
+      'WhatsApp': 'web.whatsapp.com', 'Discord': 'discord.com', 'Telegram': 'web.telegram.org', 'Slack': 'app.slack.com',
+      'Messenger': 'messenger.com', 'Messages': ''
+    };
+    var MAC_APP = { 'WhatsApp': 1, 'Discord': 1, 'Telegram': 1, 'Slack': 1, 'Messenger': 1, 'Messages': 1 };
     var GROUPS = {
-      social: ['Instagram', 'TikTok', 'Facebook', 'X (Twitter)', 'Reddit'],
-      video: ['YouTube', 'Netflix', 'TikTok', 'Twitch'],
-      news: ['CNN', 'The New York Times', 'Reddit'],
-      shopping: ['Amazon', 'Temu']
+      social: ['Instagram', 'Facebook', 'TikTok', 'X (Twitter)', 'Reddit', 'LinkedIn', 'Pinterest', 'Snapchat', 'Threads', 'Bluesky', 'Tumblr'],
+      video: ['YouTube', 'Netflix', 'Hulu', 'Max', 'Disney+', 'Prime Video', 'Peacock', 'Paramount+', 'Twitch'],
+      news: ['CNN', 'Fox News', 'The New York Times', 'The Washington Post', 'The Wall Street Journal', 'NBC News', 'CBS News', 'ABC News', 'NPR', 'USA Today', 'Yahoo News', 'ESPN'],
+      shopping: ['Amazon', 'eBay', 'Etsy', 'Walmart', 'Target', 'Temu', 'Shein', 'AliExpress', 'Best Buy'],
+      chat: ['WhatsApp', 'Discord', 'Telegram', 'Slack', 'Messenger', 'Messages']
     };
-    var TIPS = {
-      easy: 'Just enough to break the autopilot, while you’re still shaping this rhythm.',
-      medium: 'Long enough to notice the reflex before you act on it. Our pick.',
-      hard: 'Long enough for the urge to fade before you reach the last line.',
-      intense: 'For the rhythms that guard your deepest work. Finish this, and you really meant it.'
-    };
-    var NOTES = {
-      none: 'No lock: switch it off or change it whenever you like.',
-      type: 'Removing anything or switching it off takes a typed text first. Adding stays free.',
-      sealed: 'Nothing can be removed or switched off until this rhythm ends. Adding stays free.'
-    };
-    var ALL = [1, 1, 1, 1, 1, 1, 1];
+    // "https://www.example.com/page" → "example.com", like Catalog.customDomain
+    function customDomain(q) {
+      var t = q.toLowerCase().trim().replace(/^https?:\/\//, '').split('/')[0].replace(/^www\./, '');
+      return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(t) ? t : null;
+    }
+
+    // ---------- the rhythms ----------
+    // Days run Monday … Sunday. A time with the same start and end is all day.
+    var EVERY = [1, 1, 1, 1, 1, 1, 1], WEEKDAYS = [1, 1, 1, 1, 1, 0, 0];
     var H = function (h, m) { return h * 60 + (m || 0); };
-    var R = {
-      deep: { name: 'Deep work', on: true, days: [1, 1, 1, 1, 1, 0, 0], allDay: false, from: H(9), to: H(12, 30),
-        sites: ['Instagram', 'YouTube', 'X (Twitter)', 'Reddit', 'CNN', 'The New York Times'], lock: 'type', effort: 'medium' },
-      evenings: { name: 'Evenings', on: true, days: ALL.slice(), allDay: false, from: H(21, 30), to: H(7),
-        sites: ['TikTok', 'YouTube', 'Instagram', 'Netflix', 'Reddit'], lock: 'none', effort: 'easy' },
-      sundays: { name: 'Slow Sundays', on: true, days: [0, 0, 0, 0, 0, 0, 1], allDay: true, from: H(0), to: H(24),
-        sites: ['Slack', 'Amazon', 'Temu'], lock: 'none', effort: 'easy' },
-      peace: { name: 'Peace of mind', on: true, days: ALL.slice(), allDay: true, from: H(0), to: H(24),
-        sites: ['Adult sites'], lock: 'sealed', effort: 'hard' }
+    var uid = 0;
+    var win = function (days, from, to) { return { id: 'w' + (++uid), days: days.slice(), from: from, to: to }; };
+    var blankTimes = function () { return [win(WEEKDAYS, H(9), H(17))]; };
+    var saved = {
+      deep: { name: 'Deep work', on: true, always: false, windows: [win(WEEKDAYS, H(9), H(12, 30))],
+        sites: ['Instagram', 'YouTube', 'X (Twitter)', 'Reddit', 'CNN', 'The New York Times'], adult: false, lock: 'type', effort: 'medium' },
+      evenings: { name: 'Evenings', on: true, always: false, windows: [win(EVERY, H(21, 30), H(7))],
+        sites: ['TikTok', 'YouTube', 'Instagram', 'Netflix', 'Reddit'], adult: false, lock: 'sealed', effort: 'none' },
+      sundays: { name: 'Slow Sundays', on: true, always: false, windows: [win([0, 0, 0, 0, 0, 0, 1], 0, 0)],
+        sites: ['Slack', 'Amazon', 'Temu'], adult: false, lock: 'none', effort: 'medium' },
+      // All day, every day can't be Sealed (it would never open again), so this one asks for a text
+      peace: { name: 'Peace of mind', on: true, always: true, windows: blankTimes(),
+        sites: [], adult: true, lock: 'type', effort: 'hard' }
     };
-    var NOW = { day: 2, min: H(21, 47) }; // the menu bar says Wed 21:47
-    var current = 'deep', newCount = 0;
+    var order = ['deep', 'evenings', 'sundays', 'peace'];
 
+    var LOCK = {
+      none: { title: 'No lock', note: 'Change it whenever you like.',
+        tip: 'Start open. Live with this rhythm for a week and you’ll know how firm it needs to be.', efforts: [] },
+      type: { title: 'Type to unlock', note: 'Removing anything or switching it off takes a typed text first. Adding stays free.',
+        tip: 'Long enough to notice the reflex before you act on it.', efforts: ['easy', 'medium', 'hard', 'intense'], effort: 'medium' },
+      sealed: { title: 'Sealed', note: 'Nothing can be loosened while it runs. Around it, you type first.',
+        open: 'Nothing can be loosened while it runs. Around it, it’s open.',
+        tip: 'For the hours you know you’ll bargain with yourself. Decide once, on a clear day.', efforts: ['none', 'easy', 'medium'], effort: 'none' }
+    };
+    var EFFORT = {
+      none: ['No', 'open'],
+      easy: ['Easy', '1 min', 'Just enough to break the autopilot, while you’re still shaping this rhythm.'],
+      medium: ['Medium', '2 min', 'Long enough to notice the reflex before you act on it. Our pick.'],
+      hard: ['Hard', '3½ min', 'Long enough for the urge to fade before you reach the last line.'],
+      intense: ['Intense', '5 min', 'For the rhythms that guard your deepest work. Finish this, and you really meant it.']
+    };
+    var RANK = ['none', 'easy', 'medium', 'hard', 'intense'];
+
+    var allDay = function (w) { return w.from === w.to; };
+    var isAlways = function (r) { return r.always || r.windows.some(function (w) { return allDay(w) && w.days.every(Boolean); }); };
+    var schedule = function (r) { return r.always ? [{ id: 'always', days: EVERY, from: 0, to: 0 }] : r.windows; };
+    var closes = function (r) { return r.sites.length > 0 || r.adult; };
+    var asksForText = function (r) { return r.lock === 'type' || (r.lock === 'sealed' && r.effort !== 'none'); };
+
+    // ---------- the clock: minutes since Monday 00:00; the menu bar says Wed 21:47 ----------
+    var NOW = 2 * 1440 + H(21, 47);
+    var LONG = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     var pad = function (n) { return (n < 10 ? '0' : '') + n; };
-    var hm = function (m, sep) { m = m % 1440; return pad(Math.floor(m / 60)) + (sep || ':') + pad(m % 60); };
-    var LETTERS = 'MTWTFSS';
+    var clock = function (m) { m = ((m % 1440) + 1440) % 1440; return pad(Math.floor(m / 60)) + ':' + pad(m % 60); };
+    var dayOf = function (t) { return Math.floor(t / 1440); };
+    function winActive(w, t) {
+      var d = dayOf(t) % 7, m = t % 1440, y = (d + 6) % 7;
+      if (allDay(w)) return !!w.days[d];
+      if (w.to > w.from) return !!w.days[d] && m >= w.from && m < w.to;
+      return (!!w.days[d] && m >= w.from) || (!!w.days[y] && m < w.to);
+    }
+    function winEnd(w, t) {
+      var day0 = t - t % 1440;
+      if (allDay(w)) return day0 + 1440;
+      return day0 + w.to > t ? day0 + w.to : day0 + w.to + 1440;
+    }
+    var isActive = function (r) { return r.on && closes(r) && schedule(r).some(function (w) { return winActive(w, NOW); }); };
+    var frozen = function (r) { return r.lock === 'sealed' && isActive(r); };
+    // When it opens again; times that follow on from each other count as one stretch
+    function endOf(r) {
+      if (!isActive(r) || isAlways(r)) return null;
+      var end = NOW;
+      for (var i = 0; i < 14; i++) {
+        var next = schedule(r).filter(function (w) { return winActive(w, end); })
+          .reduce(function (a, w) { return Math.max(a, winEnd(w, end)); }, 0);
+        if (next <= end) break;
+        end = next;
+      }
+      return end;
+    }
+    function moment(t) {
+      var gap = dayOf(t) - dayOf(NOW), c = clock(t);
+      if (gap === 0) return c;
+      if (gap === 1) return c === '00:00' ? 'midnight' : 'tomorrow ' + c;
+      return LONG[dayOf(t) % 7] + ' ' + c;
+    }
+    function at(t) {
+      var gap = dayOf(t) - dayOf(NOW), c = clock(t);
+      if (gap === 0) return 'at ' + c;
+      if (gap === 1) return 'tomorrow at ' + c;
+      return LONG[dayOf(t) % 7] + ' at ' + c;
+    }
+    var until = function (r) { var e = endOf(r); return e == null ? 'all day, every day' : 'until ' + moment(e); };
+    function nextStart(r) {
+      if (!r.on || !closes(r)) return null;
+      var best = null, today = NOW - NOW % 1440;
+      schedule(r).forEach(function (w) {
+        for (var off = 0; off <= 7; off++) {
+          var d0 = today + off * 1440;
+          if (!w.days[dayOf(d0) % 7]) continue;
+          var start = allDay(w) ? d0 : d0 + w.from;
+          if (start > NOW) { if (best == null || start < best) best = start; break; }
+        }
+      });
+      return best;
+    }
 
-    function activeNow(r) {
-      if (!r.on) return false;
-      if (r.allDay) return !!r.days[NOW.day];
-      if (r.to > r.from) return !!r.days[NOW.day] && NOW.min >= r.from && NOW.min < r.to;
-      var yesterday = (NOW.day + 6) % 7;
-      return (r.days[NOW.day] && NOW.min >= r.from) || (r.days[yesterday] && NOW.min < r.to);
+    // ---------- the panel's parts, found once ----------
+    var body = $('.rhythms-app_body');
+    var edit = $('.rhythms-app_edit');
+    var scroll = $('.rhythms-app_edit-scroll');
+    var nameEl = $('[data-app-name]');
+    var statusEl = $('[data-app-status]');
+    // Group what follows each section label (When, What closes, Lock), so a section can lock as one
+    var sec = {}, cur = null;
+    [].slice.call(scroll.children).forEach(function (el) {
+      if (el.classList.contains('rhythms-app_label')) {
+        var t = el.textContent.trim().toLowerCase();
+        var key = t.indexOf('when') === 0 ? 'when' : t.indexOf('what') === 0 ? 'what' : 'lock';
+        cur = make('div', 'rhythms-app_sec');
+        scroll.insertBefore(cur, el);
+        sec[key] = cur;
+        el.appendChild(make('span', 'rhythms-app_sec-lock', ICON.sealed));
+      }
+      if (cur) cur.appendChild(el);
+    });
+    // The lock banner, between the title and the sections
+    var banner = make('div', 'rhythms-app_banner',
+      '<div class="rhythms-app_banner-icon">' + ICON.sealed + '</div><div class="rhythms-app_banner-body">' +
+      '<div class="rhythms-app_banner-title"></div><div class="rhythms-app_banner-text"></div>' +
+      '<div class="rhythms-app_banner-actions"><div class="rhythms-app_add-time" data-banner="add" role="button">ADD ONLY</div>' +
+      '<div class="rhythms-app_save" data-banner="unlock" role="button">UNLOCK…</div></div></div>');
+    scroll.insertBefore(banner, sec.when);
+    // The panel's ✕
+    var closeBtn = make('div', 'rhythms-app_icon-btn rhythms-app_close', ICON.x);
+    closeBtn.setAttribute('role', 'button');
+    closeBtn.setAttribute('aria-label', 'Close');
+    edit.appendChild(closeBtn);
+
+    // When: the switch, then the times folded underneath it
+    var alldayRow = $('.rhythms-app_allday');
+    var alldayToggle = $('[data-app-allday]');
+    var chartEl = $('[data-app-chart]');
+    var winTpl = $('[data-app-when]');
+    var addTime = $('.rhythms-app_add-time', sec.when);
+    var fold = make('div', 'rhythms-app_fold');
+    sec.when.insertBefore(fold, chartEl);
+    var winsEl = make('div', 'rhythms-app_windows');
+    var addRow = make('div', 'rhythms-app_add-row');
+    var undoHint = make('div', 'rhythms-app_undo', '⌘+Z TO UNDO');
+    undoHint.setAttribute('role', 'button');
+    var alwaysHintRow = make('div', 'rhythms-app_add-row is-end');
+    fold.appendChild(chartEl);
+    fold.appendChild(winsEl);
+    fold.appendChild(addRow);
+    addRow.appendChild(addTime);
+    sec.when.appendChild(alwaysHintRow);
+    winTpl.parentNode && winTpl.parentNode.removeChild(winTpl);
+    winTpl.removeAttribute('data-app-when');
+    $$('[data-app-day]', winTpl).forEach(function (d) { d.classList.remove('is-on'); });
+    var segTpl = $('[data-app-template="seg"]');
+
+    // What closes: chips, search with results, the groups, adult sites
+    var chipsEl = $('[data-app-chips]');
+    var chipTpl = $('[data-app-template="chip"]');
+    var nameOf = function (el) { return $('.rhythms-app_chip-name', el) || $('span:not([data-app-remove])', el); };
+    var searchWrap = $('.rhythms-app_search');
+    var suggestEl = $('[data-app-suggest]');
+    if (suggestEl) suggestEl.style.display = 'none';
+    var resultsEl = make('div', 'rhythms-app_results');
+    searchWrap.parentNode.insertBefore(resultsEl, searchWrap.nextSibling);
+    var orEl = $('.rhythms-app_or');
+    var groupsEl = $('.rhythms-app_groups');
+    var shopping = $('[data-app-group="shopping"]');
+    if (shopping && !$('[data-app-group="chat"]')) {
+      var chatGroup = shopping.cloneNode(true);
+      chatGroup.setAttribute('data-app-group', 'chat');
+      chatGroup.innerHTML = ICON.chat + '<span>Chat</span>';
+      groupsEl.appendChild(chatGroup);
     }
-    function meta(r) {
-      var every = r.days.every(Boolean);
-      if (r.allDay && every) return '<b>ALL DAY, EVERY DAY</b>';
-      // Days that are on are dark, days that are off stay faint (like the app)
-      var letters = LETTERS.split('').map(function (l, i) { return r.days[i] ? '<b>' + l + '</b>' : l; }).join('');
-      return letters + '&nbsp;&nbsp;<b>' + (r.allDay ? 'All day' : hm(r.from) + ' – ' + hm(r.to)) + '</b>';
+    var adultBox = make('div', 'rhythms-app_adult',
+      '<div class="rhythms-app_check">' + ICON.check + '</div><div><div class="rhythms-app_adult-title">Block adult sites</div>' +
+      '<div class="rhythms-app_adult-sub"></div></div>');
+    adultBox.setAttribute('role', 'checkbox');
+    sec.what.appendChild(adultBox);
+
+    // Lock: the tiles, the line under them, the effort chips (Sealed asks about the hours around it), the tip
+    var effortsEl = $('[data-app-efforts]');
+    var effortEls = $$('[data-app-effort]');
+    var effortsLabel = make('div', 'rhythms-app_efforts-label', 'OUTSIDE ITS HOURS, TYPE TO UNLOCK?');
+    effortsEl.parentNode.insertBefore(effortsLabel, effortsEl);
+    var sealedTile = $('[data-app-lock="sealed"]');
+
+    // The list: a short "what it closes" on each card, shown while the panel is closed
+    var cardsEl = $('[data-app-cards]');
+    var cardTpl = $('[data-app-card]').cloneNode(true);
+    var cardFor = function (key) { return $('[data-app-card="' + key + '"]'); };
+    function addStack(card) {
+      if ($('.rhythms-app_card-stack', card)) return;
+      card.insertBefore(make('div', 'rhythms-app_card-stack'), $('[data-app-toggle]', card));
     }
-    function shake(el) {
-      if (!gs || reduce) return;
-      gs.fromTo(el, { x: 0 }, { x: 0, duration: 0.4, keyframes: { x: [-5, 5, -3, 3, 0] }, ease: 'power2.out' });
+    $$('[data-app-card]').forEach(addStack);
+
+    // The header: the moon is a sun at night, like the app; the second button is Settings (a gear)
+    var nightBtn = $('[data-app-night]');
+    var settingsBtn = $$('.rhythms-app_icon-btn', $('.rhythms-app_tools'))[1];
+    var moon = nightBtn ? nightBtn.innerHTML : '', sun = settingsBtn ? settingsBtn.innerHTML : '';
+    if (settingsBtn) { settingsBtn.innerHTML = ICON.gear; settingsBtn.setAttribute('aria-label', 'Settings'); }
+    function paintNight() { if (nightBtn && sun) nightBtn.innerHTML = document.documentElement.classList.contains('dfs-night') ? sun : moon; }
+    paintNight();
+    new MutationObserver(paintNight).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    if (nightBtn) nightBtn.addEventListener('click', function () {
+      var real = document.querySelector('.dfs-night-toggle');
+      if (real) real.click(); // same as the site's own switch, so the choice is remembered
+    });
+
+    // ---------- state ----------
+    var open = null;          // the rhythm in the panel: a key, 'new', or null when the panel is closed
+    var draft = null;         // what the panel edits
+    var addOnly = false;      // "Add only" was clicked, for this visit to the panel
+    var history = [];         // ⌘Z
+    var fresh = [];           // chips that should pop in
+    var newCount = 0;
+
+    var original = function () { return open && open !== 'new' ? saved[open] : null; };
+    function modes() {
+      var s = original();
+      var isFrozen = !!s && frozen(s);
+      var restricted = !!s && asksForText(s);
+      return { s: s, isNew: !s, isFrozen: isFrozen, restricted: restricted,
+        lockedView: isFrozen || (restricted && !addOnly) };
     }
-    var statusEl = $('[data-app-status]'), statusTimer;
-    function status(text, warn) {
-      statusEl.textContent = text;
-      statusEl.classList.toggle('is-warning', !!warn);
-      clearTimeout(statusTimer);
-      if (warn) statusTimer = setTimeout(function () { status(statusFor(R[current])); }, 2600);
+    // True if the change only makes the rhythm stricter (Rhythm.allowsWithoutUnlock)
+    function stricter(o, c) {
+      var same = function (a, b) { return a.from === b.from && a.to === b.to && a.days.join() === b.days.join(); };
+      return o.sites.every(function (n) { return c.sites.indexOf(n) > -1; }) &&
+        (isAlways(c) || (!isAlways(o) && o.windows.every(function (w) {
+          return c.windows.some(function (x) { return x.id === w.id && same(x, w); });
+        }))) &&
+        c.lock === o.lock && RANK.indexOf(c.effort) >= RANK.indexOf(o.effort) &&
+        (c.on || !o.on) && (c.adult || !o.adult);
     }
-    function statusFor(r) {
-      if (!r.on) return 'OFF';
-      return activeNow(r) ? 'ON · CLOSING THINGS RIGHT NOW' : 'ON · WAITING FOR ITS TIME';
+    function canSave(m) {
+      var valid = draft.name.trim() && closes(draft) &&
+        (draft.always || (draft.windows.length && draft.windows.every(function (w) { return w.days.some(Boolean); })));
+      return !m.lockedView && !!valid && (!m.restricted || stricter(m.s, draft));
     }
-    // The real app's rule: loosening a locked rhythm takes a typed text first
-    function refused(el, key) {
-      var r = R[key || current];
-      if (r.lock === 'none') return false;
-      shake(el);
-      status(r.lock === 'sealed' ? 'SEALED · THIS CAN’T BE LOOSENED NOW' : 'LOCKED · TYPE TO UNLOCK FIRST', true);
-      return true;
+    // Every change in the panel goes through here, so ⌘Z can step back
+    function change(fn) {
+      history.push(copy(draft));
+      fn();
+      paintEditor();
     }
 
     // ---------- the list ----------
-    var cardsEl = $('[data-app-cards]');
-    var cardTpl = $('[data-app-card]');
-    function cardFor(key) { return $('[data-app-card="' + key + '"]'); }
+    function meta(r) {
+      if (isAlways(r)) return '<i>ALL DAY, EVERY DAY</i>';
+      var w = r.windows[0];
+      return 'MTWTFSS'.split('').map(function (l, i) { return w.days[i] ? '<b>' + l + '</b>' : l; }).join('') +
+        '&nbsp;&nbsp;<i>' + (allDay(w) ? 'All day' : clock(w.from) + ' – ' + clock(w.to)) + '</i>';
+    }
+    function stack(r) {
+      var apps = r.sites.filter(function (n) { return DOMAIN[n] === ''; }).length, sites = r.sites.length - apps, parts = [];
+      if (sites) parts.push(sites + (sites === 1 ? ' site' : ' sites'));
+      if (apps) parts.push(apps + (apps === 1 ? ' app' : ' apps'));
+      if (r.adult) parts.push('adult sites');
+      return parts.join(' · ').toUpperCase();
+    }
     function paintCard(key) {
-      var r = R[key], card = cardFor(key);
+      var r = saved[key], card = cardFor(key);
       if (!card) return;
-      $('[data-app-meta]', card).innerHTML = meta(r);
+      var icon = $('.rhythms-app_card-icon', card);
+      if (icon.getAttribute('data-lock') !== r.lock) { icon.innerHTML = ICON[r.lock]; icon.setAttribute('data-lock', r.lock); }
+      icon.classList.toggle('is-open', r.lock === 'none');
+      icon.title = LOCK[r.lock].title;
       $('.rhythms-app_card-name', card).textContent = r.name;
+      $('[data-app-meta]', card).innerHTML = meta(r);
+      $('.rhythms-app_card-stack', card).textContent = stack(r);
+      var toggle = $('[data-app-toggle]', card);
+      toggle.classList.toggle('is-off', !r.on);
+      toggle.classList.toggle('is-frozen', frozen(r));
+      toggle.title = frozen(r) ? 'Fixed while this rhythm runs' : '';
       card.classList.toggle('is-off', !r.on);
-      $('[data-app-toggle]', card).classList.toggle('is-off', !r.on);
-      card.classList.toggle('is-selected', key === current);
+      card.classList.toggle('is-selected', key === open);
     }
     function paintMenu() {
       var items = document.querySelector('.rhythms-menu_items');
       if (!items) return;
-      var on = Object.keys(R).filter(function (k) { return activeNow(R[k]); });
+      var on = order.filter(function (k) { return isActive(saved[k]); });
       items.innerHTML = '';
-      on.forEach(function (k) {
-        var r = R[k], line = document.createElement('div');
-        line.className = 'rhythms-menu_item';
-        line.textContent = r.name + ' · ' + (r.allDay ? (r.days.every(Boolean) ? 'all day, every day' : 'all day') :
-          'until ' + (r.to < r.from ? 'tomorrow ' : '') + hm(r.to));
-        items.appendChild(line);
+      var line = function (text) { var el = make('div', 'rhythms-menu_item'); el.textContent = text; items.appendChild(el); };
+      on.forEach(function (k) { line(saved[k].name + ' · ' + until(saved[k])); });
+      if (on.length) return;
+      line('Everything is open');
+      var next = null;
+      order.forEach(function (k) {
+        var t = nextStart(saved[k]);
+        if (t != null && (!next || t < next.t)) next = { k: k, t: t };
       });
-      if (!on.length) {
-        var none = document.createElement('div');
-        none.className = 'rhythms-menu_item';
-        none.style.opacity = '.5';
-        none.textContent = 'Nothing is closed right now';
-        items.appendChild(none);
-      }
+      if (next) line('Up next: ' + saved[next.k].name + ' ' + at(next.t));
     }
-    function bindCard(card) {
-      var key = card.getAttribute('data-app-card');
-      card.addEventListener('click', function (e) {
-        if (e.target.closest('[data-app-toggle]')) {
-          var r = R[key];
-          if (r.on && refused(card, key)) { select(key); status(R[key].lock === 'sealed' ? 'SEALED \u00b7 THIS CAN\u2019T BE LOOSENED NOW' : 'LOCKED \u00b7 TYPE TO UNLOCK FIRST', true); return; }
-          r.on = !r.on;
-          select(key);
-          window.dispatchEvent(new Event('dfs-rhythms-change'));
-          return;
-        }
-        select(key);
-      });
+    function paintList() {
+      order.forEach(paintCard);
+      paintMenu();
     }
-    $$('[data-app-card]').forEach(bindCard);
 
-    // ---------- the editor ----------
-    var chipsEl = $('[data-app-chips]');
-    var chipTpl = $('[data-app-template="chip"]');
-    var segTpl = $('[data-app-template="seg"]');
-    var suggestEl = $('[data-app-suggest]');
-    var suggestTpl = $('[data-app-template="suggest"]');
-
-    // The name span: Webflow drops classes without styles, so fall back to "the span that isn't the ✕"
-    var nameEl = function (el) { return $('.rhythms-app_chip-name', el) || $('span:not([data-app-remove])', el); };
-    function chip(name, fresh) {
+    // ---------- the panel ----------
+    function chip(name, removable) {
       var c = chipTpl.cloneNode(true);
       c.removeAttribute('data-app-template');
       c.setAttribute('data-app-site', name);
-      nameEl(c).textContent = name;
-      var icon = $('.rhythms-app_chip-icon', c);
-      if (SITES[name]) icon.style.backgroundImage = 'url("' + SITES[name] + '")';
-      else { icon.textContent = '18+'; icon.style.fontSize = '6px'; icon.style.display = 'flex'; icon.style.alignItems = 'center'; icon.style.justifyContent = 'center'; }
-      if (fresh) c.classList.add('is-new');
+      nameOf(c).textContent = name;
+      setIcon($('.rhythms-app_chip-icon', c), name);
+      c.classList.toggle('is-fixed', !removable);
+      c.title = removable ? 'Remove ' + name : '';
+      if (fresh.indexOf(name) > -1) c.classList.add('is-new');
       return c;
     }
-    function paintChips(fresh) {
+    function setIcon(icon, name) {
+      if (ICONS[name]) { icon.style.backgroundImage = 'url("' + ICONS[name] + '")'; icon.textContent = ''; icon.classList.remove('is-letter'); }
+      else { icon.style.backgroundImage = 'none'; icon.textContent = name.charAt(0).toUpperCase(); icon.classList.add('is-letter'); }
+    }
+    var removable = function (m, name) { return !m.restricted || (addOnly && m.s.sites.indexOf(name) < 0); };
+    function paintChips(m) {
       $$('[data-app-site]', chipsEl).forEach(function (c) { c.remove(); });
-      R[current].sites.forEach(function (n) { chipsEl.appendChild(chip(n, fresh === n)); });
-      $$('[data-app-group]').forEach(function (g) {
-        var list = GROUPS[g.getAttribute('data-app-group')] || [];
-        g.classList.toggle('is-done', list.every(function (n) { return R[current].sites.indexOf(n) > -1; }));
-      });
+      draft.sites.forEach(function (n) { chipsEl.appendChild(chip(n, removable(m, n))); });
+      fresh = [];
     }
     function paintChart() {
-      var r = R[current];
-      $$('[data-app-track]').forEach(function (t) { $$('.rhythms-app_chart-seg', t).forEach(function (s) { if (!s.hasAttribute('data-app-template')) s.remove(); }); });
+      $$('[data-app-track]').forEach(function (t) {
+        $$('.rhythms-app_chart-seg', t).forEach(function (s) { if (!s.hasAttribute('data-app-template')) s.remove(); });
+      });
+      var trackW = ($('[data-app-track]') || {}).clientWidth || 0;
       function seg(day, a, b) {
         var t = $('[data-app-track="' + day + '"]');
         var s = segTpl.cloneNode(true);
         s.removeAttribute('data-app-template');
         s.style.left = (a / 1440 * 100) + '%';
         s.style.width = ((b - a) / 1440 * 100) + '%';
+        s.style.setProperty('--x', (a / 1440 * trackW) + 'px'); // so the blue flows as one layer across the week
         t.appendChild(s);
       }
-      r.days.forEach(function (on, d) {
-        if (!on) return;
-        if (r.allDay) return seg(d, 0, 1440);
-        if (r.to > r.from) return seg(d, r.from, r.to);
-        seg(d, r.from, 1440); seg((d + 1) % 7, 0, r.to);
-      });
-    }
-    function paintEditor() {
-      var r = R[current];
-      $('[data-app-name]').textContent = r.name;
-      status(statusFor(r));
-      $('[data-app-allday]').classList.toggle('is-off', !r.allDay);
-      $('[data-app-when]').classList.toggle('is-dim', r.allDay);
-      $$('[data-app-day]').forEach(function (d) { d.classList.toggle('is-on', !!r.days[+d.getAttribute('data-app-day')]); });
-      $('[data-app-from]').textContent = hm(r.from, ' : ');
-      $('[data-app-to]').textContent = hm(r.to, ' : ');
-      $$('[data-app-lock]').forEach(function (l) { l.classList.toggle('is-on', l.getAttribute('data-app-lock') === r.lock); });
-      $('[data-app-lock-note]').textContent = NOTES[r.lock];
-      $('[data-app-efforts]').classList.toggle('is-hidden', r.lock !== 'type');
-      $$('[data-app-effort]').forEach(function (e) { e.classList.toggle('is-on', e.getAttribute('data-app-effort') === r.effort); });
-      $('[data-app-tip]').textContent = r.lock === 'type' ? TIPS[r.effort] :
-        r.lock === 'sealed' ? 'Seal only what you’re sure about. A sealed rhythm can’t be undone until it ends.' :
-        'Start without a lock while you find your rhythm. Add one once it feels right.';
-      paintChart();
-      paintChips();
-    }
-    function paintAll() {
-      Object.keys(R).forEach(paintCard);
-      paintMenu();
-    }
-    function select(key) {
-      var changed = key !== current;
-      current = key;
-      paintAll();
-      paintEditor();
-      if (changed && gs && !reduce) {
-        gs.fromTo($('.rhythms-app_edit-scroll'), { autoAlpha: 0.2, y: 8 }, { autoAlpha: 1, y: 0, duration: 0.45, ease: 'expo.out' });
-        $('.rhythms-app_edit-scroll').scrollTop = 0;
-      }
-    }
-
-    // All day
-    $('[data-app-allday]').addEventListener('click', function (e) {
-      var r = R[current];
-      if (r.allDay && refused(e.currentTarget)) return; // narrowing the hours loosens it
-      r.allDay = !r.allDay;
-      paintEditor(); paintAll();
-    });
-    // Days
-    $$('[data-app-day]').forEach(function (d) {
-      d.addEventListener('click', function () {
-        var r = R[current], i = +d.getAttribute('data-app-day');
-        if (r.days[i] && refused(d)) return;
-        if (r.days[i] && r.days.filter(Boolean).length === 1) { shake(d); return; } // keep at least one day
-        r.days[i] = r.days[i] ? 0 : 1;
-        paintEditor(); paintAll();
-      });
-    });
-    // Remove a site
-    chipsEl.addEventListener('click', function (e) {
-      var x = e.target.closest('[data-app-remove]');
-      if (!x) return;
-      var c = x.closest('[data-app-site]'), name = c.getAttribute('data-app-site');
-      if (refused(c)) return;
-      R[current].sites = R[current].sites.filter(function (n) { return n !== name; });
-      c.classList.add('is-leaving');
-      setTimeout(function () { paintChips(); window.dispatchEvent(new Event('dfs-rhythms-change')); }, 200);
-    });
-    function add(name) {
-      var r = R[current];
-      if (!name || r.sites.indexOf(name) > -1) return;
-      r.sites.push(name);
-      paintChips(name);
-      window.dispatchEvent(new Event('dfs-rhythms-change'));
-    }
-    // Groups: adding is always free
-    $$('[data-app-group]').forEach(function (g) {
-      g.addEventListener('click', function () {
-        (GROUPS[g.getAttribute('data-app-group')] || []).forEach(function (n, i) {
-          setTimeout(function () { add(n); }, i * 90);
+      schedule(draft).forEach(function (w) {
+        w.days.forEach(function (on, d) {
+          if (!on) return;
+          if (allDay(w)) return seg(d, 0, 1440);
+          if (w.to > w.from) return seg(d, w.from, w.to);
+          seg(d, w.from, 1440);
+          seg((d + 1) % 7, 0, w.to);
         });
       });
+    }
+    function paintWindows(m) {
+      winsEl.innerHTML = '';
+      draft.windows.forEach(function (w) {
+        var box = winTpl.cloneNode(true);
+        box.setAttribute('data-win', w.id);
+        var fixed = m.restricted && !isAlways(m.s) && m.s.windows.some(function (o) { return o.id === w.id; });
+        box.classList.toggle('is-fixed', fixed);
+        $$('[data-app-day]', box).forEach(function (d) { d.classList.toggle('is-on', !!w.days[+d.getAttribute('data-app-day')]); });
+        $('[data-app-from]', box).textContent = clock(w.from).replace(':', ' : ');
+        $('[data-app-to]', box).textContent = clock(w.to).replace(':', ' : ');
+        var tag = allDay(w) ? 'ALL DAY' : w.to < w.from ? 'ENDS NEXT DAY' : '';
+        if (tag) $('.rhythms-app_times', box).appendChild(make('span', 'rhythms-app_tag', tag));
+        var days = $('.rhythms-app_days', box);
+        if (fixed) days.appendChild(make('span', 'rhythms-app_win-lock', ICON.sealed));
+        else if (draft.windows.length > 1) {
+          var x = make('span', 'rhythms-app_win-x', ICON.x);
+          x.setAttribute('data-win-remove', '');
+          x.setAttribute('role', 'button');
+          x.title = 'Remove this time';
+          days.appendChild(x);
+        }
+        winsEl.appendChild(box);
+      });
+    }
+    var foldOpen = null;
+    function paintFold(instant) {
+      var want = !draft.always;
+      if (foldOpen === want) return;
+      foldOpen = want;
+      if (instant || !gs || reduce) {
+        if (gs) gs.killTweensOf(fold);
+        fold.style.height = want ? '' : '0px';
+        fold.style.opacity = want ? '' : '0';
+        fold.style.visibility = want ? '' : 'hidden';
+        return;
+      }
+      if (want) gs.fromTo(fold, { height: 0, autoAlpha: 0 }, { height: 'auto', autoAlpha: 1, duration: 0.5, ease: 'power3.inOut', clearProps: 'height,opacity,visibility' });
+      else gs.to(fold, { height: 0, autoAlpha: 0, duration: 0.5, ease: 'power3.inOut' });
+    }
+    var query = '';
+    function paintResults(m) {
+      var q = query.trim().toLowerCase();
+      orEl.style.display = groupsEl.style.display = q ? 'none' : '';
+      resultsEl.innerHTML = '';
+      resultsEl.style.display = q ? '' : 'none';
+      if (!q) return;
+      var names = Object.keys(DOMAIN).filter(function (n) {
+        return n.toLowerCase().indexOf(q) > -1 || (DOMAIN[n] && DOMAIN[n].indexOf(q) > -1);
+      });
+      var custom = customDomain(q);
+      if (custom && !names.some(function (n) { return DOMAIN[n] === custom; })) names.unshift(custom);
+      names = names.slice(0, 8);
+      if (!names.length) {
+        resultsEl.classList.add('is-empty');
+        resultsEl.textContent = 'Nothing found. Type a web address, e.g. example.com';
+        return;
+      }
+      resultsEl.classList.remove('is-empty');
+      names.forEach(function (n) {
+        var has = draft.sites.indexOf(n) > -1;
+        var domain = DOMAIN[n] != null ? DOMAIN[n] : n;
+        var row = make('div', 'rhythms-app_result' + (has ? ' is-added' : ''),
+          '<div class="rhythms-app_chip-icon"></div><div class="rhythms-app_result-text"><div class="rhythms-app_result-name"></div>' +
+          '<div class="rhythms-app_result-sub"></div></div><div class="rhythms-app_result-mark">' + (has ? ICON.added : ICON.plus) + '</div>');
+        row.setAttribute('data-result', n);
+        $('.rhythms-app_result-name', row).textContent = n;
+        $('.rhythms-app_result-sub', row).textContent = domain ? domain + (MAC_APP[n] ? ' + app' : '') : 'App';
+        setIcon($('.rhythms-app_chip-icon', row), n);
+        resultsEl.appendChild(row);
+      });
+    }
+    function paintLock(m) {
+      $$('[data-app-lock]').forEach(function (l) { l.classList.toggle('is-on', l.getAttribute('data-app-lock') === draft.lock); });
+      sealedTile.classList.toggle('is-unavailable', !!draft.always);
+      sealedTile.title = draft.always ? 'Sealed needs hours to end. Pick times, or type to unlock.' : '';
+      $('[data-app-lock-note]').textContent = draft.lock === 'sealed' && draft.effort === 'none' ? LOCK.sealed.open : LOCK[draft.lock].note;
+      var list = LOCK[draft.lock].efforts;
+      effortsEl.classList.toggle('is-hidden', !list.length);
+      effortsLabel.style.display = draft.lock === 'sealed' ? '' : 'none';
+      effortEls.forEach(function (e, i) {
+        var key = list[i];
+        e.style.display = key ? '' : 'none';
+        if (!key) return;
+        e.setAttribute('data-app-effort', key);
+        e.children[0].textContent = EFFORT[key][0];
+        e.children[1].textContent = EFFORT[key][1];
+        e.classList.toggle('is-on', draft.effort === key);
+      });
+      $('[data-app-tip]').textContent = asksForText(draft) ? EFFORT[draft.effort][2] : LOCK[draft.lock].tip;
+    }
+    function paintEditor(instant) {
+      var m = modes();
+      if (nameEl.textContent !== draft.name) nameEl.textContent = draft.name;
+      nameEl.contentEditable = m.lockedView ? 'false' : 'true';
+      statusEl.textContent = m.isNew ? 'NEW RHYTHM' : '';
+      statusEl.classList.toggle('is-hidden', !m.isNew);
+
+      // The banner: Sealed while it runs, or behind Type to unlock
+      banner.style.display = m.isFrozen || m.restricted ? '' : 'none';
+      if (m.isFrozen) {
+        $('.rhythms-app_banner-title', banner).textContent = 'Sealed';
+        $('.rhythms-app_banner-text', banner).textContent = 'Nothing changes ' + until(m.s) + '.';
+      } else if (m.restricted) {
+        $('.rhythms-app_banner-title', banner).textContent = addOnly ? 'Add-only mode' : LOCK[m.s.lock].title;
+        $('.rhythms-app_banner-text', banner).textContent = addOnly
+          ? 'Add sites, apps and times. What’s here stays.' : 'Adding is free. Changing it means typing to unlock.';
+      }
+      $('.rhythms-app_banner-actions', banner).style.display = m.isFrozen ? 'none' : '';
+      $('[data-banner="add"]', banner).style.display = addOnly ? 'none' : '';
+      $('[data-banner="unlock"]', banner).className = addOnly ? 'rhythms-app_add-time' : 'rhythms-app_save';
+
+      sec.when.classList.toggle('is-locked', m.lockedView);
+      sec.what.classList.toggle('is-locked', m.lockedView);
+      sec.lock.classList.toggle('is-locked', m.restricted || m.isFrozen);
+
+      // When
+      alldayToggle.classList.toggle('is-off', !draft.always);
+      alldayRow.classList.toggle('is-disabled', m.restricted && (isAlways(m.s) || draft.lock === 'sealed'));
+      paintFold(instant);
+      paintChart();
+      paintWindows(m);
+      (draft.always ? alwaysHintRow : addRow).appendChild(undoHint);
+      undoHint.style.display = history.length ? '' : 'none';
+      alwaysHintRow.style.display = draft.always && history.length ? '' : 'none';
+
+      // What closes
+      paintChips(m);
+      paintResults(m);
+      var lockedAdult = draft.adult && m.restricted && m.s.adult;
+      adultBox.classList.toggle('is-on', !!draft.adult);
+      adultBox.classList.toggle('is-locked', !!lockedAdult);
+      adultBox.setAttribute('aria-checked', draft.adult ? 'true' : 'false');
+      $('.rhythms-app_adult-sub', adultBox).textContent = lockedAdult ? 'Unlock to switch this off.' : 'About 20,000 sites, kept out of sight.';
+
+      paintLock(m);
+
+      // Footer
+      var del = $('[data-app-delete]'), save = $('[data-app-save]');
+      del.style.visibility = m.isNew ? 'hidden' : '';
+      del.classList.toggle('is-disabled', m.lockedView || m.restricted);
+      save.textContent = m.isNew ? 'ADD RHYTHM' : 'SAVE';
+      save.classList.toggle('is-disabled', !canSave(m));
+    }
+
+    // ---------- opening and closing the panel ----------
+    function show(key) {
+      var fromClosed = open === null;
+      open = key;
+      draft = key === 'new'
+        ? { name: '', on: true, always: false, windows: blankTimes(), sites: [], adult: false, lock: 'none', effort: 'medium' }
+        : copy(saved[key]);
+      addOnly = false; history = []; query = ''; input.value = ''; fresh = [];
+      body.classList.remove('is-closed');
+      paintList();
+      foldOpen = null;
+      paintEditor(true);
+      scroll.scrollTop = 0;
+      if (gs && !reduce) {
+        if (fromClosed) gs.fromTo(edit, { autoAlpha: 0, x: 24 }, { autoAlpha: 1, x: 0, duration: 0.5, ease: 'expo.out', clearProps: 'transform,opacity,visibility' });
+        else gs.fromTo(scroll, { autoAlpha: 0.2, y: 8 }, { autoAlpha: 1, y: 0, duration: 0.45, ease: 'expo.out' });
+      }
+      if (key === 'new') setTimeout(function () { nameEl.focus(); }, 60);
+    }
+    function close() {
+      open = null; draft = null;
+      body.classList.add('is-closed');
+      paintList();
+      if (gs && !reduce) gs.from($$('[data-app-card]'), { autoAlpha: 0.6, duration: 0.4, ease: 'power2.out', stagger: 0.03 });
+    }
+
+    // ---------- the list: open a card, or switch it ----------
+    function bindCard(card) {
+      var key = card.getAttribute('data-app-card');
+      card.addEventListener('click', function (e) {
+        var toggle = e.target.closest('[data-app-toggle]');
+        if (!toggle) { if (open !== key) show(key); return; }
+        var r = saved[key];
+        if (frozen(r)) { shake(toggle); return; }
+        // Switching on is always free; switching off a Type to unlock rhythm costs the text
+        if (r.on && asksForText(r)) {
+          if (open !== key) show(key);
+          shake(toggle);
+          var unlockBtn = $('[data-banner="unlock"]', banner);
+          if (gs && !reduce) gs.fromTo(unlockBtn, { scale: 1 }, { scale: 1.08, duration: 0.18, yoyo: true, repeat: 1, ease: 'power2.out' });
+          return;
+        }
+        r.on = !r.on;
+        if (open === key && draft) draft.on = r.on;
+        paintList();
+        if (open) paintEditor();
+        changed();
+      });
+    }
+    $$('[data-app-card]').forEach(bindCard);
+
+    // ---------- the panel's controls ----------
+    closeBtn.addEventListener('click', close);
+    nameEl.setAttribute('data-placeholder', 'Give it a name');
+    nameEl.setAttribute('spellcheck', 'false');
+    nameEl.addEventListener('input', function () {
+      draft.name = nameEl.textContent.replace(/\n/g, '');
+      var m = modes();
+      $('[data-app-save]').classList.toggle('is-disabled', !canSave(m));
     });
-    // Search
+    nameEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); nameEl.blur(); } });
+    nameEl.addEventListener('paste', function (e) {
+      e.preventDefault();
+      var text = (e.clipboardData || window.clipboardData).getData('text').replace(/\s+/g, ' ');
+      document.execCommand('insertText', false, text);
+    });
+
+    banner.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-banner]');
+      if (!b) return;
+      if (b.getAttribute('data-banner') === 'add') { addOnly = true; paintEditor(); return; }
+      // Unlocking is the typing further down the page
+      var target = document.querySelector('[data-rhythms-unlock]');
+      if (!target) return;
+      if (window.lenis && window.lenis.scrollTo) window.lenis.scrollTo(target, { offset: -window.innerHeight * 0.18 });
+      else target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+
+    alldayRow.addEventListener('click', function () {
+      var m = modes();
+      if (m.lockedView || alldayRow.classList.contains('is-disabled')) { shake(alldayToggle); return; }
+      change(function () {
+        draft.always = !draft.always;
+        // A rhythm that never ends could never be opened again: Sealed becomes Type to unlock
+        if (draft.always && draft.lock === 'sealed') { draft.lock = 'type'; draft.effort = LOCK.type.effort; }
+      });
+    });
+    winsEl.addEventListener('click', function (e) {
+      var box = e.target.closest('[data-win]');
+      if (!box) return;
+      var w = draft.windows.filter(function (x) { return x.id === box.getAttribute('data-win'); })[0];
+      if (!w) return;
+      if (box.classList.contains('is-fixed')) { shake(box); return; }
+      if (e.target.closest('[data-win-remove]')) {
+        change(function () { draft.windows = draft.windows.filter(function (x) { return x !== w; }); });
+        return;
+      }
+      var day = e.target.closest('[data-app-day]');
+      if (day) change(function () { var i = +day.getAttribute('data-app-day'); w.days[i] = w.days[i] ? 0 : 1; });
+    });
+    addTime.addEventListener('click', function () {
+      change(function () { draft.windows.push(win(EVERY, H(22), H(7))); });
+    });
+    undoHint.addEventListener('click', function () {
+      if (!history.length) return;
+      draft = history.pop();
+      paintEditor();
+    });
+
+    // Chips: a removable chip is one button, like the app
+    chipsEl.addEventListener('click', function (e) {
+      var c = e.target.closest('[data-app-site]');
+      if (!c || c.classList.contains('is-fixed')) return;
+      var name = c.getAttribute('data-app-site');
+      c.classList.add('is-leaving');
+      setTimeout(function () { change(function () { draft.sites = draft.sites.filter(function (n) { return n !== name; }); }); }, 200);
+    });
+    function add(name) {
+      if (!draft || draft.sites.indexOf(name) > -1) return;
+      draft.sites.push(name);
+      fresh.push(name);
+      paintEditor();
+    }
+    $$('[data-app-group]').forEach(function (g) {
+      g.addEventListener('click', function () {
+        var list = (GROUPS[g.getAttribute('data-app-group')] || []).filter(function (n) { return draft.sites.indexOf(n) < 0; });
+        if (!list.length) return;
+        history.push(copy(draft));
+        var keep = open;
+        list.forEach(function (n, i) { setTimeout(function () { if (open === keep) add(n); }, i * 90); });
+      });
+    });
+    // Search: type "insta" and Instagram is there
     var slot = $('[data-app-search]');
     var input = document.createElement('input');
     input.className = 'rhythms-app_search-input';
     input.type = 'text';
-    input.placeholder = slot.getAttribute('data-placeholder') || 'Search';
+    input.placeholder = slot.getAttribute('data-placeholder') || 'Search a website or app, e.g. insta';
     input.setAttribute('aria-label', 'Search a website or app');
     input.autocomplete = 'off';
+    input.spellcheck = false;
     slot.appendChild(input);
-    var picks = [], active = 0;
-    function suggest() {
-      var q = input.value.trim().toLowerCase();
-      $$('.rhythms-app_suggest-item', suggestEl).forEach(function (s) { if (!s.hasAttribute('data-app-template')) s.remove(); });
-      picks = !q ? [] : Object.keys(SITES).filter(function (n) {
-        return n.toLowerCase().indexOf(q) > -1 && R[current].sites.indexOf(n) < 0;
-      }).slice(0, 4);
-      active = 0;
-      picks.forEach(function (n, i) {
-        var s = suggestTpl.cloneNode(true);
-        s.removeAttribute('data-app-template');
-        s.classList.toggle('is-active', i === 0);
-        nameEl(s).textContent = n;
-        if (SITES[n]) $('.rhythms-app_chip-icon', s).style.backgroundImage = 'url("' + SITES[n] + '")';
-        s.addEventListener('mousedown', function (e) { e.preventDefault(); add(n); input.value = ''; suggest(); });
-        suggestEl.appendChild(s);
-      });
-      suggestEl.classList.toggle('is-open', picks.length > 0);
-    }
-    input.addEventListener('input', suggest);
+    input.addEventListener('input', function () { query = input.value; paintResults(modes()); });
     input.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); if (picks[active]) { add(picks[active]); input.value = ''; suggest(); } }
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        active = (active + (e.key === 'ArrowDown' ? 1 : picks.length - 1)) % Math.max(1, picks.length);
-        $$('.rhythms-app_suggest-item:not([data-app-template])', suggestEl).forEach(function (s, i) { s.classList.toggle('is-active', i === active); });
-      }
-      if (e.key === 'Escape') { input.value = ''; suggest(); input.blur(); }
+      if (e.key === 'Escape') { input.value = ''; query = ''; paintResults(modes()); input.blur(); }
+      if (e.key === 'Enter') { var first = $('[data-result]', resultsEl); if (first) first.click(); }
     });
-    input.addEventListener('blur', function () { setTimeout(function () { suggestEl.classList.remove('is-open'); }, 150); });
-    // Lock + effort
-    var order = { none: 0, type: 1, sealed: 2 };
+    resultsEl.addEventListener('click', function (e) {
+      var row = e.target.closest('[data-result]');
+      if (!row) return;
+      var n = row.getAttribute('data-result'), m = modes();
+      if (DOMAIN[n] == null) DOMAIN[n] = n; // a web address of its own
+      if (draft.sites.indexOf(n) > -1) {
+        if (!removable(m, n)) { shake(row); return; }
+        change(function () { draft.sites = draft.sites.filter(function (x) { return x !== n; }); });
+      } else {
+        history.push(copy(draft));
+        add(n);
+      }
+    });
+    adultBox.addEventListener('click', function () {
+      if (adultBox.classList.contains('is-locked')) { shake(adultBox); return; }
+      change(function () { draft.adult = !draft.adult; });
+    });
     $$('[data-app-lock]').forEach(function (l) {
       l.addEventListener('click', function () {
-        var r = R[current], next = l.getAttribute('data-app-lock');
-        if (order[next] < order[r.lock] && refused(l)) return; // a weaker lock is loosening too
-        r.lock = next; paintEditor();
+        var next = l.getAttribute('data-app-lock');
+        if (l.classList.contains('is-unavailable')) { shake(l); return; }
+        if (next === draft.lock) return;
+        change(function () { draft.lock = next; draft.effort = LOCK[next].effort || 'medium'; });
       });
     });
-    $$('[data-app-effort]').forEach(function (e) {
-      e.addEventListener('click', function () { R[current].effort = e.getAttribute('data-app-effort'); paintEditor(); });
+    effortEls.forEach(function (e) {
+      e.addEventListener('click', function () {
+        var key = e.getAttribute('data-app-effort');
+        if (key !== draft.effort) change(function () { draft.effort = key; });
+      });
     });
-    // New rhythm (adding is free)
+
+    // New rhythm: an empty one with one time to shape; it joins the list when added
     $('[data-app-new]').addEventListener('click', function (e) {
-      if ($$('[data-app-card]').length >= 6) { shake(e.currentTarget); return; }
-      var key = 'new' + (++newCount);
-      R[key] = { name: newCount > 1 ? 'New rhythm ' + newCount : 'New rhythm', on: true, days: [1, 1, 1, 1, 1, 0, 0], allDay: false,
-        from: H(14), to: H(17), sites: [], lock: 'none', effort: 'easy' };
-      var card = cardTpl.cloneNode(true);
-      card.setAttribute('data-app-card', key);
-      cardsEl.appendChild(card);
-      bindCard(card);
-      select(key);
-      if (gs && !reduce) gs.from(card, { autoAlpha: 0, y: 10, duration: 0.5, ease: 'expo.out' });
+      if (order.length >= 6) { shake(e.currentTarget); return; }
+      show('new');
     });
-    // Delete
+    $('[data-app-save]').addEventListener('click', function (e) {
+      var m = modes();
+      if (!canSave(m)) { shake(e.currentTarget); return; }
+      var key = open;
+      if (m.isNew) {
+        key = 'new' + (++newCount);
+        var card = cardTpl.cloneNode(true);
+        card.setAttribute('data-app-card', key);
+        card.classList.remove('is-selected');
+        addStack(card);
+        cardsEl.appendChild(card);
+        bindCard(card);
+        order.push(key);
+      }
+      var kept = copy(draft);
+      if (kept.always) kept.windows = blankTimes();
+      saved[key] = kept;
+      close();
+      changed();
+      if (gs && !reduce) gs.fromTo(cardFor(key), { backgroundColor: 'rgba(2,151,219,0.08)' }, { backgroundColor: '', duration: 1.2, ease: 'power2.out', clearProps: 'backgroundColor' });
+    });
     $('[data-app-delete]').addEventListener('click', function (e) {
-      if (refused(e.currentTarget)) return;
-      var keys = Object.keys(R);
-      if (keys.length <= 1) { shake(e.currentTarget); return; }
-      var card = cardFor(current), gone = current;
-      delete R[gone];
-      var next = Object.keys(R)[0];
-      var finish = function () { card.remove(); select(next); window.dispatchEvent(new Event('dfs-rhythms-change')); };
-      if (gs && !reduce) gs.to(card, { autoAlpha: 0, height: 0, paddingTop: 0, paddingBottom: 0, marginTop: -9, duration: 0.35, ease: 'power2.in', onComplete: finish });
-      else finish();
+      var m = modes();
+      if (m.isNew || e.currentTarget.classList.contains('is-disabled')) return;
+      var key = open, card = cardFor(key);
+      delete saved[key];
+      order = order.filter(function (k) { return k !== key; });
+      close();
+      changed();
+      var gone = function () { card.remove(); };
+      if (gs && !reduce) gs.to(card, { autoAlpha: 0, height: 0, paddingTop: 0, paddingBottom: 0, marginTop: -9, duration: 0.35, ease: 'power2.in', onComplete: gone });
+      else gone();
     });
-    // Save: just a nod
-    var saved = $('[data-app-saved]');
-    $('[data-app-save]').addEventListener('click', function () {
-      saved.classList.add('is-shown');
-      setTimeout(function () { saved.classList.remove('is-shown'); }, 1600);
-    });
-    // The moon button switches the site's night mode
-    var nightBtn = $('[data-app-night]');
-    if (nightBtn) nightBtn.addEventListener('click', function () {
-      var real = document.querySelector('.dfs-night-toggle');
-      if (real) real.click(); // same as the site's own switch, so the choice is remembered
-    });
+
+    // The week's blue flows slowly, like the app's LivingBlue (one layer across all the bars)
+    if (gs && !reduce) {
+      var flow = { v: 0 }, flowing = null;
+      var startFlow = function () {
+        var w = ($('[data-app-track]') || {}).clientWidth || 0;
+        if (!w || flowing) return;
+        chartEl.style.setProperty('--strip', (w * 2) + 'px');
+        flowing = gs.to(flow, { v: -w, duration: 9, ease: 'none', repeat: -1,
+          onUpdate: function () { chartEl.style.setProperty('--flow', flow.v + 'px'); } });
+      };
+      if ('IntersectionObserver' in window) new IntersectionObserver(function (entries) {
+        if (entries[0].isIntersecting) { startFlow(); if (flowing) flowing.play(); }
+        else if (flowing) flowing.pause();
+      }).observe(app);
+      else startFlow();
+    }
 
     window.dfsRhythms = {
       sitesOf: function (name) {
-        var k = Object.keys(R).filter(function (k) { return R[k].name === name; })[0];
-        return k && R[k].on ? R[k].sites.slice() : [];
+        var k = order.filter(function (k) { return saved[k].name === name; })[0];
+        return k && saved[k].on ? saved[k].sites.slice() : [];
       }
     };
-    paintAll();
-    paintEditor();
+    // Opens on Slow Sundays: no lock, so everything can be tried straight away
+    show(saved.sundays ? 'sundays' : order[0]);
   }
 
   // =========================================================

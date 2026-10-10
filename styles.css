@@ -621,10 +621,6 @@ input:-webkit-autofill:focus {
 .rhythms-app_card,.rhythms-app_icon-btn,.rhythms-app_new,.rhythms-app_day,.rhythms-app_group,.rhythms-app_add-time,.rhythms-app_save,.rhythms-app_chip,.rhythms-app_suggest-item{transition:background-color .2s,border-color .2s,color .2s,opacity .2s,transform .2s,box-shadow .2s}
 .rhythms-app_card:hover{border-color:var(--brand-colors--ll-gray);transform:translateY(-1px)}
 .rhythms-app_card.is-selected{border-color:var(--brand-colors--blue);box-shadow:0 0 0 1px var(--brand-colors--blue)}
-.rhythms-app_card.is-off .rhythms-app_card-icon{background-color:transparent;color:var(--brand-colors--ll-gray);box-shadow:inset 0 0 0 1px var(--brand-colors--dark-bage)}
-.rhythms-app_card.is-off .rhythms-app_card-name,.rhythms-app_card.is-off .rhythms-app_card-meta{opacity:.5}
-.rhythms-app_card-meta{color:var(--brand-colors--dark-bage)}
-.rhythms-app_card-meta b{font-weight:400;color:var(--brand-colors--light-gray)}
 .rhythms-app_toggle{transition:background-color .25s}
 .rhythms-app_toggle-knob{transition:left .25s cubic-bezier(.3,.7,.2,1)}
 .rhythms-app_toggle.is-off{background-color:var(--brand-colors--dark-bage)}
@@ -634,17 +630,95 @@ input:-webkit-autofill:focus {
 .rhythms-app_day.is-on{background-color:var(--brand-colors--blue);border-color:var(--brand-colors--blue);color:var(--brand-colors--light-bage)}
 .rhythms-app_chart-seg{transition:left .35s ease,width .35s ease}
 .rhythms-app_box.is-dim{opacity:.4;pointer-events:none}
-.rhythms-app_chip-x:hover{color:var(--ux--red,#ea5337)}
 .rhythms-app_chip.is-leaving{opacity:0;transform:scale(.85)}
 .rhythms-app_chip.is-new{animation:rhythms-app-pop .35s cubic-bezier(.3,1.4,.5,1)}
 @keyframes rhythms-app-pop{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
-.rhythms-app_group.is-done{border-color:var(--brand-colors--blue);color:var(--brand-colors--blue)}
 .rhythms-app_suggest.is-open{display:block}
 .rhythms-app_suggest-item:hover,.rhythms-app_suggest-item.is-active{background-color:var(--brand-colors--bage)}
 .rhythms-app_search-field:focus-within{border-color:var(--brand-colors--blue)}
 .rhythms-app_saved.is-shown{opacity:1}
 .rhythms-app_edit-scroll{scrollbar-width:thin}
 .rhythms-app [data-app-template]{display:none}
+/* Rhythms app demo, true to the Mac app (RhythmsView / RhythmEditor) */
+.rhythms-app_card-icon.is-open{background-color:var(--brand-colors--light-bage);color:var(--brand-colors--ll-gray);box-shadow:inset 0 0 0 1px var(--brand-colors--dark-bage)}
+.rhythms-app_card-meta{color:rgba(111,110,107,.35)}
+.rhythms-app_card-meta b{font-weight:400;color:var(--brand-colors--dark_gray)}
+.rhythms-app_card-meta i{font-style:normal;color:var(--brand-colors--light-gray)}
+.rhythms-app_card-stack{display:none;flex:none;margin-right:2px;font-size:8.5px;letter-spacing:.6px;color:var(--brand-colors--light-gray);white-space:nowrap}
+.rhythms-app_body.is-closed .rhythms-app_card-stack{display:block}
+.rhythms-app_body.is-closed .rhythms-app_edit{display:none}
+.rhythms-app_body.is-closed .rhythms-app_list{flex:1 1 auto;width:auto}
+.rhythms-app_toggle.is-frozen{opacity:.45;cursor:not-allowed}
+.rhythms-app_edit{position:relative}
+.rhythms-app_close{position:absolute;top:26px;right:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2}
+.rhythms-app_edit-name{margin-right:36px;outline:0;min-height:1em;cursor:text}
+.rhythms-app_edit-name[contenteditable="false"]{cursor:default}
+.rhythms-app_edit-name:empty::before{content:attr(data-placeholder);color:var(--brand-colors--ll-gray)}
+.rhythms-app_edit-status.is-hidden{display:none}
+.rhythms-app_banner{display:flex;align-items:flex-start;gap:11px;margin-top:20px;padding:13px;border:1px solid var(--brand-colors--dark-bage);border-radius:4px;background-color:var(--brand-colors--light-bage)}
+.rhythms-app_banner-icon{flex:none;display:flex;align-items:center;justify-content:center;width:29px;height:29px;border-radius:3px;background-color:var(--brand-colors--blue);color:var(--brand-colors--light-bage)}
+.rhythms-app_banner-icon svg{width:13px;height:13px}
+.rhythms-app_banner-title{font-size:10.5px;color:var(--brand-colors--dark_gray)}
+.rhythms-app_banner-text{margin-top:6px;font-size:9.5px;line-height:1.45;color:var(--brand-colors--light-gray)}
+.rhythms-app_banner-actions{display:flex;gap:6px;margin-top:10px}
+.rhythms-app_banner-actions > div{cursor:pointer;margin:0}
+.rhythms-app_sec-lock{display:none;color:var(--brand-colors--light-gray)}
+.rhythms-app_sec-lock svg{display:block;width:9px;height:9px}
+.rhythms-app_sec.is-locked .rhythms-app_label{color:var(--brand-colors--light-gray)}
+.rhythms-app_sec.is-locked .rhythms-app_label > svg{display:none}
+.rhythms-app_sec.is-locked .rhythms-app_sec-lock{display:inline-flex}
+.rhythms-app_sec.is-locked > :not(.rhythms-app_label){opacity:.45;pointer-events:none}
+.rhythms-app_fold{overflow:hidden}
+.rhythms-app_allday{cursor:pointer}
+.rhythms-app_allday.is-disabled{cursor:not-allowed}
+.rhythms-app_allday.is-disabled .rhythms-app_toggle{opacity:.45}
+.rhythms-app_day{cursor:pointer}
+.rhythms-app_days{align-items:center}
+.rhythms-app_box.is-fixed{opacity:.55}
+.rhythms-app_box.is-fixed .rhythms-app_day{cursor:not-allowed}
+.rhythms-app_win-x,.rhythms-app_win-lock{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;margin-left:auto;color:var(--brand-colors--ll-gray)}
+.rhythms-app_win-x{cursor:pointer;transition:color .2s}
+.rhythms-app_win-x:hover{color:var(--brand-colors--dark_gray)}
+.rhythms-app_win-x svg{width:9px;height:9px}
+.rhythms-app_win-lock{color:var(--brand-colors--blue)}
+.rhythms-app_win-lock svg{width:10px;height:10px}
+.rhythms-app_times{align-items:center}
+.rhythms-app_tag{display:inline-block;margin-left:4px;padding:2px 6px;border-radius:2px;font-size:8px;line-height:1.3;letter-spacing:.8px;color:var(--brand-colors--blue);background-color:var(--brand-colors--light-bleu)}
+.rhythms-app_add-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px}
+.rhythms-app_add-row.is-end{justify-content:flex-end;margin-top:8px}
+.rhythms-app_add-row .rhythms-app_add-time{margin-top:0;cursor:pointer}
+.rhythms-app_undo{display:inline-flex;align-items:center;height:27px;padding:0 12px;border:1px solid transparent;border-radius:4px;font-size:9px;letter-spacing:.6px;color:#b6863c;background-color:#f6ebdc;cursor:pointer;transition:border-color .3s}
+.rhythms-app_undo:hover{border-color:rgba(182,134,60,.45)}
+.rhythms-app_chart-seg{background-image:linear-gradient(90deg,#0297db,#3fc3ff,#0297db,#3fc3ff,#0297db);background-size:var(--strip,600px) 100%;background-repeat:repeat-x;background-position:calc(var(--flow,0px) - var(--x,0px)) 0}
+.rhythms-app_chip{cursor:pointer}
+.rhythms-app_chip.is-fixed{cursor:default}
+.rhythms-app_chip.is-fixed .rhythms-app_chip-x{display:none}
+.rhythms-app_chip-x{display:inline-block;transition:color .35s,transform .35s}
+.rhythms-app_chip:not(.is-fixed):hover{border-color:rgba(181,80,63,.5);color:#b5503f;background-color:#f6e2df}
+.rhythms-app_chip:not(.is-fixed):hover .rhythms-app_chip-x{color:#b5503f;transform:scale(1.25)}
+.rhythms-app_chip-icon.is-letter{display:flex;align-items:center;justify-content:center;color:#1a97d7;background-color:#edf5f9;font:600 8px/1 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
+.rhythms-app_results{margin-top:10px;padding:4px;border:1px solid var(--brand-colors--dark-bage);border-radius:4px;background-color:var(--brand-colors--light-bage)}
+.rhythms-app_results.is-empty{padding:0;border:0;background:none;font-size:9.5px;color:var(--brand-colors--light-gray)}
+.rhythms-app_result{display:flex;align-items:center;gap:10px;padding:5px 8px;border-radius:3px;cursor:pointer;transition:background-color .2s}
+.rhythms-app_result:hover{background-color:#edf5f9}
+.rhythms-app_result .rhythms-app_chip-icon{flex:none;width:20px;height:20px;border-radius:5px;background-size:cover;background-position:center}
+.rhythms-app_result-text{flex:1;min-width:0}
+.rhythms-app_result-name{font-size:10px;color:var(--brand-colors--dark_gray)}
+.rhythms-app_result-sub{margin-top:1px;font-size:8.5px;color:var(--brand-colors--light-gray)}
+.rhythms-app_result-mark{flex:none;display:flex;color:var(--brand-colors--ll-gray)}
+.rhythms-app_result.is-added .rhythms-app_result-mark{color:var(--brand-colors--blue)}
+.rhythms-app_adult{display:flex;align-items:flex-start;gap:10px;margin-top:14px;cursor:pointer}
+.rhythms-app_check{flex:none;display:flex;align-items:center;justify-content:center;width:15px;height:15px;margin-top:1px;border-radius:3px;color:#fff;background-color:var(--brand-colors--light-bage);box-shadow:inset 0 0 0 1px var(--brand-colors--dark-bage);transition:background-color .25s,box-shadow .25s}
+.rhythms-app_check svg{opacity:0;transform:scale(.5);transition:opacity .25s,transform .25s}
+.rhythms-app_adult:hover .rhythms-app_check{box-shadow:inset 0 0 0 1px rgba(26,151,215,.6)}
+.rhythms-app_adult.is-on .rhythms-app_check{background-color:var(--brand-colors--blue);box-shadow:none}
+.rhythms-app_adult.is-on .rhythms-app_check svg{opacity:1;transform:none}
+.rhythms-app_adult.is-locked{cursor:not-allowed}
+.rhythms-app_adult-title{font-size:10.5px;color:var(--brand-colors--dark_gray)}
+.rhythms-app_adult-sub{margin-top:3px;font-size:9.5px;color:var(--brand-colors--light-gray)}
+.rhythms-app_lock.is-unavailable{opacity:.4;cursor:not-allowed}
+.rhythms-app_efforts-label{margin:2px 0 7px;font-size:8px;letter-spacing:.8px;color:var(--brand-colors--light-gray)}
+.rhythms-app_save.is-disabled,.rhythms-app_delete.is-disabled{opacity:.4;pointer-events:none}
 .rhythms-window_image.is-replaced{display:none}
 
 .rhythms-app_lock,.rhythms-app_effort,.rhythms-app_delete{transition:background-color .2s,border-color .2s,color .2s,box-shadow .2s,opacity .2s}

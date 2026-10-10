@@ -357,10 +357,10 @@ margin: 0rem !important;
   animation-direction: reverse;
 }
 
-  /* Vertical fade: soft at the top, and gone by the last 1.25rem so it fades into a label below */
+  /* Vertical fade: the top and bottom quarter of the column fade out */
 [data-marquee-fade="v"] {
-  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 3rem, #000 calc(100% - 4.5rem), transparent calc(100% - 1.5rem));
-  mask-image: linear-gradient(180deg, transparent 0, #000 3rem, #000 calc(100% - 4.5rem), transparent calc(100% - 1.5rem));
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 25%, #000 75%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0, #000 25%, #000 75%, transparent 100%);
 }
   
 

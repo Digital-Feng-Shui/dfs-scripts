@@ -218,7 +218,7 @@ html.dfs-night .coming_soon .text-color-white { color: var(--brand-colors--80-da
 /* Pages without a nav: a small square button in the bottom-left corner, above the page
    (but under the onboarding/feedback overlays). */
 .dfs-night-toggle.is-floating {
-  position: fixed; left: 1rem; bottom: 1rem; z-index: 9000;
+  position: fixed; right: 1rem; top: 1rem; z-index: 9000;
   width: 2.75rem; height: 2.75rem;
   border: 1px solid var(--brand-colors--dark-bage); border-radius: .25rem;
   background-color: var(--brand-colors--bage);

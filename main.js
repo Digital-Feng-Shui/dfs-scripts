@@ -4331,6 +4331,34 @@
   }
 
   // =========================================================
+  // GREETING — "Hi Rim 👋" when we know the member's first name, otherwise just "Hi 👋".
+  // Put data-greet-name on the name span. styles.css hides it until a name is found,
+  // so a placeholder like {firstName} never shows.
+  // =========================================================
+  function dfsGreeting() {
+    var els = document.querySelectorAll('[data-greet-name]');
+    var tries = 0;
+    function show(name) {
+      els.forEach(function (el) {
+        if (!name) return;
+        el.textContent = name;
+        el.classList.add('is-known');
+      });
+    }
+    (function check() {
+      var ms = window.$memberstackDom;
+      if (ms && ms.getCurrentMember) {
+        ms.getCurrentMember().then(function (res) {
+          var f = res && res.data && res.data.customFields;
+          show(f && f['first-name'] ? String(f['first-name']).trim() : '');
+        }).catch(function () {});
+        return;
+      }
+      if (++tries < 20) setTimeout(check, 250); // Memberstack loads with defer
+    })();
+  }
+
+  // =========================================================
   // GRID ZIPS — now and then a thin blue line glides down a grid background
   // (same effect as the Rhythms page hero, which has its own copy).
   // Put data-grid-zips on a .grid-background. Give it a selector, e.g.
@@ -4546,6 +4574,7 @@
     if (document.querySelector('[data-float]')) dfsFloat();
     if (document.querySelector('.oneshot-compare_bar')) dfsTimeBars();
     if (document.querySelector('[data-grid-zips]')) dfsGridZips();
+    if (document.querySelector('[data-greet-name]')) dfsGreeting();
     if (path === '/' || path === '/course' || path === '/test-zone') dfsHome();
   });
 

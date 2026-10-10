@@ -576,3 +576,6 @@ input:-webkit-autofill:focus {
   -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 34%, #000 35%, transparent 100%);
   mask-image: radial-gradient(ellipse 70% 60% at 50% 34%, #000 35%, transparent 100%);
 }
+
+/* Greeting (main.js dfsGreeting): the name only shows once we know it */
+.w-mod-js [data-greet-name]:not(.is-known) { display: none; }

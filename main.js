@@ -1203,6 +1203,19 @@
     }
     initCSSMarquee();
 
+    // Hero members row: the avatars in view tumble in once (like the InnerGym hero),
+    // then the marquee keeps carrying them left. Add data-marquee-intro to the marquee.
+    qa('[data-marquee-intro]').forEach(marquee => {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const right = marquee.getBoundingClientRect().right;
+      const inView = [...qa('[data-css-marquee-list] > *', marquee)]
+        .filter(el => el.getBoundingClientRect().left < right);
+      gsap.from(inView, {
+        opacity: 0, yPercent: 40, xPercent: 30, rotate: 30,
+        duration: 0.9, ease: 'expo.out', stagger: 0.1, delay: 0.5
+      });
+    });
+
     // --- globe --------------------------------------------------------
     function initAcceleratingGlobe() {
       qa('[data-accelerating-globe]').forEach(function (globe) {

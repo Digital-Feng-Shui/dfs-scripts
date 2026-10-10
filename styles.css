@@ -334,6 +334,12 @@ margin: 0rem !important;
 [data-css-marquee-direction="right"] [data-css-marquee-list] {
   animation-direction: reverse;
 }
+
+  /* Fade a marquee out at its left and right edges (add data-marquee-fade) */
+[data-marquee-fade] {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 18%, #000 82%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 18%, #000 82%, transparent 100%);
+}
   
 
 /* Other */

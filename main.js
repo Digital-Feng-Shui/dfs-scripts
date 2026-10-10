@@ -4921,6 +4921,39 @@
     });
   }
 
+  // Star rating ([data-stars] on a row of star icons; value = delay in seconds, default 0.9):
+  // the stars pop in one by one, and give a little wave when you hover the row.
+  function dfsStars() {
+    if (typeof gsap === 'undefined') return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    document.querySelectorAll('[data-stars]').forEach(function (row) {
+      var stars = Array.prototype.slice.call(row.children);
+      gsap.from(stars, {
+        scale: 0,
+        rotation: -45,
+        opacity: 0,
+        duration: 0.6,
+        ease: 'back.out(3)',
+        stagger: 0.08,
+        delay: parseFloat(row.getAttribute('data-stars')) || 0.9
+      });
+      var waving = false;
+      row.addEventListener('mouseenter', function () {
+        if (waving) return;
+        waving = true;
+        gsap.to(stars, {
+          y: -4,
+          duration: 0.18,
+          ease: 'power2.out',
+          stagger: 0.05,
+          yoyo: true,
+          repeat: 1,
+          onComplete: function () { waving = false; }
+        });
+      });
+    });
+  }
+
   // =========================================================
   // Run
   // Page sections run straight away, like the old Slater page scripts did.
@@ -4963,6 +4996,7 @@
     if (document.querySelector('.oneshot-race')) dfsRaceBars();
     if (document.querySelector('[data-pixel-reveal]')) dfsPixelReveal();
     if (document.querySelector('[data-float]')) dfsFloat();
+    if (document.querySelector('[data-stars]')) dfsStars();
     if (document.querySelector('.oneshot-compare_bar')) dfsTimeBars();
     if (document.querySelector('[data-grid-zips]')) dfsGridZips();
     if (document.querySelector('[data-greet-name]')) dfsGreeting();

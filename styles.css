@@ -579,3 +579,47 @@ input:-webkit-autofill:focus {
 
 /* Greeting (main.js dfsGreeting): the name only shows once we know it */
 .w-mod-js [data-greet-name]:not(.is-known) { display: none; }
+
+/* Rhythms app demo (main.js dfsRhythmsApp): states and hovers */
+.rhythms-app_card,.rhythms-app_icon-btn,.rhythms-app_new,.rhythms-app_day,.rhythms-app_group,.rhythms-app_add-time,.rhythms-app_save,.rhythms-app_chip,.rhythms-app_suggest-item{transition:background-color .2s,border-color .2s,color .2s,opacity .2s,transform .2s,box-shadow .2s}
+.rhythms-app_card:hover{border-color:var(--brand-colors--ll-gray);transform:translateY(-1px)}
+.rhythms-app_card.is-selected{border-color:var(--brand-colors--blue);box-shadow:0 0 0 1px var(--brand-colors--blue)}
+.rhythms-app_card.is-off .rhythms-app_card-icon{background-color:transparent;color:var(--brand-colors--ll-gray);box-shadow:inset 0 0 0 1px var(--brand-colors--dark-bage)}
+.rhythms-app_card.is-off .rhythms-app_card-name,.rhythms-app_card.is-off .rhythms-app_card-meta{opacity:.5}
+.rhythms-app_card-meta b{font-weight:400;color:var(--brand-colors--dark_gray)}
+.rhythms-app_toggle{transition:background-color .25s}
+.rhythms-app_toggle-knob{transition:left .25s cubic-bezier(.3,.7,.2,1)}
+.rhythms-app_toggle.is-off{background-color:var(--brand-colors--dark-bage)}
+.rhythms-app_toggle.is-off .rhythms-app_toggle-knob{left:3px}
+.rhythms-app_icon-btn:hover,.rhythms-app_day:hover,.rhythms-app_group:hover,.rhythms-app_add-time:hover{border-color:var(--brand-colors--ll-gray)}
+.rhythms-app_new:hover,.rhythms-app_save:hover{background-color:var(--brand-colors--blue)}
+.rhythms-app_day.is-on{background-color:var(--brand-colors--blue);border-color:var(--brand-colors--blue);color:var(--brand-colors--light-bage)}
+.rhythms-app_chart-seg{transition:left .35s ease,width .35s ease}
+.rhythms-app_box.is-dim{opacity:.4;pointer-events:none}
+.rhythms-app_chip-x:hover{color:var(--ux--red,#ea5337)}
+.rhythms-app_chip.is-leaving{opacity:0;transform:scale(.85)}
+.rhythms-app_chip.is-new{animation:rhythms-app-pop .35s cubic-bezier(.3,1.4,.5,1)}
+@keyframes rhythms-app-pop{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
+.rhythms-app_group.is-done{border-color:var(--brand-colors--blue);color:var(--brand-colors--blue)}
+.rhythms-app_suggest.is-open{display:block}
+.rhythms-app_suggest-item:hover,.rhythms-app_suggest-item.is-active{background-color:var(--brand-colors--bage)}
+.rhythms-app_search-field:focus-within{border-color:var(--brand-colors--blue)}
+.rhythms-app_saved.is-shown{opacity:1}
+.rhythms-app_edit-scroll{scrollbar-width:thin}
+.rhythms-app [data-app-template]{display:none}
+.rhythms-window_image.is-replaced{display:none}
+
+.rhythms-app_lock,.rhythms-app_effort,.rhythms-app_delete{transition:background-color .2s,border-color .2s,color .2s,box-shadow .2s,opacity .2s}
+.rhythms-app_lock:hover,.rhythms-app_effort:hover{border-color:var(--brand-colors--ll-gray)}
+.rhythms-app_lock.is-on{border-color:var(--brand-colors--blue);box-shadow:0 0 0 1px var(--brand-colors--blue)}
+.rhythms-app_lock.is-on .rhythms-app_lock-icon{background-color:var(--brand-colors--blue);color:var(--brand-colors--light-bage)}
+.rhythms-app_effort.is-on{background-color:var(--brand-colors--blue);border-color:var(--brand-colors--blue);color:var(--brand-colors--light-bage)}
+.rhythms-app_effort.is-on .rhythms-app_effort-time{color:inherit;opacity:.8}
+.rhythms-app_efforts.is-hidden{display:none}
+.rhythms-app_delete:hover{color:var(--ux--red,#ea5337)}
+.rhythms-app_edit-status.is-warning{color:var(--ux--red,#ea5337)}
+.rhythms-app_search-input{width:100%;border:0;outline:0;background:transparent;font:inherit;font-size:9.5px;color:var(--brand-colors--dark_gray);padding:0;margin:0}
+.rhythms-app_search-input::placeholder{color:var(--brand-colors--ll-gray)}
+
+/* Rhythms page: a typing caret while the unlock text and the tip retype (page script) */
+[data-rhythms-unlock-target].is-typing::after,[data-rhythms-tip].is-typing::after{content:'';display:inline-block;width:.55ch;height:1.05em;margin-left:1px;vertical-align:-.15em;background-color:var(--brand-colors--blue)}

@@ -4331,6 +4331,381 @@
   }
 
   // =========================================================
+  // RHYTHMS APP DEMO — /rythems-app hero
+  // The app window is real HTML in Webflow ([data-rhythms-app]); this makes it play:
+  // pick a rhythm, switch it on/off, change days, remove or add what closes,
+  // pick a lock. Locked rhythms behave like the real app: removing or switching
+  // off is refused ("type to unlock first"), adding stays free.
+  // The list of sites + icons comes from the marquee chips further down the page.
+  // Exposes window.dfsRhythms.sitesOf(name) for the "Closed by …" toast.
+  // =========================================================
+  function dfsRhythmsApp() {
+    var app = document.querySelector('[data-rhythms-app]');
+    if (!app) return;
+    var $ = function (s, el) { return (el || app).querySelector(s); };
+    var $$ = function (s, el) { return [].slice.call((el || app).querySelectorAll(s)); };
+    var gs = window.gsap;
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var W = 928;
+
+    // Scale the 928px-wide window to whatever width it gets
+    var frame = app.parentNode;
+    function fit() { app.style.transform = 'scale(' + (frame.clientWidth / W) + ')'; }
+    fit();
+    if ('ResizeObserver' in window) new ResizeObserver(fit).observe(frame);
+    var shot = document.querySelector('.rhythms-window_image');
+    if (shot) shot.classList.add('is-replaced');
+
+    // Sites and icons, from the marquee
+    var SITES = {};
+    var firstList = document.querySelector('.rhythms-marquee_list');
+    $$('.rhythms-chip', firstList || document).forEach(function (chip) {
+      var name = (chip.querySelector('.rhythms-chip_name') || {}).textContent;
+      var img = chip.querySelector('img');
+      if (name) SITES[name.trim()] = img ? img.getAttribute('src') : '';
+    });
+    var GROUPS = {
+      social: ['Instagram', 'TikTok', 'Facebook', 'X (Twitter)', 'Reddit'],
+      video: ['YouTube', 'Netflix', 'TikTok', 'Twitch'],
+      news: ['CNN', 'The New York Times', 'Reddit'],
+      shopping: ['Amazon', 'Temu']
+    };
+    var TIPS = {
+      easy: 'Just enough to break the autopilot, while you’re still shaping this rhythm.',
+      medium: 'Long enough to notice the reflex before you act on it. Our pick.',
+      hard: 'Long enough for the urge to fade before you reach the last line.',
+      intense: 'For the rhythms that guard your deepest work. Finish this, and you really meant it.'
+    };
+    var NOTES = {
+      none: 'No lock: switch it off or change it whenever you like.',
+      type: 'Removing anything or switching it off takes a typed text first. Adding stays free.',
+      sealed: 'Nothing can be removed or switched off until this rhythm ends. Adding stays free.'
+    };
+    var ALL = [1, 1, 1, 1, 1, 1, 1];
+    var H = function (h, m) { return h * 60 + (m || 0); };
+    var R = {
+      deep: { name: 'Deep work', on: true, days: [1, 1, 1, 1, 1, 0, 0], allDay: false, from: H(9), to: H(12, 30),
+        sites: ['Instagram', 'YouTube', 'X (Twitter)', 'Reddit', 'CNN', 'The New York Times'], lock: 'type', effort: 'medium' },
+      evenings: { name: 'Evenings', on: true, days: ALL.slice(), allDay: false, from: H(21, 30), to: H(7),
+        sites: ['TikTok', 'YouTube', 'Instagram', 'Netflix', 'Reddit'], lock: 'none', effort: 'easy' },
+      sundays: { name: 'Slow Sundays', on: true, days: [0, 0, 0, 0, 0, 0, 1], allDay: true, from: H(0), to: H(24),
+        sites: ['Slack', 'Amazon', 'Temu'], lock: 'none', effort: 'easy' },
+      peace: { name: 'Peace of mind', on: true, days: ALL.slice(), allDay: true, from: H(0), to: H(24),
+        sites: ['Adult sites'], lock: 'sealed', effort: 'hard' }
+    };
+    var NOW = { day: 2, min: H(21, 47) }; // the menu bar says Wed 21:47
+    var current = 'deep', newCount = 0;
+
+    var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+    var hm = function (m, sep) { m = m % 1440; return pad(Math.floor(m / 60)) + (sep || ':') + pad(m % 60); };
+    var LETTERS = 'MTWTFSS';
+
+    function activeNow(r) {
+      if (!r.on) return false;
+      if (r.allDay) return !!r.days[NOW.day];
+      if (r.to > r.from) return !!r.days[NOW.day] && NOW.min >= r.from && NOW.min < r.to;
+      var yesterday = (NOW.day + 6) % 7;
+      return (r.days[NOW.day] && NOW.min >= r.from) || (r.days[yesterday] && NOW.min < r.to);
+    }
+    function meta(r) {
+      var every = r.days.every(Boolean);
+      if (r.allDay && every) return 'ALL DAY, EVERY DAY';
+      var letters = LETTERS.split('').map(function (l, i) { return r.days[i] ? '<b>' + l + '</b>' : l; }).join('');
+      return letters + '&nbsp;&nbsp;' + (r.allDay ? 'All day' : hm(r.from) + ' – ' + hm(r.to));
+    }
+    function shake(el) {
+      if (!gs || reduce) return;
+      gs.fromTo(el, { x: 0 }, { x: 0, duration: 0.4, keyframes: { x: [-5, 5, -3, 3, 0] }, ease: 'power2.out' });
+    }
+    var statusEl = $('[data-app-status]'), statusTimer;
+    function status(text, warn) {
+      statusEl.textContent = text;
+      statusEl.classList.toggle('is-warning', !!warn);
+      clearTimeout(statusTimer);
+      if (warn) statusTimer = setTimeout(function () { status(statusFor(R[current])); }, 2600);
+    }
+    function statusFor(r) {
+      if (!r.on) return 'OFF';
+      return activeNow(r) ? 'ON · CLOSING THINGS RIGHT NOW' : 'ON · WAITING FOR ITS TIME';
+    }
+    // The real app's rule: loosening a locked rhythm takes a typed text first
+    function refused(el, key) {
+      var r = R[key || current];
+      if (r.lock === 'none') return false;
+      shake(el);
+      status(r.lock === 'sealed' ? 'SEALED · THIS CAN’T BE LOOSENED NOW' : 'LOCKED · TYPE TO UNLOCK FIRST', true);
+      return true;
+    }
+
+    // ---------- the list ----------
+    var cardsEl = $('[data-app-cards]');
+    var cardTpl = $('[data-app-card]');
+    function cardFor(key) { return $('[data-app-card="' + key + '"]'); }
+    function paintCard(key) {
+      var r = R[key], card = cardFor(key);
+      if (!card) return;
+      $('[data-app-meta]', card).innerHTML = meta(r);
+      $('.rhythms-app_card-name', card).textContent = r.name;
+      card.classList.toggle('is-off', !r.on);
+      $('[data-app-toggle]', card).classList.toggle('is-off', !r.on);
+      card.classList.toggle('is-selected', key === current);
+    }
+    function paintMenu() {
+      var items = document.querySelector('.rhythms-menu_items');
+      if (!items) return;
+      var on = Object.keys(R).filter(function (k) { return activeNow(R[k]); });
+      items.innerHTML = '';
+      on.forEach(function (k) {
+        var r = R[k], line = document.createElement('div');
+        line.className = 'rhythms-menu_item';
+        line.textContent = r.name + ' · ' + (r.allDay ? (r.days.every(Boolean) ? 'all day, every day' : 'all day') :
+          'until ' + (r.to < r.from ? 'tomorrow ' : '') + hm(r.to));
+        items.appendChild(line);
+      });
+      if (!on.length) {
+        var none = document.createElement('div');
+        none.className = 'rhythms-menu_item';
+        none.style.opacity = '.5';
+        none.textContent = 'Nothing is closed right now';
+        items.appendChild(none);
+      }
+    }
+    function bindCard(card) {
+      var key = card.getAttribute('data-app-card');
+      card.addEventListener('click', function (e) {
+        if (e.target.closest('[data-app-toggle]')) {
+          var r = R[key];
+          if (r.on && refused(card, key)) { select(key); status(R[key].lock === 'sealed' ? 'SEALED \u00b7 THIS CAN\u2019T BE LOOSENED NOW' : 'LOCKED \u00b7 TYPE TO UNLOCK FIRST', true); return; }
+          r.on = !r.on;
+          select(key);
+          window.dispatchEvent(new Event('dfs-rhythms-change'));
+          return;
+        }
+        select(key);
+      });
+    }
+    $$('[data-app-card]').forEach(bindCard);
+
+    // ---------- the editor ----------
+    var chipsEl = $('[data-app-chips]');
+    var chipTpl = $('[data-app-template="chip"]');
+    var segTpl = $('[data-app-template="seg"]');
+    var suggestEl = $('[data-app-suggest]');
+    var suggestTpl = $('[data-app-template="suggest"]');
+
+    function chip(name, fresh) {
+      var c = chipTpl.cloneNode(true);
+      c.removeAttribute('data-app-template');
+      c.setAttribute('data-app-site', name);
+      $('.rhythms-app_chip-name', c).textContent = name;
+      var icon = $('.rhythms-app_chip-icon', c);
+      if (SITES[name]) icon.style.backgroundImage = 'url("' + SITES[name] + '")';
+      else { icon.textContent = '18+'; icon.style.fontSize = '6px'; icon.style.display = 'flex'; icon.style.alignItems = 'center'; icon.style.justifyContent = 'center'; }
+      if (fresh) c.classList.add('is-new');
+      return c;
+    }
+    function paintChips(fresh) {
+      $$('[data-app-site]', chipsEl).forEach(function (c) { c.remove(); });
+      R[current].sites.forEach(function (n) { chipsEl.appendChild(chip(n, fresh === n)); });
+      $$('[data-app-group]').forEach(function (g) {
+        var list = GROUPS[g.getAttribute('data-app-group')] || [];
+        g.classList.toggle('is-done', list.every(function (n) { return R[current].sites.indexOf(n) > -1; }));
+      });
+    }
+    function paintChart() {
+      var r = R[current];
+      $$('[data-app-track]').forEach(function (t) { $$('.rhythms-app_chart-seg', t).forEach(function (s) { if (!s.hasAttribute('data-app-template')) s.remove(); }); });
+      function seg(day, a, b) {
+        var t = $('[data-app-track="' + day + '"]');
+        var s = segTpl.cloneNode(true);
+        s.removeAttribute('data-app-template');
+        s.style.left = (a / 1440 * 100) + '%';
+        s.style.width = ((b - a) / 1440 * 100) + '%';
+        t.appendChild(s);
+      }
+      r.days.forEach(function (on, d) {
+        if (!on) return;
+        if (r.allDay) return seg(d, 0, 1440);
+        if (r.to > r.from) return seg(d, r.from, r.to);
+        seg(d, r.from, 1440); seg((d + 1) % 7, 0, r.to);
+      });
+    }
+    function paintEditor() {
+      var r = R[current];
+      $('[data-app-name]').textContent = r.name;
+      status(statusFor(r));
+      $('[data-app-allday]').classList.toggle('is-off', !r.allDay);
+      $('[data-app-when]').classList.toggle('is-dim', r.allDay);
+      $$('[data-app-day]').forEach(function (d) { d.classList.toggle('is-on', !!r.days[+d.getAttribute('data-app-day')]); });
+      $('[data-app-from]').textContent = hm(r.from, ' : ');
+      $('[data-app-to]').textContent = hm(r.to, ' : ');
+      $$('[data-app-lock]').forEach(function (l) { l.classList.toggle('is-on', l.getAttribute('data-app-lock') === r.lock); });
+      $('[data-app-lock-note]').textContent = NOTES[r.lock];
+      $('[data-app-efforts]').classList.toggle('is-hidden', r.lock !== 'type');
+      $$('[data-app-effort]').forEach(function (e) { e.classList.toggle('is-on', e.getAttribute('data-app-effort') === r.effort); });
+      $('[data-app-tip]').textContent = r.lock === 'type' ? TIPS[r.effort] :
+        r.lock === 'sealed' ? 'Seal only what you’re sure about. A sealed rhythm can’t be undone until it ends.' :
+        'Start without a lock while you find your rhythm. Add one once it feels right.';
+      paintChart();
+      paintChips();
+    }
+    function paintAll() {
+      Object.keys(R).forEach(paintCard);
+      paintMenu();
+    }
+    function select(key) {
+      var changed = key !== current;
+      current = key;
+      paintAll();
+      paintEditor();
+      if (changed && gs && !reduce) {
+        gs.fromTo($('.rhythms-app_edit-scroll'), { autoAlpha: 0.2, y: 8 }, { autoAlpha: 1, y: 0, duration: 0.45, ease: 'expo.out' });
+        $('.rhythms-app_edit-scroll').scrollTop = 0;
+      }
+    }
+
+    // All day
+    $('[data-app-allday]').addEventListener('click', function (e) {
+      var r = R[current];
+      if (r.allDay && refused(e.currentTarget)) return; // narrowing the hours loosens it
+      r.allDay = !r.allDay;
+      paintEditor(); paintAll();
+    });
+    // Days
+    $$('[data-app-day]').forEach(function (d) {
+      d.addEventListener('click', function () {
+        var r = R[current], i = +d.getAttribute('data-app-day');
+        if (r.days[i] && refused(d)) return;
+        if (r.days[i] && r.days.filter(Boolean).length === 1) { shake(d); return; } // keep at least one day
+        r.days[i] = r.days[i] ? 0 : 1;
+        paintEditor(); paintAll();
+      });
+    });
+    // Remove a site
+    chipsEl.addEventListener('click', function (e) {
+      var x = e.target.closest('[data-app-remove]');
+      if (!x) return;
+      var c = x.closest('[data-app-site]'), name = c.getAttribute('data-app-site');
+      if (refused(c)) return;
+      R[current].sites = R[current].sites.filter(function (n) { return n !== name; });
+      c.classList.add('is-leaving');
+      setTimeout(function () { paintChips(); window.dispatchEvent(new Event('dfs-rhythms-change')); }, 200);
+    });
+    function add(name) {
+      var r = R[current];
+      if (!name || r.sites.indexOf(name) > -1) return;
+      r.sites.push(name);
+      paintChips(name);
+      window.dispatchEvent(new Event('dfs-rhythms-change'));
+    }
+    // Groups: adding is always free
+    $$('[data-app-group]').forEach(function (g) {
+      g.addEventListener('click', function () {
+        (GROUPS[g.getAttribute('data-app-group')] || []).forEach(function (n, i) {
+          setTimeout(function () { add(n); }, i * 90);
+        });
+      });
+    });
+    // Search
+    var slot = $('[data-app-search]');
+    var input = document.createElement('input');
+    input.className = 'rhythms-app_search-input';
+    input.type = 'text';
+    input.placeholder = slot.getAttribute('data-placeholder') || 'Search';
+    input.setAttribute('aria-label', 'Search a website or app');
+    input.autocomplete = 'off';
+    slot.appendChild(input);
+    var picks = [], active = 0;
+    function suggest() {
+      var q = input.value.trim().toLowerCase();
+      $$('.rhythms-app_suggest-item', suggestEl).forEach(function (s) { if (!s.hasAttribute('data-app-template')) s.remove(); });
+      picks = !q ? [] : Object.keys(SITES).filter(function (n) {
+        return n.toLowerCase().indexOf(q) > -1 && R[current].sites.indexOf(n) < 0;
+      }).slice(0, 4);
+      active = 0;
+      picks.forEach(function (n, i) {
+        var s = suggestTpl.cloneNode(true);
+        s.removeAttribute('data-app-template');
+        s.classList.toggle('is-active', i === 0);
+        $('.rhythms-app_chip-name', s).textContent = n;
+        if (SITES[n]) $('.rhythms-app_chip-icon', s).style.backgroundImage = 'url("' + SITES[n] + '")';
+        s.addEventListener('mousedown', function (e) { e.preventDefault(); add(n); input.value = ''; suggest(); });
+        suggestEl.appendChild(s);
+      });
+      suggestEl.classList.toggle('is-open', picks.length > 0);
+    }
+    input.addEventListener('input', suggest);
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); if (picks[active]) { add(picks[active]); input.value = ''; suggest(); } }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        active = (active + (e.key === 'ArrowDown' ? 1 : picks.length - 1)) % Math.max(1, picks.length);
+        $$('.rhythms-app_suggest-item:not([data-app-template])', suggestEl).forEach(function (s, i) { s.classList.toggle('is-active', i === active); });
+      }
+      if (e.key === 'Escape') { input.value = ''; suggest(); input.blur(); }
+    });
+    input.addEventListener('blur', function () { setTimeout(function () { suggestEl.classList.remove('is-open'); }, 150); });
+    // Lock + effort
+    var order = { none: 0, type: 1, sealed: 2 };
+    $$('[data-app-lock]').forEach(function (l) {
+      l.addEventListener('click', function () {
+        var r = R[current], next = l.getAttribute('data-app-lock');
+        if (order[next] < order[r.lock] && refused(l)) return; // a weaker lock is loosening too
+        r.lock = next; paintEditor();
+      });
+    });
+    $$('[data-app-effort]').forEach(function (e) {
+      e.addEventListener('click', function () { R[current].effort = e.getAttribute('data-app-effort'); paintEditor(); });
+    });
+    // New rhythm (adding is free)
+    $('[data-app-new]').addEventListener('click', function (e) {
+      if ($$('[data-app-card]').length >= 6) { shake(e.currentTarget); return; }
+      var key = 'new' + (++newCount);
+      R[key] = { name: newCount > 1 ? 'New rhythm ' + newCount : 'New rhythm', on: true, days: [1, 1, 1, 1, 1, 0, 0], allDay: false,
+        from: H(14), to: H(17), sites: [], lock: 'none', effort: 'easy' };
+      var card = cardTpl.cloneNode(true);
+      card.setAttribute('data-app-card', key);
+      cardsEl.appendChild(card);
+      bindCard(card);
+      select(key);
+      if (gs && !reduce) gs.from(card, { autoAlpha: 0, y: 10, duration: 0.5, ease: 'expo.out' });
+    });
+    // Delete
+    $('[data-app-delete]').addEventListener('click', function (e) {
+      if (refused(e.currentTarget)) return;
+      var keys = Object.keys(R);
+      if (keys.length <= 1) { shake(e.currentTarget); return; }
+      var card = cardFor(current), gone = current;
+      delete R[gone];
+      var next = Object.keys(R)[0];
+      var finish = function () { card.remove(); select(next); window.dispatchEvent(new Event('dfs-rhythms-change')); };
+      if (gs && !reduce) gs.to(card, { autoAlpha: 0, height: 0, paddingTop: 0, paddingBottom: 0, marginTop: -9, duration: 0.35, ease: 'power2.in', onComplete: finish });
+      else finish();
+    });
+    // Save: just a nod
+    var saved = $('[data-app-saved]');
+    $('[data-app-save]').addEventListener('click', function () {
+      saved.classList.add('is-shown');
+      setTimeout(function () { saved.classList.remove('is-shown'); }, 1600);
+    });
+    // The moon button switches the site's night mode
+    var nightBtn = $('[data-app-night]');
+    if (nightBtn) nightBtn.addEventListener('click', function () {
+      var real = document.querySelector('.dfs-night-toggle');
+      if (real) real.click(); // same as the site's own switch, so the choice is remembered
+    });
+
+    window.dfsRhythms = {
+      sitesOf: function (name) {
+        var k = Object.keys(R).filter(function (k) { return R[k].name === name; })[0];
+        return k && R[k].on ? R[k].sites.slice() : [];
+      }
+    };
+    paintAll();
+    paintEditor();
+  }
+
+  // =========================================================
   // GREETING — "Hi Rim 👋" when we know the member's first name, otherwise just "Hi 👋".
   // Put data-greet-name on the name span. styles.css hides it until a name is found,
   // so a placeholder like {firstName} never shows.
@@ -4575,6 +4950,7 @@
     if (document.querySelector('.oneshot-compare_bar')) dfsTimeBars();
     if (document.querySelector('[data-grid-zips]')) dfsGridZips();
     if (document.querySelector('[data-greet-name]')) dfsGreeting();
+    if (document.querySelector('[data-rhythms-app]')) dfsRhythmsApp();
     if (path === '/' || path === '/course' || path === '/test-zone') dfsHome();
   });
 

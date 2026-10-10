@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DFS pixel avatars</title>
+<style>
+  :root { --bg: #fbf7ee; --ink: #3d3a35; --radius: 0px; --size: 120px; --gap: 0px; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.4 -apple-system, "Helvetica Neue", Arial, sans-serif; color: var(--ink); background: var(--bg); padding: 24px; }
+  h1 { font-size: 18px; margin: 0 0 12px; font-weight: 600; }
+  .bar { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; margin-bottom: 20px; }
+  .bar label { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+  .bar input[type=range] { width: 110px; }
+  button, select { font: inherit; padding: 6px 12px; border-radius: 8px; border: 1px solid #c9c2b4; background: #fff; cursor: pointer; }
+  button:hover { background: #f1ede2; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, var(--size)); gap: var(--gap); }
+  .tile { position: relative; border-radius: var(--radius); width: var(--size); height: var(--size); cursor: pointer; overflow: hidden; }
+  .tile svg { display: block; width: 100%; height: 100%; }
+  .tile span { position: absolute; left: 8px; bottom: 6px; font-size: 11px; opacity: 0; color: #3d3a35; background: rgba(255,255,255,.8); padding: 1px 6px; border-radius: 6px; }
+  .tile:hover span { opacity: .9; }
+  .hint { font-size: 12px; opacity: .7; margin-top: 16px; }
+  body.night { --bg: #0e1628; --ink: #e0dbcf; }
+  body.night button, body.night select { background: #1e2a45; color: #e0dbcf; border-color: #2b3755; }
+</style>
+</head>
+<body>
+<h1>DFS pixel avatars</h1>
+<div class="bar">
+  <button id="reroll">Reroll</button>
+  <label>Palette
+    <select id="pal">
+      <option value="beige">beige</option>
+      <option value="sand">sand (lighter)</option>
+      <option value="blue">DFS blue</option>
+      <option value="night">night</option>
+      <option value="green">green (reference)</option>
+    </select>
+  </label>
+  <label>Tile
+    <select id="bg">
+      <option value="">palette background</option>
+      <option value="site">site beige #f1ede2</option>
+      <option value="none">transparent</option>
+    </select>
+  </label>
+  <label>Gap <input id="gap" type="range" min="0" max="24" step="2" value="0"></label>
+  <label>Radius <input id="radius" type="range" min="0" max="50" step="1" value="0"> <b id="radiusv">0</b>%</label>
+  <label>Size <input id="size" type="range" min="32" max="240" step="8" value="120"></label>
+  <label>Count <input id="count" type="range" min="4" max="160" step="4" value="40"></label>
+</div>
+<div class="grid" id="grid-out"></div>
+<p class="hint">Click an avatar to copy its SVG. Each one is made from its seed (shown on hover), so the same seed always gives the same face.</p>
+<script src="pixel-avatars.js"></script>
+<script>
+  var base = 'dfs';
+  var $ = function (id) { return document.getElementById(id); };
+  function opts() {
+    var bg = $('bg').value, o = { palette: $('pal').value };
+    if (bg === 'none') o.background = '';
+    else if (bg === 'site') o.background = '#f1ede2';
+    return o;
+  }
+  function render() {
+    var out = $('grid-out'), n = +$('count').value;
+    $('radiusv').textContent = $('radius').value;
+    document.body.classList.toggle('night', $('pal').value === 'night');
+    document.documentElement.style.setProperty('--radius', $('radius').value + '%');
+    document.documentElement.style.setProperty('--size', $('size').value + 'px');
+    document.documentElement.style.setProperty('--gap', $('gap').value + 'px');
+    out.innerHTML = '';
+    for (var i = 0; i < n; i++) (function (seed) {
+      var tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.innerHTML = dfsPixelAvatar.svg(seed, opts()) + '<span>' + seed + '</span>';
+      tile.title = 'copy SVG';
+      tile.addEventListener('click', function () {
+        navigator.clipboard && navigator.clipboard.writeText(dfsPixelAvatar.svg(seed, opts()));
+        this.querySelector('span').textContent = 'copied';
+      });
+      out.appendChild(tile);
+    })(base + '-' + i);
+  }
+  $('reroll').addEventListener('click', function () { base = Math.random().toString(36).slice(2, 7); render(); });
+  ['pal', 'bg', 'gap', 'radius', 'size', 'count'].forEach(function (id) { $(id).addEventListener('input', render); });
+  render();
+</script>
+</body>
+</html>

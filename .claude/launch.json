@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "avatars-preview",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["/private/tmp/claude-501/-Users-rimbo-Documents-06-projects-dfs-scripts/5f303910-ac8a-476e-ad38-4fc71b601fcf/scratchpad/serve.js"],
+      "port": 8781,
+      "autoPort": true
+    }
+  ]
+}

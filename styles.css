@@ -586,7 +586,8 @@ input:-webkit-autofill:focus {
 .rhythms-app_card.is-selected{border-color:var(--brand-colors--blue);box-shadow:0 0 0 1px var(--brand-colors--blue)}
 .rhythms-app_card.is-off .rhythms-app_card-icon{background-color:transparent;color:var(--brand-colors--ll-gray);box-shadow:inset 0 0 0 1px var(--brand-colors--dark-bage)}
 .rhythms-app_card.is-off .rhythms-app_card-name,.rhythms-app_card.is-off .rhythms-app_card-meta{opacity:.5}
-.rhythms-app_card-meta b{font-weight:400;color:var(--brand-colors--dark_gray)}
+.rhythms-app_card-meta{color:var(--brand-colors--dark-bage)}
+.rhythms-app_card-meta b{font-weight:400;color:var(--brand-colors--light-gray)}
 .rhythms-app_toggle{transition:background-color .25s}
 .rhythms-app_toggle-knob{transition:left .25s cubic-bezier(.3,.7,.2,1)}
 .rhythms-app_toggle.is-off{background-color:var(--brand-colors--dark-bage)}

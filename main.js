@@ -4409,9 +4409,10 @@
     }
     function meta(r) {
       var every = r.days.every(Boolean);
-      if (r.allDay && every) return 'ALL DAY, EVERY DAY';
+      if (r.allDay && every) return '<b>ALL DAY, EVERY DAY</b>';
+      // Days that are on are dark, days that are off stay faint (like the app)
       var letters = LETTERS.split('').map(function (l, i) { return r.days[i] ? '<b>' + l + '</b>' : l; }).join('');
-      return letters + '&nbsp;&nbsp;' + (r.allDay ? 'All day' : hm(r.from) + ' – ' + hm(r.to));
+      return letters + '&nbsp;&nbsp;<b>' + (r.allDay ? 'All day' : hm(r.from) + ' – ' + hm(r.to)) + '</b>';
     }
     function shake(el) {
       if (!gs || reduce) return;

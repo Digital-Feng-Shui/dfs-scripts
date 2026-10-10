@@ -4655,6 +4655,7 @@
     var history = [];         // ⌘Z
     var fresh = [];           // chips that should pop in
     var newCount = 0;
+    var ready = false;        // the first panel shows without sliding in
 
     var original = function () { return open && open !== 'new' ? saved[open] : null; };
     function modes() {
@@ -4941,17 +4942,16 @@
       foldOpen = null;
       paintEditor(true);
       scroll.scrollTop = 0;
-      if (gs && !reduce) {
+      if (gs && !reduce && ready) {
         if (fromClosed) gs.fromTo(edit, { autoAlpha: 0, x: 24 }, { autoAlpha: 1, x: 0, duration: 0.5, ease: 'expo.out', clearProps: 'transform,opacity,visibility' });
         else gs.fromTo(scroll, { autoAlpha: 0.2, y: 8 }, { autoAlpha: 1, y: 0, duration: 0.45, ease: 'expo.out' });
       }
-      if (key === 'new') setTimeout(function () { nameEl.focus(); }, 60);
+      if (key === 'new') setTimeout(function () { nameEl.focus({ preventScroll: true }); }, 60);
     }
     function close() {
       open = null; draft = null;
       body.classList.add('is-closed');
       paintList();
-      if (gs && !reduce) gs.from($$('[data-app-card]'), { autoAlpha: 0.6, duration: 0.4, ease: 'power2.out', stagger: 0.03 });
     }
 
     // ---------- the list: open a card, or switch it ----------
@@ -5171,6 +5171,7 @@
     };
     // Opens on Slow Sundays: no lock, so everything can be tried straight away
     show(saved.sundays ? 'sundays' : order[0]);
+    ready = true;
   }
 
   // =========================================================

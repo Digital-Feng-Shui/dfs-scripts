@@ -255,6 +255,13 @@ html.dfs-night{--brand-colors--light-bage:#0e1628;--brand-colors--bage:#141e34;-
 :where(html.dfs-night) [data-form-validate] .radiocheck-field input:focus-visible:checked ~ .radiocheck-custom,:where(html.dfs-night) [data-form-validate] .radiocheck-field input:checked ~ .radiocheck-custom{background-color:#ece8de;color:#121b30}
 :where(html.dfs-night) [data-validate].is--error input:checked ~ .radiocheck-custom{border-color:#ece8de}
 :where(html.dfs-night) [data-form-validate] select:has(option[value=""]:checked){color:rgba(236,232,222,0.135)}
+:where(html.dfs-night) .rhythms-app_card-meta{color:rgba(153,156,166,0.35)}
+:where(html.dfs-night) .rhythms-app_undo{background-color:#141e34}
+:where(html.dfs-night) .rhythms-app_chart-seg{background-image:linear-gradient(90deg,#1a97d7,#3fc3ff,#1a97d7,#3fc3ff,#1a97d7)}
+:where(html.dfs-night) .rhythms-app_chip:not(.is-fixed):hover{background-color:#131d33}
+:where(html.dfs-night) .rhythms-app_chip-icon.is-letter{background-color:#11233d}
+:where(html.dfs-night) .rhythms-app_result:hover{background-color:#11233d}
+:where(html.dfs-night) .rhythms-app_check{color:#172138}
 
 /* hand-tuned extras */
 /* Hand-tuned night details. Appended to night.css by gen_css.py. */
@@ -489,3 +496,6 @@ html.dfs-night .coming_soon .text-color-white { color: var(--brand-colors--80-da
 
 /* Phone: a narrower toggle in the nav, so the nav doesn't get squeezed. */
 @media screen and (max-width: 479px) { .dfs-night-toggle:not(.is-floating) { width: 3rem; } }
+
+/* Rhythms app demo: the tick in "Block adult sites" stays white on the blue, like the app. */
+html.dfs-night .rhythms-app_check { color: #fff; }

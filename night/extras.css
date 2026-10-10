@@ -230,3 +230,6 @@ html.dfs-night .coming_soon .text-color-white { color: var(--brand-colors--80-da
 
 /* Phone: a narrower toggle in the nav, so the nav doesn't get squeezed. */
 @media screen and (max-width: 479px) { .dfs-night-toggle:not(.is-floating) { width: 3rem; } }
+
+/* Rhythms app demo: the tick in "Block adult sites" stays white on the blue, like the app. */
+html.dfs-night .rhythms-app_check { color: #fff; }

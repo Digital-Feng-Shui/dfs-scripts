@@ -5450,6 +5450,27 @@
   }
 
   // =========================================================
+  // HELP MAIL — a mailto link with data-help-mail="<subject>" opens a ready-made email: the subject,
+  // a short message, and the email address the visitor already typed on the page (Memberstack's
+  // email field), so we know which account it is. Used for "Trouble logging in?" on /login.
+  // =========================================================
+  function dfsHelpMail() {
+    document.querySelectorAll('a[data-help-mail]').forEach(function (link) {
+      var to = (link.getAttribute('href') || '').replace(/^mailto:/i, '').split('?')[0] || 'info@digital-fengshui.com';
+      function build() {
+        var field = document.querySelector('[data-ms-member="email"]') || document.querySelector('input[type="email"]');
+        var email = field ? field.value.trim() : '';
+        var body = 'Hi Digital Feng Shui,\n\nI\'m having trouble logging in.\n\nMy account email: ' + email +
+          '\nWhat happens: \n\nThanks!';
+        link.setAttribute('href', 'mailto:' + to + '?subject=' + encodeURIComponent(link.getAttribute('data-help-mail') || 'Trouble logging in') +
+          '&body=' + encodeURIComponent(body));
+      }
+      build();
+      ['mousedown', 'touchstart', 'focus', 'click'].forEach(function (type) { link.addEventListener(type, build, { passive: true }); });
+    });
+  }
+
+  // =========================================================
   // GREETING — "Hi Rim 👋" when we know the member's first name, otherwise just "Hi 👋".
   // Put data-greet-name on the name span. styles.css hides it until a name is found,
   // so a placeholder like {firstName} never shows.
@@ -6003,6 +6024,7 @@
     if (document.querySelector('.oneshot-compare_bar')) dfsTimeBars();
     if (document.querySelector('[data-grid-zips]')) dfsGridZips();
     if (document.querySelector('[data-greet-name]')) dfsGreeting();
+    if (document.querySelector('a[data-help-mail]')) dfsHelpMail();
     if (document.querySelector('[data-rhythms-app]')) dfsRhythmsApp();
     if (document.querySelector('[data-rhythms-marquee]')) dfsRhythmsMarquee();
     if (path === '/'|| path === '/course' || path === '/test-zone') dfsHome();

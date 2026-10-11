@@ -6024,6 +6024,96 @@
   }
 
   // =========================================================
+  // DFS HELPER (test) — /onbaording-test
+  // The Mac helper app's download button and its "connect" bounce. The app opens this page with
+  // ?helper=connect; once Memberstack knows who's logged in, the member token goes to the app through
+  // dfshelper://connect, and the dfs-helper worker turns it into a licence. Test page only for now:
+  // nothing of this is on the course pages.
+  // =========================================================
+  function dfsHelper() {
+    var WORKER = 'https://dfs-helper.dfs-helper-worker.workers.dev';
+    var MODE = location.hostname === 'dfs-staging.webflow.io' ? 'sandbox' : 'live';
+    var STAR = 'M21.127 5.125H26.873V10.876L26.874 10.875L32 16.001L26.874 21.126L26.873 21.125V26.8691H21.126' +
+      'L21.127 26.8701L16.001 31.9961L10.875 26.8701L10.876 26.8691H5.12598V21.126L0 16.001L5.12598 10.875V5.125' +
+      'H10.875L16.001 0L21.127 5.125ZM12.375 12.374H6.625L10.252 16.001L6.63184 19.6201H12.375V25.3701L16.001 ' +
+      '21.7451L19.624 25.3672V19.6201H25.3682L21.748 16.001L25.375 12.374H19.624V6.62793L16.001 10.251L12.375 ' +
+      '6.625V12.374Z';
+
+    if (!document.getElementById('dfs-helper-style')) {
+      var style = document.createElement('style');
+      style.id = 'dfs-helper-style';
+      style.textContent =
+        '.dfs-helper{max-width:520px;margin:3rem auto;padding:2rem;border:1px solid #DFD5CA;border-radius:12px;' +
+        'background:#F1EDE3;color:#3D3A36;text-align:center;font-family:inherit}' +
+        '.dfs-helper svg{width:36px;height:36px;display:block;margin:0 auto 1rem}' +
+        '.dfs-helper h3{margin:0 0 .4rem;font-size:1.5rem;font-weight:400}' +
+        '.dfs-helper p{margin:0 0 1.25rem;font-size:.85rem;line-height:1.6;opacity:.75}' +
+        '.dfs-helper-row{display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap}' +
+        '.dfs-helper a.dfs-helper-btn,.dfs-helper button.dfs-helper-btn{display:inline-block;padding:.7rem 1.4rem;' +
+        'border-radius:8px;border:1px solid #3D3A36;background:#3D3A36;color:#FBF7EF;font-size:.85rem;cursor:pointer;' +
+        'text-decoration:none;font-family:inherit}' +
+        '.dfs-helper button.dfs-helper-btn.is-light{background:transparent;color:#3D3A36}' +
+        '.dfs-helper-status{margin:1rem 0 0;font-size:.8rem;min-height:1.2em;color:#1A97D7}';
+      document.head.appendChild(style);
+    }
+
+    var card = document.createElement('section');
+    card.className = 'dfs-helper';
+    card.innerHTML =
+      '<svg viewBox="0 0 32 32" aria-hidden="true"><path fill="#3D3A36" fill-rule="evenodd" d="' + STAR + '"/></svg>' +
+      '<h3>DFS Helper</h3>' +
+      '<p>The course’s helper app for your Mac. Download it, open it, and connect it to your account here.</p>' +
+      '<div class="dfs-helper-row">' +
+      '<a class="dfs-helper-btn" href="' + WORKER + '/download">Download for Mac</a>' +
+      '<button type="button" class="dfs-helper-btn is-light" data-helper-connect>Connect the app</button>' +
+      '</div>' +
+      '<p class="dfs-helper-status" data-helper-status></p>';
+    document.body.appendChild(card);
+
+    var status = card.querySelector('[data-helper-status]');
+    function setStatus(text) { status.textContent = text; }
+
+    // The member token the dfs-helper worker verifies: Memberstack's own getter first, then where
+    // the DOM package keeps it (localStorage or the _ms-mid cookie), depending on its settings.
+    function memberToken(ms) {
+      try { var t = ms.getMemberCookie && ms.getMemberCookie(); if (t) return t; } catch (e) {}
+      try { var l = localStorage.getItem('_ms-mid'); if (l) return l; } catch (e) {}
+      var m = document.cookie.match(/(?:^|;\s*)_ms-mid=([^;]+)/);
+      return m ? decodeURIComponent(m[1]) : '';
+    }
+
+    function connect() {
+      setStatus('Checking who you are…');
+      whenMemberstackReady(function () {
+        var ms = window.$memberstackDom;
+        ms.getCurrentMember().then(function (res) {
+          var member = res && res.data;
+          if (!member) {
+            setStatus('Log in first (the Log in link in the menu), then click Connect the app again.');
+            return;
+          }
+          var token = memberToken(ms);
+          if (!token) {
+            setStatus('Couldn’t read your login. Log out, log in again, and try once more.');
+            return;
+          }
+          setStatus('Opening DFS Helper… Nothing happening? Download and open the app first, then try again.');
+          location.href = 'dfshelper://connect?token=' + encodeURIComponent(token) + '&mode=' + MODE;
+        }).catch(function () {
+          setStatus('Memberstack didn’t answer. Reload the page and try again.');
+        });
+      });
+    }
+
+    card.querySelector('[data-helper-connect]').addEventListener('click', connect);
+    // Opened by the app: connect straight away.
+    if (new URLSearchParams(location.search).get('helper') === 'connect') {
+      card.scrollIntoView({ block: 'center' });
+      connect();
+    }
+  }
+
+  // =========================================================
   // Run
   // Page sections run straight away, like the old Slater page scripts did.
   // Global + Home wait for the whole page, like their old "defer" tags.
@@ -6050,6 +6140,7 @@
     // Order matters: Feedback sets up the form first, so Form validation skips it.
     dfsFeedback();
     dfsFormValidation();
+    dfsHelper();
   } else if (AUTH_PAGES.indexOf(path) > -1) {
     dfsFormValidation();
     dfsSignIn();

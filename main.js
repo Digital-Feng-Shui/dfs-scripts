@@ -5485,23 +5485,31 @@
     var emailEl = box.querySelector('[data-login-help-email]');
     toggle.setAttribute('role', 'button');
     toggle.setAttribute('aria-expanded', 'false');
+    // Opening: the box makes room first, then the text and the link fade in together (nothing is
+    // uncovered line by line, so the link doesn't pop in last). Closing goes the other way.
+    var inner = box.firstElementChild || box;
+    var CLEAR = 'height,padding,margin,opacity,visibility,transform';
     function setOpen(on) {
       toggle.setAttribute('aria-expanded', on ? 'true' : 'false');
-      if (gs) gs.killTweensOf(box);
+      if (gs) gs.killTweensOf([box, inner]);
       if (on) {
         var field = document.querySelector('[data-ms-member="email"]');
         if (emailEl) emailEl.textContent = (field && field.value.trim()) || 'your email';
         box.classList.add('is-open');
         if (!gs || reduce) return;
         var cs = getComputedStyle(box);
-        gs.fromTo(box, { height: 0, paddingTop: 0, paddingBottom: 0, marginBottom: 0, autoAlpha: 0 },
-          { height: 'auto', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginBottom: cs.marginBottom, autoAlpha: 1,
-            duration: 0.55, ease: 'expo.out', clearProps: 'height,padding,margin,opacity,visibility' });
+        gs.timeline()
+          .fromTo(box, { height: 0, paddingTop: 0, paddingBottom: 0, marginBottom: 0, autoAlpha: 0 },
+            { height: 'auto', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginBottom: cs.marginBottom, autoAlpha: 1,
+              duration: 0.45, ease: 'power3.inOut', clearProps: CLEAR }, 0)
+          .fromTo(inner, { autoAlpha: 0, y: 6 }, { autoAlpha: 1, y: 0, duration: 0.35, ease: 'power2.out', clearProps: CLEAR }, 0.3);
         return;
       }
-      var shut = function () { box.classList.remove('is-open'); if (gs) gs.set(box, { clearProps: 'height,padding,margin,opacity,visibility' }); };
+      var shut = function () { box.classList.remove('is-open'); if (gs) gs.set([box, inner], { clearProps: CLEAR }); };
       if (!gs || reduce) { shut(); return; }
-      gs.to(box, { height: 0, paddingTop: 0, paddingBottom: 0, marginBottom: 0, autoAlpha: 0, duration: 0.35, ease: 'power2.inOut', onComplete: shut });
+      gs.timeline({ onComplete: shut })
+        .to(inner, { autoAlpha: 0, duration: 0.15, ease: 'power1.out' }, 0)
+        .to(box, { height: 0, paddingTop: 0, paddingBottom: 0, marginBottom: 0, autoAlpha: 0, duration: 0.35, ease: 'power3.inOut' }, 0.1);
     }
     toggle.addEventListener('click', function (e) {
       e.preventDefault();

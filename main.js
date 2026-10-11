@@ -5349,31 +5349,90 @@
 
   // =========================================================
   // RHYTHMS MARQUEE — /rythems-app "Closes what pulls you away"
-  // The chips drift in loud and colourful; somewhere past the middle each one closes: its ✕ turns
-  // into a lock, the logo goes grey and the chip quiets down. Click one to close it yourself (a
-  // closed one won't open again: it shakes). Hover slows the row down. A chip that has drifted out
-  // on the left is open again by the time it comes back around. The page script clones the lists
-  // and runs the CSS marquee; this only adds the closing.
+  // The label sits in the middle of the row like a gate. Chips drift in from the right, open and
+  // colourful; they slip behind the label and come out on the left closed: the ✕ is a lock, the
+  // logo grey, the chip quiet. Two copies of the row run in step: the open one shows right of the
+  // label, a closed copy shows left of it. Click an open chip to close it early; a closed one
+  // shakes (it won't open again). Hover slows the row down. The page script clones the lists and
+  // runs the CSS marquee; this adds the gate. Without JS the label simply stays on the left.
   // =========================================================
   function dfsRhythmsMarquee() {
     var marquee = document.querySelector('[data-rhythms-marquee]');
+    var component = marquee.parentNode;
+    var label = component.querySelector('.rhythms-marquee_label');
     var gs = window.gsap;
     var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     var LOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
       '<rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
-    var chips = function () { return [].slice.call(marquee.querySelectorAll('.rhythms-chip')); };
-    function shut(chip, byHand) {
-      if (chip.classList.contains('is-closed')) return;
+    var addLock = function (chip) {
       var x = chip.querySelector('.rhythms-chip_x');
       if (x && !x.querySelector('svg')) x.insertAdjacentHTML('beforeend', LOCK);
-      chip.classList.add('is-closed');
-      if (gs && !reduce) gs.fromTo(chip, { scale: byHand ? 0.93 : 0.97 }, { scale: 1, duration: 0.6, ease: 'back.out(2.5)', clearProps: 'transform' });
+    };
+    var anims = function (layer) {
+      return [].slice.call(layer.querySelectorAll('[data-css-marquee-list]')).map(function (l) { return l.getAnimations ? l.getAnimations()[0] : null; });
+    };
+    var locked, tries = 0;
+
+    // Wait until the page script has cloned the lists, then build the closed copy on top
+    function build() {
+      if (marquee.querySelectorAll('[data-css-marquee-list]').length < 2 && tries++ < 20) { setTimeout(build, 150); return; }
+      locked = marquee.cloneNode(true);
+      locked.removeAttribute('data-rhythms-marquee');
+      locked.classList.add('is-locked');
+      locked.setAttribute('aria-hidden', 'true');
+      [].slice.call(locked.querySelectorAll('.rhythms-chip')).forEach(function (chip) { chip.classList.add('is-closed'); addLock(chip); });
+      [].slice.call(locked.querySelectorAll('[data-css-marquee-list]')).forEach(function (l) { l.style.animationPlayState = 'paused'; });
+      component.appendChild(locked);
+      component.classList.add('is-gate');
+      place();
+      if ('ResizeObserver' in window) new ResizeObserver(place).observe(component);
+      sync();
+      if ('IntersectionObserver' in window) new IntersectionObserver(function (entries) {
+        if (!gs) return;
+        if (entries[0].isIntersecting) gs.ticker.add(sync); else gs.ticker.remove(sync);
+      }).observe(component);
+      else if (gs) gs.ticker.add(sync);
+    }
+    // The closed copy covers the open row exactly; the gap around the label follows its width
+    function place() {
+      locked.style.top = marquee.offsetTop + 'px';
+      locked.style.left = marquee.offsetLeft + 'px';
+      locked.style.width = marquee.offsetWidth + 'px';
+      locked.style.height = marquee.offsetHeight + 'px';
+      component.style.setProperty('--gate', Math.round(label.offsetWidth / 2 + (component.offsetWidth < 480 ? 10 : 32)) + 'px');
+    }
+    // Every frame the closed copy takes the open row's place in the loop
+    function sync() {
+      var open = anims(marquee), shut = anims(locked);
+      shut.forEach(function (a, i) {
+        if (!a || !open[i]) return;
+        if (a.playState !== 'paused') a.pause();
+        a.currentTime = open[i].currentTime;
+      });
+      // A chip closed by hand opens again once it's well past the gate (out of sight on the open side)
+      var mid = marquee.getBoundingClientRect();
+      mid = mid.left + mid.width / 2;
+      [].slice.call(marquee.querySelectorAll('.rhythms-chip.is-closed')).forEach(function (chip) {
+        if (chip.getBoundingClientRect().right < mid - 200) chip.classList.remove('is-closed');
+      });
+    }
+    (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(function () { setTimeout(build, 0); });
+
+    // Click: an open chip closes right away; a closed one (left of the gate, or closed by hand) shakes
+    function shake(el) {
+      if (gs && !reduce) gs.fromTo(el, { x: 0 }, { x: 0, duration: 0.4, keyframes: { x: [-4, 4, -2, 2, 0] }, ease: 'power2.out', clearProps: 'transform' });
     }
     marquee.addEventListener('click', function (e) {
       var chip = e.target.closest('.rhythms-chip');
-      if (!chip) return;
-      if (!chip.classList.contains('is-closed')) { shut(chip, true); return; }
-      if (gs && !reduce) gs.fromTo(chip, { x: 0 }, { x: 0, duration: 0.4, keyframes: { x: [-4, 4, -2, 2, 0] }, ease: 'power2.out', clearProps: 'transform' });
+      if (!chip || !locked) return;
+      var all = [].slice.call(marquee.querySelectorAll('.rhythms-chip'));
+      var twin = locked.querySelectorAll('.rhythms-chip')[all.indexOf(chip)];
+      var r = chip.getBoundingClientRect(), box = marquee.getBoundingClientRect();
+      if (r.left + r.width / 2 < box.left + box.width / 2) { if (twin) shake(twin); return; }
+      if (chip.classList.contains('is-closed')) { shake(chip); return; }
+      addLock(chip);
+      chip.classList.add('is-closed');
+      if (gs && !reduce) gs.fromTo(chip, { scale: 0.93 }, { scale: 1, duration: 0.6, ease: 'back.out(2.5)', clearProps: 'transform' });
     });
 
     // Hover: the row eases down to a crawl, so a chip is easy to catch
@@ -5381,42 +5440,13 @@
     function ease(to) {
       if (!gs) return;
       gs.to(rate, { v: to, duration: 0.9, ease: 'power2.out', overwrite: true, onUpdate: function () {
-        marquee.querySelectorAll('[data-css-marquee-list]').forEach(function (list) {
-          (list.getAnimations ? list.getAnimations() : []).forEach(function (a) { a.playbackRate = rate.v; });
-        });
+        anims(marquee).forEach(function (a) { if (a) a.playbackRate = rate.v; });
       } });
     }
     if (window.matchMedia('(hover: hover)').matches) {
-      marquee.addEventListener('mouseenter', function () { ease(0.2); });
-      marquee.addEventListener('mouseleave', function () { ease(1); });
+      component.addEventListener('mouseenter', function () { ease(0.2); });
+      component.addEventListener('mouseleave', function () { ease(1); });
     }
-
-    // Closing as they pass. Each chip closes at its own spot, between 40% and 70% of the way across
-    // (from the left), so it never looks like one machine stamping them shut.
-    if (reduce) return;
-    var visible = false;
-    if ('IntersectionObserver' in window) new IntersectionObserver(function (entries) { visible = entries[0].isIntersecting; }).observe(marquee);
-    else visible = true;
-    // One chip per beat at most, the right-most first: scrolled into view, the left half closes as a wave.
-    setInterval(function () {
-      if (!visible || document.hidden) return;
-      var box = marquee.getBoundingClientRect();
-      if (!box.width) return;
-      var next = null, nextX = -Infinity;
-      chips().forEach(function (chip) {
-        var r = chip.getBoundingClientRect();
-        if (r.right < box.left || r.left > box.right) {
-          // Out of sight on the left: open again for the next time around
-          if (r.right < box.left && chip.classList.contains('is-closed')) { chip.classList.remove('is-closed'); chip._closeAt = null; }
-          return;
-        }
-        if (chip.classList.contains('is-closed')) return;
-        if (chip._closeAt == null) chip._closeAt = 0.4 + Math.random() * 0.3;
-        var at = (r.left + r.width / 2 - box.left) / box.width;
-        if (at < chip._closeAt && at > nextX) { next = chip; nextX = at; }
-      });
-      if (next) shut(next);
-    }, 170);
   }
 
   // =========================================================

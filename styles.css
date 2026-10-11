@@ -762,8 +762,17 @@ input:-webkit-autofill:focus {
 [data-no-select],.button,.w-button,.rhythms-app,.rhythms-menu,.rhythms-toast,.rhythms-browser,.rhythms-effort_chip,[data-rhythms-step]{-webkit-user-select:none;user-select:none}
 .rhythms-app [contenteditable="true"]{-webkit-user-select:text;user-select:text}
 
-/* Closes what pulls you away (main.js dfsRhythmsMarquee): open chips close as they pass; ✕ becomes a lock */
+/* Closes what pulls you away (main.js dfsRhythmsMarquee): the label is a gate in the middle of the row.
+   Open chips come in on the right and fade behind it; a closed copy of the row shows on the left. */
 .rhythms-marquee,.rhythms-marquee_label{-webkit-user-select:none;user-select:none}
+.rhythms-marquee_component.is-gate{position:relative;padding-left:0}
+.is-gate .rhythms-marquee_label{position:absolute;left:50%;top:50%;z-index:2;transform:translate(-50%,-50%);text-align:center;white-space:nowrap;pointer-events:none}
+.is-gate::before,.is-gate::after{content:'';position:absolute;left:50%;height:calc(50% - 1.9rem);border-left:1px dashed var(--brand-colors--blue);opacity:.35;pointer-events:none}
+.is-gate::before{top:0}
+.is-gate::after{bottom:0}
+@media screen and (max-width:479px){.rhythms-marquee_component.is-gate{--gate-fade:1.25rem}}
+.is-gate .rhythms-marquee{-webkit-mask-image:linear-gradient(90deg,transparent calc(50% + var(--gate,80px)),#000 calc(50% + var(--gate,80px) + var(--gate-fade,3rem)),#000 94%,transparent);mask-image:linear-gradient(90deg,transparent calc(50% + var(--gate,80px)),#000 calc(50% + var(--gate,80px) + var(--gate-fade,3rem)),#000 94%,transparent)}
+.is-gate .rhythms-marquee.is-locked{position:absolute;z-index:1;pointer-events:none;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 calc(50% - var(--gate,80px) - var(--gate-fade,3rem)),transparent calc(50% - var(--gate,80px)));mask-image:linear-gradient(90deg,transparent,#000 6%,#000 calc(50% - var(--gate,80px) - var(--gate-fade,3rem)),transparent calc(50% - var(--gate,80px)))}
 .rhythms-chip{cursor:pointer;transition:background-color .6s,border-color .3s}
 .rhythms-chip_icon{transition:filter .7s,opacity .7s}
 .rhythms-chip_name{transition:opacity .6s}

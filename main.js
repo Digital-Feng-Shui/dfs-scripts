@@ -4349,7 +4349,8 @@
   // Mac app (dfs-focus: RhythmsView.swift, RhythmEditor.swift, TargetPicker.swift), detail for detail:
   // - the list: lock tile, day letters + hours, switch; with the panel closed, what each one closes
   // - the panel edits a copy: Save keeps it, ✕ drops it, another card opens that one instead
-  // - Type to unlock opens greyed out ("Add only" / "Unlock…"); Sealed is shut while it runs;
+  // - Type to unlock opens greyed out ("Add only" / "Unlock…"); "Unlock…" and switching one off ask
+  //   for the typed text right in the panel, the app's own texts; Sealed is shut while it runs;
   //   switching on and adding are always free. One website extra: in add-only mode, what you just
   //   added can go again (it was never part of the saved rhythm).
   // - "All day, every day" folds the times away; Sealed can't be all day, every day
@@ -4390,6 +4391,10 @@
       return '<svg viewBox="0 0 24 24" width="' + w + '" height="' + w + '" fill="none" stroke="currentColor" stroke-width="1.6" ' +
         'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"' + (extra || '') + '>' + inner + '</svg>';
     };
+    var pixels = function (rects) {
+      return '<svg viewBox="0 0 9 9" width="11.25" height="11.25" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true">' +
+        rects.map(function (r) { return '<rect x="' + r[0] + '" y="' + r[1] + '" width="' + r[2] + '" height="' + r[3] + '"/>'; }).join('') + '</svg>';
+    };
     var lockIcon = function (lock) { var el = $('[data-app-lock="' + lock + '"] .rhythms-app_lock-icon'); return el ? el.innerHTML : ''; };
     var ICON = {
       none: lockIcon('none'), type: lockIcon('type'), sealed: lockIcon('sealed'),
@@ -4398,7 +4403,14 @@
       added: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor"/>' +
         '<path d="M7.5 12.5l3 3 6-6.5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
       check: svg(10, '<path d="M5 12.5l4.5 4.5L19 7.5"/>', ' stroke-width="3.2"'),
-      gear: svg(14, '<path d="M10.3 3.2h3.4l.5 2.4 1.7.9 2.3-.9 1.7 2.9-1.8 1.6v1.9l1.8 1.6-1.7 2.9-2.3-.9-1.7.9-.5 2.4h-3.4l-.5-2.4-1.7-.9-2.3.9-1.7-2.9 1.8-1.6v-1.9L3.9 8.5l1.7-2.9 2.3.9 1.7-.9z"/><circle cx="12" cy="12" r="2.8"/>'),
+      // Settings: eight teeth and a ring, drawn after the app's gearshape symbol
+      gear: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" aria-hidden="true">' +
+        '<path d="M10.57 1.14A10.95 10.95 0 0 1 13.43 1.14L14.62 4.18A8.25 8.25 0 0 1 15.68 4.62L18.67 3.31A10.95 10.95 0 0 1 20.69 5.33L19.38 8.32A8.25 8.25 0 0 1 19.82 9.38L22.86 10.57A10.95 10.95 0 0 1 22.86 13.43L19.82 14.62A8.25 8.25 0 0 1 19.38 15.68L20.69 18.67A10.95 10.95 0 0 1 18.67 20.69L15.68 19.38A8.25 8.25 0 0 1 14.62 19.82L13.43 22.86A10.95 10.95 0 0 1 10.57 22.86L9.38 19.82A8.25 8.25 0 0 1 8.32 19.38L5.33 20.69A10.95 10.95 0 0 1 3.31 18.67L4.62 15.68A8.25 8.25 0 0 1 4.18 14.62L1.14 13.43A10.95 10.95 0 0 1 1.14 10.57L4.18 9.38A8.25 8.25 0 0 1 4.62 8.32L3.31 5.33A10.95 10.95 0 0 1 5.33 3.31L8.32 4.62A8.25 8.25 0 0 1 9.38 4.18Z"/>' +
+        '<circle cx="12" cy="12" r="3.4"/></svg>',
+      // Light and dark mode: the app's pixel moon and sun (PixelIcon, a 9 × 9 grid, same as the site's switch)
+      moon: pixels([[3, 0, 4, 1], [1, 1, 4, 1], [1, 2, 3, 1], [0, 3, 3, 3], [1, 6, 3, 1], [1, 7, 4, 1], [3, 8, 4, 1]]),
+      sun: pixels([[4, 0, 1, 1], [1, 1, 1, 1], [7, 1, 1, 1], [3, 2, 3, 1], [2, 3, 5, 3], [0, 4, 1, 1], [8, 4, 1, 1],
+        [3, 6, 3, 1], [1, 7, 1, 1], [7, 7, 1, 1], [4, 8, 1, 1]]),
       chat: svg(12, '<path d="M4 4.5h10a2 2 0 0 1 2 2V12a2 2 0 0 1-2 2H9l-3.5 3v-3H4a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z"/><path d="M19 9h1a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-1.5v3L15 18h-3a2 2 0 0 1-2-1.6"/>')
     };
 
@@ -4474,6 +4486,59 @@
       intense: ['Intense', '5 min', 'For the rhythms that guard your deepest work. Finish this, and you really meant it.']
     };
     var RANK = ['none', 'easy', 'medium', 'hard', 'intense'];
+    // Type to unlock: how long the text is per effort, and the texts themselves (the app's UnlockTexts)
+    var CHARS = { easy: 150, medium: 300, hard: 500, intense: 800 };
+    var OPENERS = [
+      'You made this rhythm on a clear day, for a moment exactly like this one. The version of you that set it knew this feeling would come, and decided in advance.',
+      'This urge to open it again is a reflex, not a decision. You trained it one empty moment at a time. Typing this slowly is the first time it gets to be a choice.',
+      'Notice what happened just before you came here. A gap, a doubt, a small discomfort. The reach for something to fill it is old wiring. It isn\'t part of you.',
+      'Every badge and feed behind this block was placed there by someone paid to take your attention. You closed the door on purpose. Ask who wants it open now.',
+      'Distraction rarely arrives as a big event. It\'s a slow drift: one quick look, then another. This text is here to make the drift visible before it carries you off.',
+      'You are not lazy and you are not broken. You designed your space to protect what matters, and right now that design is doing exactly what you asked of it.',
+      'Most of the pull you feel right now doesn\'t come from you. It comes from an environment built to keep you consuming. You redesigned yours. This is it working.',
+      'If you\'re typing this, part of you already knows the answer. This rhythm was never about willpower. It was about not having to decide in the moment.'
+    ];
+    var MIDDLES = [
+      'Attention is water and your space is the channel. When the channel is clear, attention moves in one direction. Open this, and it splits into every direction at once.',
+      'An interruption doesn\'t end when you close the tab. Part of your mind stays behind, and coming fully back can take up to twenty minutes. That is the real price of a quick look.',
+      'Depth is momentum, and momentum takes time to build. A few minutes somewhere else and you start again from cold, loading everything back in, one piece at a time.',
+      'The empty moment you\'re trying to fill is where your mind does its best connecting. Leave it empty for a while. The idea you\'re missing might be waiting on the other side.',
+      'Boredom feels like a problem to solve. It\'s usually the door to something better. Everything worth having in this space sits on the other side of the discomfort.',
+      'You don\'t have to earn the empty moment. It was always yours. Rest isn\'t stepping away from the work. It\'s part of it.',
+      'Focus problems are design problems. You already did the design. The only thing left is to let it work, even when it feels a little uncomfortable.',
+      'Small friction compounds. So does small freedom. Each time you let this block stand, the next empty moment gets a little easier to sit with.',
+      'A Default runs on settings they never chose. A Flow Architect decides in advance where their attention goes. This block is one of those decisions.',
+      'Your attention is already flowing somewhere. The only question is whether you chose where. When you set this rhythm, you did.',
+      'A mind that can\'t sit still can\'t go deep. Every quiet moment you let be makes the next one easier. The discomfort only means the old reflex is letting go.',
+      'Stillness is where unrelated ideas collide and connect. Fill the space with a feed and that process stays off. The silence has to be real for it to work.',
+      'Pushing harder inside a broken system only feeds the loop. You fixed the system instead. Trust it a little longer than feels comfortable.',
+      'What\'s behind this block will still be there later. The focus you have right now won\'t wait the same way. Only one of them needs protecting.',
+      'The depth you\'re after doesn\'t come from more effort. It opens up in a mind with room to spare. This block is how you keep that room.'
+    ];
+    var CLOSERS = [
+      'So take a breath and look at what you\'re about to undo. If it still feels right, keep typing. If not, close this and go back to what you came here to do.',
+      'You can finish this text and open it again. Or you can stop here, close this panel, and give the version of you who set this rhythm the benefit of the doubt.',
+      'Nothing bad happens if you keep going. Nothing bad happens if you stop. But only one of those is the choice you designed.',
+      'The block will end on its own, right on schedule. Until then, the most useful thing you can do might be nothing at all.',
+      'Read it back once. If you still want this, finish the text. If something shifted while you typed, that shift is worth listening to.',
+      'This isn\'t a punishment. It\'s a pause between the reflex and the action. Whatever you decide now, decide it on purpose.'
+    ];
+    var pick = function (list) { return list[Math.floor(Math.random() * list.length)]; };
+    // A fresh piece of about `length` characters, ending on a full sentence (UnlockTexts.make)
+    function unlockText(length) {
+      if (length <= 200) {
+        var fit = OPENERS.concat(MIDDLES).filter(function (t) { return t.length >= length * 3 / 4; });
+        return pick(fit.length ? fit : OPENERS);
+      }
+      var parts = [pick(OPENERS)], closer = pick(CLOSERS), pool = MIDDLES.slice();
+      for (var i = pool.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = pool[i]; pool[i] = pool[j]; pool[j] = t; }
+      var total = parts[0].length + 1 + closer.length;
+      while (pool.length && Math.abs(total + pool[pool.length - 1].length + 1 - length) < Math.abs(total - length)) {
+        var next = pool.pop(); parts.push(next); total += next.length + 1;
+      }
+      parts.push(closer);
+      return parts.join(' ');
+    }
 
     var allDay = function (w) { return w.from === w.to; };
     var isAlways = function (r) { return r.always || r.windows.some(function (w) { return allDay(w) && w.days.every(Boolean); }); };
@@ -4565,6 +4630,26 @@
       '<div class="rhythms-app_banner-actions"><div class="rhythms-app_add-time" data-banner="add" role="button">ADD ONLY</div>' +
       '<div class="rhythms-app_save" data-banner="unlock" role="button">UNLOCK…</div></div></div>');
     scroll.insertBefore(banner, sec.when);
+    // Typing to unlock happens right here in the panel, like the app's UnlockView: the two labels
+    // under the title, a dashed line, the text and the field to type it in; the footer becomes
+    // the count, "Never mind" and "Unlock"
+    var tags = make('div', 'rhythms-app_tags', '<span class="rhythms-app_tag">LOCKED</span><span class="rhythms-app_tag is-sand">TYPE TO UNLOCK</span>');
+    statusEl.parentNode.insertBefore(tags, statusEl.nextSibling);
+    var unlockView = make('div', 'rhythms-app_unlock',
+      '<div class="rhythms-app_unlock-line"></div><div class="rhythms-app_unlock-ask">A moment to ask: do I really want this?</div>' +
+      '<div class="rhythms-app_unlock-text"></div><div class="rhythms-app_unlock-field"><textarea class="rhythms-app_unlock-area" ' +
+      'placeholder="Type the text above…" aria-label="Type the text above" spellcheck="false" autocomplete="off" autocorrect="off" ' +
+      'autocapitalize="off" data-gramm="false"></textarea></div>');
+    scroll.insertBefore(unlockView, sec.when);
+    var unlockTextEl = $('.rhythms-app_unlock-text', unlockView);
+    var unlockField = $('.rhythms-app_unlock-field', unlockView);
+    var area = $('textarea', unlockView);
+    var foot = $('.rhythms-app_foot');
+    var unlockFoot = make('div', 'rhythms-app_foot rhythms-app_unlock-foot',
+      '<div class="rhythms-app_unlock-count"></div><div class="rhythms-app_add-time" data-unlock="cancel" role="button">NEVER MIND</div>' +
+      '<div class="rhythms-app_save" data-unlock="go" role="button">UNLOCK</div>');
+    foot.parentNode.insertBefore(unlockFoot, foot.nextSibling);
+    var unlockCount = $('.rhythms-app_unlock-count', unlockFoot);
     // The panel's ✕
     var closeBtn = make('div', 'rhythms-app_icon-btn rhythms-app_close', ICON.x);
     closeBtn.setAttribute('role', 'button');
@@ -4635,12 +4720,13 @@
     }
     $$('[data-app-card]').forEach(addStack);
 
-    // The header: the moon is a sun at night, like the app; the second button is Settings (a gear)
+    // The header, like the app: the pixel moon is a sun at night; Settings is a gear that turns a
+    // quarter on hover, like the panel's ✕
     var nightBtn = $('[data-app-night]');
     var settingsBtn = $$('.rhythms-app_icon-btn', $('.rhythms-app_tools'))[1];
-    var moon = nightBtn ? nightBtn.innerHTML : '', sun = settingsBtn ? settingsBtn.innerHTML : '';
-    if (settingsBtn) { settingsBtn.innerHTML = ICON.gear; settingsBtn.setAttribute('aria-label', 'Settings'); }
-    function paintNight() { if (nightBtn && sun) nightBtn.innerHTML = document.documentElement.classList.contains('dfs-night') ? sun : moon; }
+    if (settingsBtn) { settingsBtn.innerHTML = ICON.gear; settingsBtn.setAttribute('aria-label', 'Settings'); settingsBtn.classList.add('is-turning'); }
+    closeBtn.classList.add('is-turning');
+    function paintNight() { if (nightBtn) nightBtn.innerHTML = document.documentElement.classList.contains('dfs-night') ? ICON.sun : ICON.moon; }
     paintNight();
     new MutationObserver(paintNight).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     if (nightBtn) nightBtn.addEventListener('click', function () {
@@ -4652,6 +4738,8 @@
     var open = null;          // the rhythm in the panel: a key, 'new', or null when the panel is closed
     var draft = null;         // what the panel edits
     var addOnly = false;      // "Add only" was clicked, for this visit to the panel
+    var unlocked = false;     // the text was typed, for this visit to the panel
+    var unlocking = null;     // typing to unlock: { mode: 'edit' | 'switch', key, target, mismatch }
     var history = [];         // ⌘Z
     var fresh = [];           // chips that should pop in
     var newCount = 0;
@@ -4661,7 +4749,7 @@
     function modes() {
       var s = original();
       var isFrozen = !!s && frozen(s);
-      var restricted = !!s && asksForText(s);
+      var restricted = !!s && asksForText(s) && !unlocked;
       return { s: s, isNew: !s, isFrozen: isFrozen, restricted: restricted,
         lockedView: isFrozen || (restricted && !addOnly) };
     }
@@ -4716,7 +4804,8 @@
       toggle.classList.toggle('is-frozen', frozen(r));
       toggle.title = frozen(r) ? 'Fixed while this rhythm runs' : '';
       card.classList.toggle('is-off', !r.on);
-      card.classList.toggle('is-selected', key === open);
+      // Typing to switch one off is a panel of its own: no card is selected for it
+      card.classList.toggle('is-selected', key === open && !(unlocking && unlocking.mode === 'switch'));
     }
     function paintMenu() {
       var items = document.querySelector('.rhythms-menu_items');
@@ -4875,15 +4964,41 @@
       });
       $('[data-app-tip]').textContent = asksForText(draft) ? EFFORT[draft.effort][2] : LOCK[draft.lock].tip;
     }
+    // Typing to unlock: the text (after a wrong try, the first letter that's off is red), the count or what's off
+    function paintUnlock() {
+      var u = unlocking;
+      unlockView.style.display = tags.style.display = unlockFoot.style.display = u ? '' : 'none';
+      foot.style.display = u ? 'none' : '';
+      edit.classList.toggle('is-switching', !!u && u.mode === 'switch');
+      if (!u) return;
+      var t = u.target, i = u.mismatch;
+      unlockTextEl.textContent = '';
+      if (i == null || i >= t.length) unlockTextEl.textContent = t;
+      else {
+        unlockTextEl.appendChild(document.createTextNode(t.slice(0, i)));
+        unlockTextEl.appendChild(make('span', 'is-wrong')).textContent = t.charAt(i);
+        unlockTextEl.appendChild(document.createTextNode(t.slice(i + 1)));
+      }
+      // As tall as the text, plus a little room for typos, so nothing has to scroll
+      unlockField.style.height = (unlockTextEl.offsetHeight + 20) + 'px';
+      unlockField.classList.toggle('is-error', i != null);
+      unlockCount.classList.toggle('is-error', i != null);
+      unlockCount.textContent = i == null ? area.value.length + ' / ' + t.length
+        : i >= area.value.length ? 'Not an exact match yet: the text isn\'t finished. Carry on from the red letter.'
+        : 'Not an exact match yet. The first letter that\'s off is in red.';
+    }
     function paintEditor(instant) {
       var m = modes();
-      if (nameEl.textContent !== draft.name) nameEl.textContent = draft.name;
-      nameEl.contentEditable = m.lockedView ? 'false' : 'true';
+      // Switching off behind a lock: the title says what you're about to do
+      var title = unlocking && unlocking.mode === 'switch' ? 'Switch off ' + draft.name : draft.name;
+      if (nameEl.textContent !== title) nameEl.textContent = title;
+      nameEl.contentEditable = m.lockedView || unlocking ? 'false' : 'true';
       statusEl.textContent = m.isNew ? 'NEW RHYTHM' : '';
       statusEl.classList.toggle('is-hidden', !m.isNew);
+      paintUnlock();
 
-      // The banner: Sealed while it runs, or behind Type to unlock
-      banner.style.display = m.isFrozen || m.restricted ? '' : 'none';
+      // The banner: Sealed while it runs, or behind Type to unlock (while typing, the typing takes its place)
+      banner.style.display = (m.isFrozen || m.restricted) && !unlocking ? '' : 'none';
       if (m.isFrozen) {
         $('.rhythms-app_banner-title', banner).textContent = 'Sealed';
         $('.rhythms-app_banner-text', banner).textContent = 'Nothing changes ' + until(m.s) + '.';
@@ -4936,7 +5051,7 @@
       draft = key === 'new'
         ? { name: '', on: true, always: false, windows: blankTimes(), sites: [], adult: false, lock: 'none', effort: 'medium' }
         : copy(saved[key]);
-      addOnly = false; history = []; query = ''; input.value = ''; fresh = [];
+      addOnly = false; unlocked = false; unlocking = null; history = []; query = ''; input.value = ''; fresh = [];
       body.classList.remove('is-closed');
       paintList();
       foldOpen = null;
@@ -4949,7 +5064,8 @@
       if (key === 'new') setTimeout(function () { nameEl.focus({ preventScroll: true }); }, 60);
     }
     function close() {
-      open = null; draft = null;
+      open = null; draft = null; unlocking = null;
+      if (document.activeElement === area) area.blur();
       body.classList.add('is-closed');
       paintList();
     }
@@ -4962,12 +5078,11 @@
         if (!toggle) { if (open !== key) show(key); return; }
         var r = saved[key];
         if (frozen(r)) { shake(toggle); return; }
-        // Switching on is always free; switching off a Type to unlock rhythm costs the text
+        // Switching on is always free; switching off a Type to unlock rhythm costs the text, typed in the panel
         if (r.on && asksForText(r)) {
-          if (open !== key) show(key);
-          shake(toggle);
-          var unlockBtn = $('[data-banner="unlock"]', banner);
-          if (gs && !reduce) gs.fromTo(unlockBtn, { scale: 1 }, { scale: 1.08, duration: 0.18, yoyo: true, repeat: 1, ease: 'power2.out' });
+          if (unlocking && unlocking.mode === 'switch' && open === key) { shake(unlockField); return; }
+          show(key);
+          startUnlock('switch');
           return;
         }
         r.on = !r.on;
@@ -4999,11 +5114,69 @@
       var b = e.target.closest('[data-banner]');
       if (!b) return;
       if (b.getAttribute('data-banner') === 'add') { addOnly = true; paintEditor(); return; }
-      // Unlocking is the typing further down the page
-      var target = document.querySelector('[data-rhythms-unlock]');
-      if (!target) return;
-      if (window.lenis && window.lenis.scrollTo) window.lenis.scrollTo(target, { offset: -window.innerHeight * 0.18 });
-      else target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      startUnlock('edit');
+    });
+
+    // ---------- typing to unlock ----------
+    // 'edit': "Unlock…" in the banner; once typed, the whole rhythm can change until the panel closes.
+    // 'switch': the switch on a card; once typed, the rhythm is off and the panel closes.
+    function startUnlock(mode) {
+      var r = saved[open];
+      if (!r) return;
+      unlocking = { mode: mode, key: open, target: unlockText(CHARS[r.effort] || CHARS.medium), mismatch: null };
+      area.value = '';
+      query = ''; input.value = '';
+      paintList();
+      paintEditor();
+      scroll.scrollTop = 0;
+      if (gs && !reduce) gs.fromTo(unlockView, { autoAlpha: 0, y: 8 }, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'expo.out', clearProps: 'transform,opacity,visibility' });
+      setTimeout(function () { if (unlocking) area.focus({ preventScroll: true }); }, 80);
+    }
+    function stopUnlock() {
+      var u = unlocking;
+      if (!u) return;
+      if (u.mode === 'switch') { close(); return; }
+      unlocking = null;
+      if (document.activeElement === area) area.blur();
+      paintEditor();
+    }
+    function tryUnlock() {
+      var u = unlocking, typed = area.value;
+      if (!u) return;
+      if (typed !== u.target) {
+        var i = 0;
+        while (i < typed.length && i < u.target.length && typed.charAt(i) === u.target.charAt(i)) i++;
+        u.mismatch = i;
+        paintUnlock();
+        shake(unlockField);
+        return;
+      }
+      unlocking = null;
+      if (document.activeElement === area) area.blur();
+      if (u.mode === 'switch') {
+        saved[u.key].on = false;
+        close();
+        changed();
+        return;
+      }
+      unlocked = true;
+      paintEditor();
+    }
+    // Type it exactly: no pasting, no dropping text in, no new lines
+    ['paste', 'drop'].forEach(function (type) { area.addEventListener(type, function (e) { e.preventDefault(); }); });
+    area.addEventListener('beforeinput', function (e) {
+      if (/^insertFrom(Paste|Drop|Yank)|^insert(LineBreak|Paragraph)$/.test(e.inputType || '')) e.preventDefault();
+    });
+    area.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') e.preventDefault();
+      if (e.key === 'Escape') stopUnlock();
+    });
+    area.addEventListener('input', function () { if (unlocking) { unlocking.mismatch = null; paintUnlock(); } });
+    unlockFoot.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-unlock]');
+      if (!b) return;
+      if (b.getAttribute('data-unlock') === 'cancel') stopUnlock();
+      else tryUnlock();
     });
 
     alldayRow.addEventListener('click', function () {
@@ -5172,6 +5345,78 @@
     // Opens on Slow Sundays: no lock, so everything can be tried straight away
     show(saved.sundays ? 'sundays' : order[0]);
     ready = true;
+  }
+
+  // =========================================================
+  // RHYTHMS MARQUEE — /rythems-app "Closes what pulls you away"
+  // The chips drift in loud and colourful; somewhere past the middle each one closes: its ✕ turns
+  // into a lock, the logo goes grey and the chip quiets down. Click one to close it yourself (a
+  // closed one won't open again: it shakes). Hover slows the row down. A chip that has drifted out
+  // on the left is open again by the time it comes back around. The page script clones the lists
+  // and runs the CSS marquee; this only adds the closing.
+  // =========================================================
+  function dfsRhythmsMarquee() {
+    var marquee = document.querySelector('[data-rhythms-marquee]');
+    var gs = window.gsap;
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var LOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+    var chips = function () { return [].slice.call(marquee.querySelectorAll('.rhythms-chip')); };
+    function shut(chip, byHand) {
+      if (chip.classList.contains('is-closed')) return;
+      var x = chip.querySelector('.rhythms-chip_x');
+      if (x && !x.querySelector('svg')) x.insertAdjacentHTML('beforeend', LOCK);
+      chip.classList.add('is-closed');
+      if (gs && !reduce) gs.fromTo(chip, { scale: byHand ? 0.93 : 0.97 }, { scale: 1, duration: 0.6, ease: 'back.out(2.5)', clearProps: 'transform' });
+    }
+    marquee.addEventListener('click', function (e) {
+      var chip = e.target.closest('.rhythms-chip');
+      if (!chip) return;
+      if (!chip.classList.contains('is-closed')) { shut(chip, true); return; }
+      if (gs && !reduce) gs.fromTo(chip, { x: 0 }, { x: 0, duration: 0.4, keyframes: { x: [-4, 4, -2, 2, 0] }, ease: 'power2.out', clearProps: 'transform' });
+    });
+
+    // Hover: the row eases down to a crawl, so a chip is easy to catch
+    var rate = { v: 1 };
+    function ease(to) {
+      if (!gs) return;
+      gs.to(rate, { v: to, duration: 0.9, ease: 'power2.out', overwrite: true, onUpdate: function () {
+        marquee.querySelectorAll('[data-css-marquee-list]').forEach(function (list) {
+          (list.getAnimations ? list.getAnimations() : []).forEach(function (a) { a.playbackRate = rate.v; });
+        });
+      } });
+    }
+    if (window.matchMedia('(hover: hover)').matches) {
+      marquee.addEventListener('mouseenter', function () { ease(0.2); });
+      marquee.addEventListener('mouseleave', function () { ease(1); });
+    }
+
+    // Closing as they pass. Each chip closes at its own spot, between 40% and 70% of the way across
+    // (from the left), so it never looks like one machine stamping them shut.
+    if (reduce) return;
+    var visible = false;
+    if ('IntersectionObserver' in window) new IntersectionObserver(function (entries) { visible = entries[0].isIntersecting; }).observe(marquee);
+    else visible = true;
+    // One chip per beat at most, the right-most first: scrolled into view, the left half closes as a wave.
+    setInterval(function () {
+      if (!visible || document.hidden) return;
+      var box = marquee.getBoundingClientRect();
+      if (!box.width) return;
+      var next = null, nextX = -Infinity;
+      chips().forEach(function (chip) {
+        var r = chip.getBoundingClientRect();
+        if (r.right < box.left || r.left > box.right) {
+          // Out of sight on the left: open again for the next time around
+          if (r.right < box.left && chip.classList.contains('is-closed')) { chip.classList.remove('is-closed'); chip._closeAt = null; }
+          return;
+        }
+        if (chip.classList.contains('is-closed')) return;
+        if (chip._closeAt == null) chip._closeAt = 0.4 + Math.random() * 0.3;
+        var at = (r.left + r.width / 2 - box.left) / box.width;
+        if (at < chip._closeAt && at > nextX) { next = chip; nextX = at; }
+      });
+      if (next) shut(next);
+    }, 170);
   }
 
   // =========================================================
@@ -5729,7 +5974,8 @@
     if (document.querySelector('[data-grid-zips]')) dfsGridZips();
     if (document.querySelector('[data-greet-name]')) dfsGreeting();
     if (document.querySelector('[data-rhythms-app]')) dfsRhythmsApp();
-    if (path === '/' || path === '/course' || path === '/test-zone') dfsHome();
+    if (document.querySelector('[data-rhythms-marquee]')) dfsRhythmsMarquee();
+    if (path === '/'|| path === '/course' || path === '/test-zone') dfsHome();
   });
 
 })();

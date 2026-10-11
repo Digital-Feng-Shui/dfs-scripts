@@ -262,6 +262,7 @@ html.dfs-night{--brand-colors--light-bage:#0e1628;--brand-colors--bage:#141e34;-
 :where(html.dfs-night) .rhythms-app_chip-icon.is-letter{background-color:#11233d}
 :where(html.dfs-night) .rhythms-app_result:hover{background-color:#11233d}
 :where(html.dfs-night) .rhythms-app_check{color:#172138}
+:where(html.dfs-night) .rhythms-app_unlock-area::placeholder{color:rgba(153,156,166,0.7)}
 
 /* hand-tuned extras */
 /* Hand-tuned night details. Appended to night.css by gen_css.py. */
@@ -499,3 +500,10 @@ html.dfs-night .coming_soon .text-color-white { color: var(--brand-colors--80-da
 
 /* Rhythms app demo: the tick in "Block adult sites" stays white on the blue, like the app. */
 html.dfs-night .rhythms-app_check { color: #fff; }
+
+/* Rhythms page: a closed marquee chip goes see-through at night too; the skeleton blocks are light on dark. */
+html.dfs-night .rhythms-chip.is-closed { background-color: transparent; }
+html.dfs-night .rhythms-unlock_target,
+html.dfs-night .rhythms-tip_text { --skel-base: rgba(255, 255, 255, .08); --skel-pulse: rgba(255, 255, 255, .17); }
+/* "Set it up once": the frame shows a little below the dark screenshot on the last step, so it takes the screenshot's own background. */
+html.dfs-night .rhythms-shot { background-color: #282723; }

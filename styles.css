@@ -625,7 +625,7 @@ input:-webkit-autofill:focus {
 .rhythms-app_toggle-knob{transition:left .25s cubic-bezier(.3,.7,.2,1)}
 .rhythms-app_toggle.is-off{background-color:var(--brand-colors--dark-bage)}
 .rhythms-app_toggle.is-off .rhythms-app_toggle-knob{left:3px}
-.rhythms-app_icon-btn:hover,.rhythms-app_day:hover,.rhythms-app_group:hover,.rhythms-app_add-time:hover{border-color:var(--brand-colors--ll-gray)}
+.rhythms-app_day:hover,.rhythms-app_group:hover,.rhythms-app_add-time:hover{border-color:var(--brand-colors--ll-gray)}
 .rhythms-app_new:hover,.rhythms-app_save:hover{background-color:var(--brand-colors--blue)}
 .rhythms-app_day.is-on{background-color:var(--brand-colors--blue);border-color:var(--brand-colors--blue);color:var(--brand-colors--light-bage)}
 .rhythms-app_chart-seg{transition:left .35s ease,width .35s ease}
@@ -733,5 +733,53 @@ input:-webkit-autofill:focus {
 .rhythms-app_search-input{width:100%;border:0;outline:0;background:transparent;font:inherit;font-size:9.5px;color:var(--brand-colors--dark_gray);padding:0;margin:0}
 .rhythms-app_search-input::placeholder{color:var(--brand-colors--ll-gray)}
 
-/* Rhythms page: a typing caret while the unlock text and the tip retype (page script) */
-[data-rhythms-unlock-target].is-typing::after,[data-rhythms-tip].is-typing::after{content:'';display:inline-block;width:.55ch;height:1.05em;margin-left:1px;vertical-align:-.15em;background-color:var(--brand-colors--blue)}
+/* Header buttons and the panel's ✕, like the app's IconButtonStyle: a ring on hover; the gear and ✕ turn a quarter */
+.rhythms-app_icon-btn{cursor:pointer}
+.rhythms-app_icon-btn:hover{border-color:var(--brand-colors--dark-bage);box-shadow:inset 0 0 0 2px var(--brand-colors--dark-bage)}
+.rhythms-app_icon-btn svg{display:block;transition:transform .6s cubic-bezier(.625,.05,0,1)}
+.rhythms-app_icon-btn.is-turning:hover svg{transform:rotate(90deg)}
+
+/* Typing to unlock inside the demo (the app's UnlockView, UnlockTags and UnlockFooter) */
+.rhythms-app_tags{display:flex;gap:5px;margin-top:8px}
+.rhythms-app_tags .rhythms-app_tag{margin-left:0;padding:3px 6px}
+.rhythms-app_tag.is-sand{color:var(--brand-colors--light-gray);background-color:var(--brand-colors--bage)}
+.rhythms-app_unlock{margin-top:20px}
+.rhythms-app_unlock-line{height:0;margin:0 -26px 14px;border-top:1px dashed var(--brand-colors--dark-bage)}
+.rhythms-app_unlock-ask{font-size:9.5px;line-height:1.45;color:var(--brand-colors--light-gray)}
+.rhythms-app_unlock-text{margin-top:14px;padding:11px;border-radius:4px;background-color:var(--brand-colors--bage);font-size:10.5px;line-height:1.65;color:var(--brand-colors--dark_gray);-webkit-user-select:none;user-select:none}
+.rhythms-app_unlock-text .is-wrong{color:#b5503f;background-color:rgba(181,80,63,.14);border-radius:2px}
+.rhythms-app_unlock-field{margin-top:14px;border:1px solid var(--brand-colors--dark-bage);border-radius:4px;background-color:var(--brand-colors--light-bage);transition:border-color .25s}
+.rhythms-app_unlock-field.is-error{border-color:#b5503f}
+.rhythms-app_unlock-area{display:block;box-sizing:border-box;width:100%;height:100%;margin:0;padding:10px 11px;border:0;outline:0;resize:none;background:transparent;font:inherit;font-size:10.5px;line-height:1.65;color:var(--brand-colors--dark_gray);-webkit-user-select:text;user-select:text}
+.rhythms-app_unlock-area::placeholder{color:rgba(111,110,107,.7)}
+.rhythms-app_unlock-foot{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+.rhythms-app_unlock-foot > [role="button"]{flex:none;margin:0;cursor:pointer}
+.rhythms-app_unlock-count{flex:1 1 auto;min-width:0;margin-right:4px;font-size:9px;line-height:1.4;color:var(--brand-colors--light-gray)}
+.rhythms-app_unlock-count.is-error{color:#b5503f}
+.rhythms-app_edit.is-switching .rhythms-app_sec{display:none}
+
+/* Interface pieces aren't text to select: buttons, the app demos, and anything with data-no-select */
+[data-no-select],.button,.w-button,.rhythms-app,.rhythms-menu,.rhythms-toast,.rhythms-browser,.rhythms-effort_chip,[data-rhythms-step]{-webkit-user-select:none;user-select:none}
+.rhythms-app [contenteditable="true"]{-webkit-user-select:text;user-select:text}
+
+/* Closes what pulls you away (main.js dfsRhythmsMarquee): open chips close as they pass; ✕ becomes a lock */
+.rhythms-marquee,.rhythms-marquee_label{-webkit-user-select:none;user-select:none}
+.rhythms-chip{cursor:pointer;transition:background-color .6s,border-color .3s}
+.rhythms-chip_icon{transition:filter .7s,opacity .7s}
+.rhythms-chip_name{transition:opacity .6s}
+.rhythms-chip_x{position:relative;display:inline-block;transition:color .25s,transform .35s}
+.rhythms-chip_x svg{position:absolute;left:50%;top:50%;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;color:var(--brand-colors--blue);opacity:0;transform:scale(.3) rotate(-25deg);transition:opacity .3s .12s,transform .5s .12s cubic-bezier(.3,1.4,.5,1)}
+.rhythms-chip:not(.is-closed):hover{border-color:rgba(181,80,63,.45)}
+.rhythms-chip:not(.is-closed):hover .rhythms-chip_x{color:#b5503f;transform:scale(1.2)}
+.rhythms-chip.is-closed{cursor:default;background-color:transparent}
+.rhythms-chip.is-closed .rhythms-chip_icon{filter:grayscale(1);opacity:.4}
+.rhythms-chip.is-closed .rhythms-chip_name{opacity:.5}
+.rhythms-chip.is-closed .rhythms-chip_x{color:transparent;transform:none}
+.rhythms-chip.is-closed .rhythms-chip_x svg{opacity:1;transform:none}
+
+/* Skeleton reveal (after Osmo's Skeleton Loader Text) for the type-to-unlock text and its tip (page script) */
+.rhythms-skel-wait{color:transparent!important}
+.rhythms-skel-wrap{position:relative}
+.rhythms-skel{position:absolute;left:0;top:50%;height:58%;transform:translateY(-50%);border-radius:3px;background-color:var(--skel-base);pointer-events:none}
+.rhythms-unlock_target{--skel-base:#e2d9cc;--skel-pulse:#d2c6b4}
+.rhythms-tip_text{--skel-base:rgba(2,151,219,.13);--skel-pulse:rgba(2,151,219,.26)}

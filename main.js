@@ -6053,7 +6053,8 @@
         'border-radius:8px;border:1px solid #3D3A36;background:#3D3A36;color:#FBF7EF;font-size:.85rem;cursor:pointer;' +
         'text-decoration:none;font-family:inherit}' +
         '.dfs-helper button.dfs-helper-btn.is-light{background:transparent;color:#3D3A36}' +
-        '.dfs-helper-status{margin:1rem 0 0;font-size:.8rem;min-height:1.2em;color:#1A97D7}';
+        '.dfs-helper-who{margin:1.25rem 0 0;font-size:.8rem;opacity:.7}' +
+        '.dfs-helper-status{margin:.4rem 0 0;font-size:.8rem;min-height:1.2em;color:#1A97D7}';
       document.head.appendChild(style);
     }
 
@@ -6062,16 +6063,28 @@
     card.innerHTML =
       '<svg viewBox="0 0 32 32" aria-hidden="true"><path fill="#3D3A36" fill-rule="evenodd" d="' + STAR + '"/></svg>' +
       '<h3>DFS Helper</h3>' +
-      '<p>The course’s helper app for your Mac. Download it, open it, and connect it to your account here.</p>' +
+      '<p>The course’s helper app for your Mac. Get it, open it, and connect it to your account here.</p>' +
       '<div class="dfs-helper-row">' +
-      '<a class="dfs-helper-btn" href="' + WORKER + '/download">Download for Mac</a>' +
+      '<a class="dfs-helper-btn" href="' + WORKER + '/download">Get the helper</a>' +
       '<button type="button" class="dfs-helper-btn is-light" data-helper-connect>Connect the app</button>' +
       '</div>' +
+      '<p class="dfs-helper-who" data-helper-who>Checking who’s logged in…</p>' +
       '<p class="dfs-helper-status" data-helper-status></p>';
     document.body.appendChild(card);
 
     var status = card.querySelector('[data-helper-status]');
+    var who = card.querySelector('[data-helper-who]');
     function setStatus(text) { status.textContent = text; }
+
+    // Who Memberstack thinks you are on this domain (staging = sandbox members, live = real members).
+    whenMemberstackReady(function () {
+      window.$memberstackDom.getCurrentMember().then(function (res) {
+        var member = res && res.data;
+        who.textContent = member
+          ? 'Logged in as ' + (member.auth && member.auth.email ? member.auth.email : member.id) + ' (' + MODE + ')'
+          : 'Not logged in on this domain. Log in first, then Connect the app.';
+      }).catch(function () { who.textContent = 'Memberstack didn’t answer.'; });
+    });
 
     // The member token the dfs-helper worker verifies: Memberstack's own getter first, then where
     // the DOM package keeps it (localStorage or the _ms-mid cookie), depending on its settings.

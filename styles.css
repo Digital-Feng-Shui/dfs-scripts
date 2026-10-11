@@ -792,3 +792,7 @@ input:-webkit-autofill:focus {
 .rhythms-skel{position:absolute;left:0;top:50%;height:58%;transform:translateY(-50%);border-radius:3px;background-color:var(--skel-base);pointer-events:none}
 .rhythms-unlock_target{--skel-base:#e2d9cc;--skel-pulse:#d2c6b4}
 .rhythms-tip_text{--skel-base:rgba(2,151,219,.13);--skel-pulse:rgba(2,151,219,.26)}
+
+/* Login help (main.js dfsLoginHelp): the second blue box stays closed until "Trouble logging in?" opens it */
+[data-login-help]{overflow:hidden}
+[data-login-help]:not(.is-open){display:none}

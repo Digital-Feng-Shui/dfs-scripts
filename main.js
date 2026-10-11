@@ -5471,6 +5471,45 @@
   }
 
   // =========================================================
+  // LOGIN HELP — /login: "Trouble logging in?" ([data-login-help-toggle]) opens a second blue box
+  // ([data-login-help]) under the Resend row. It shows the address the code went to
+  // ([data-login-help-email]), so a typo is easy to spot, and a "Send us a message" link
+  // (data-help-mail, see above). Click again to close. styles.css hides the box until it opens.
+  // =========================================================
+  function dfsLoginHelp() {
+    var box = document.querySelector('[data-login-help]');
+    var toggle = document.querySelector('[data-login-help-toggle]');
+    if (!box || !toggle) return;
+    var gs = window.gsap;
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var emailEl = box.querySelector('[data-login-help-email]');
+    toggle.setAttribute('role', 'button');
+    toggle.setAttribute('aria-expanded', 'false');
+    function setOpen(on) {
+      toggle.setAttribute('aria-expanded', on ? 'true' : 'false');
+      if (gs) gs.killTweensOf(box);
+      if (on) {
+        var field = document.querySelector('[data-ms-member="email"]');
+        if (emailEl) emailEl.textContent = (field && field.value.trim()) || 'your email';
+        box.classList.add('is-open');
+        if (!gs || reduce) return;
+        var cs = getComputedStyle(box);
+        gs.fromTo(box, { height: 0, paddingTop: 0, paddingBottom: 0, marginBottom: 0, autoAlpha: 0 },
+          { height: 'auto', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginBottom: cs.marginBottom, autoAlpha: 1,
+            duration: 0.55, ease: 'expo.out', clearProps: 'height,padding,margin,opacity,visibility' });
+        return;
+      }
+      var shut = function () { box.classList.remove('is-open'); if (gs) gs.set(box, { clearProps: 'height,padding,margin,opacity,visibility' }); };
+      if (!gs || reduce) { shut(); return; }
+      gs.to(box, { height: 0, paddingTop: 0, paddingBottom: 0, marginBottom: 0, autoAlpha: 0, duration: 0.35, ease: 'power2.inOut', onComplete: shut });
+    }
+    toggle.addEventListener('click', function (e) {
+      e.preventDefault();
+      setOpen(!box.classList.contains('is-open'));
+    });
+  }
+
+  // =========================================================
   // GREETING — "Hi Rim 👋" when we know the member's first name, otherwise just "Hi 👋".
   // Put data-greet-name on the name span. styles.css hides it until a name is found,
   // so a placeholder like {firstName} never shows.
@@ -6025,6 +6064,7 @@
     if (document.querySelector('[data-grid-zips]')) dfsGridZips();
     if (document.querySelector('[data-greet-name]')) dfsGreeting();
     if (document.querySelector('a[data-help-mail]')) dfsHelpMail();
+    if (document.querySelector('[data-login-help]')) dfsLoginHelp();
     if (document.querySelector('[data-rhythms-app]')) dfsRhythmsApp();
     if (document.querySelector('[data-rhythms-marquee]')) dfsRhythmsMarquee();
     if (path === '/'|| path === '/course' || path === '/test-zone') dfsHome();

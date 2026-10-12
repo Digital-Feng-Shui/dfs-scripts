@@ -430,7 +430,7 @@ html.dfs-night .radiocheck-field.is-boxed:has(input:checked) .radiocheck-label.i
    inset shadow (which the generator skips). At night: the deep night highlight. */
 html.dfs-night input:-webkit-autofill,
 html.dfs-night input:-webkit-autofill:hover,
-html.dfs-night input:-webkit-autofill:focus { -webkit-box-shadow: 0 0 0 1000px #11233d inset; }
+html.dfs-night input:-webkit-autofill:focus { -webkit-box-shadow: 0 0 0 1000px #11233d inset; -webkit-text-fill-color: #ece8de; caret-color: #ece8de; }
 
 /* Onboarding / feedback overlay: its grid comes from a page embed (onboard_css) with a
    fixed #F2F0E7, which the generator can't see. Give it the same faint night grid. */

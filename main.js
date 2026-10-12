@@ -5518,6 +5518,19 @@
   }
 
   // =========================================================
+  // SQUARE FIELD ICONS — the success / error icons in form fields (.form-field-icon, a Webflow embed)
+  // were circles; the outline becomes a square with barely rounded corners, more on-brand. The tick
+  // and the exclamation mark inside stay as they are.
+  // =========================================================
+  function dfsSquareFieldIcons() {
+    var SQUARE = 'M4.5 3.5h15a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1Z';
+    document.querySelectorAll('.form-field-icon svg path').forEach(function (path) {
+      var d = path.getAttribute('d') || '';
+      if (/^M3 12C3 /.test(d) || /^M12 3C16\.971 3 21 7\.029/.test(d)) path.setAttribute('d', SQUARE);
+    });
+  }
+
+  // =========================================================
   // GREETING — "Hi Rim 👋" when we know the member's first name, otherwise just "Hi 👋".
   // Put data-greet-name on the name span. styles.css hides it until a name is found,
   // so a placeholder like {firstName} never shows.
@@ -6177,6 +6190,7 @@
     if (document.querySelector('[data-greet-name]')) dfsGreeting();
     if (document.querySelector('a[data-help-mail]')) dfsHelpMail();
     if (document.querySelector('[data-login-help]')) dfsLoginHelp();
+    if (document.querySelector('.form-field-icon')) dfsSquareFieldIcons();
     if (document.querySelector('[data-rhythms-app]')) dfsRhythmsApp();
     if (document.querySelector('[data-rhythms-marquee]')) dfsRhythmsMarquee();
     if (path === '/'|| path === '/course' || path === '/test-zone') dfsHome();

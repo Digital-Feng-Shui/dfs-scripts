@@ -1649,7 +1649,10 @@
   // COURSE PLAYER — /courses/fundamentals
   // (was Slater Course.js)
   // =========================================================
-  function dfsCourse() {
+  // demo: /helper-test shows one lesson in the real player. Nothing is read from or saved to the
+  // member's progress, there's no onboarding, and the menu is only for show.
+  function dfsCourse(opts) {
+    const DEMO = !!(opts && opts.demo);
     const hamburger = document.querySelector('.bold-nav-full__hamburger');
     const menuWrap = document.querySelector('.absoulte_menu_wrap');
     const menuToggle = document.querySelector('.Menu_toggle');
@@ -2070,7 +2073,7 @@
       const firstIncompleteLesson = lessons.find(l => !l.complete);
       // If all complete, use last lesson; otherwise use first incomplete
       const targetLesson = firstIncompleteLesson || lessons[lessons.length - 1];
-      const targetLessonElement = document.getElementById(targetLesson.id);
+      const targetLessonElement = document.getElementById(DEMO ? (opts.lesson || 'lesson-2.1') : targetLesson.id);
       if (!targetLessonElement) return;
       // Activate the lesson
       targetLessonElement.classList.add('is-active');
@@ -2199,9 +2202,9 @@
         placeholder.removeAttribute('srcset');
       }
       // Load member progress first (before setting initial state)
-      await loadMemberProgress();
+      if (!DEMO) await loadMemberProgress();
       setInitialState();
-      setupCourseItemClicks();
+      if (!DEMO) setupCourseItemClicks();
       updateAccordionStatus(); // Set initial accordion status
     }), 200);
     // Function to load member's progress from Memberstack
@@ -2232,6 +2235,7 @@
     }
     // Function to save progress to Memberstack
     async function saveMemberProgress() {
+      if (DEMO) return;
       try {
         // First get existing data to preserve other courses
         const memberData = await window.$memberstackDom.getMemberJSON();
@@ -2945,7 +2949,7 @@
     initBunnyPlayer();
 
     // ONBOARDING
-    (function () {
+    if (!DEMO) (function () {
       const overlay = document.querySelector(".onboarding-overlay");
       const panel = overlay?.querySelector(".transition-panel");
       const capTop = overlay?.querySelector(".panel-cap-top");
@@ -6037,8 +6041,10 @@
   }
 
   // =========================================================
-  // DFS HELPER (test) — /onbaording-test
-  // The Mac helper app's download button and its "connect" bounce. The app opens this page with
+  // DFS HELPER (test) — /helper-test (built in Webflow) and /onbaording-test (drawn here)
+  // On /helper-test the block is Webflow elements: [data-helper-connect] (the Connect button),
+  // [data-helper-who] and [data-helper-status] (text lines); this only wires them up. Without them
+  // (/onbaording-test) it draws its own card. The Mac helper app (Tinko) opens this page with
   // ?helper=connect; once Memberstack knows who's logged in, the member token goes to the app through
   // dfshelper://connect, and the dfs-helper worker turns it into a licence. Test page only for now:
   // nothing of this is on the course pages.
@@ -6052,38 +6058,42 @@
       '21.7451L19.624 25.3672V19.6201H25.3682L21.748 16.001L25.375 12.374H19.624V6.62793L16.001 10.251L12.375 ' +
       '6.625V12.374Z';
 
-    if (!document.getElementById('dfs-helper-style')) {
-      var style = document.createElement('style');
-      style.id = 'dfs-helper-style';
-      style.textContent =
-        '.dfs-helper{max-width:520px;margin:3rem auto;padding:2rem;border:1px solid #DFD5CA;border-radius:12px;' +
-        'background:#F1EDE3;color:#3D3A36;text-align:center;font-family:inherit}' +
-        '.dfs-helper svg{width:36px;height:36px;display:block;margin:0 auto 1rem}' +
-        '.dfs-helper h3{margin:0 0 .4rem;font-size:1.5rem;font-weight:400}' +
-        '.dfs-helper p{margin:0 0 1.25rem;font-size:.85rem;line-height:1.6;opacity:.75}' +
-        '.dfs-helper-row{display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap}' +
-        '.dfs-helper a.dfs-helper-btn,.dfs-helper button.dfs-helper-btn{display:inline-block;padding:.7rem 1.4rem;' +
-        'border-radius:8px;border:1px solid #3D3A36;background:#3D3A36;color:#FBF7EF;font-size:.85rem;cursor:pointer;' +
-        'text-decoration:none;font-family:inherit}' +
-        '.dfs-helper button.dfs-helper-btn.is-light{background:transparent;color:#3D3A36}' +
-        '.dfs-helper-who{margin:1.25rem 0 0;font-size:.8rem;opacity:.7}' +
-        '.dfs-helper-status{margin:.4rem 0 0;font-size:.8rem;min-height:1.2em;color:#1A97D7}';
-      document.head.appendChild(style);
-    }
+    // Built in Webflow: wire up what's there
+    var card = document.querySelector('[data-helper-connect]') ? document : null;
+    if (!card) {
+      if (!document.getElementById('dfs-helper-style')) {
+        var style = document.createElement('style');
+        style.id = 'dfs-helper-style';
+        style.textContent =
+          '.dfs-helper{max-width:520px;margin:3rem auto;padding:2rem;border:1px solid #DFD5CA;border-radius:12px;' +
+          'background:#F1EDE3;color:#3D3A36;text-align:center;font-family:inherit}' +
+          '.dfs-helper svg{width:36px;height:36px;display:block;margin:0 auto 1rem}' +
+          '.dfs-helper h3{margin:0 0 .4rem;font-size:1.5rem;font-weight:400}' +
+          '.dfs-helper p{margin:0 0 1.25rem;font-size:.85rem;line-height:1.6;opacity:.75}' +
+          '.dfs-helper-row{display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap}' +
+          '.dfs-helper a.dfs-helper-btn,.dfs-helper button.dfs-helper-btn{display:inline-block;padding:.7rem 1.4rem;' +
+          'border-radius:8px;border:1px solid #3D3A36;background:#3D3A36;color:#FBF7EF;font-size:.85rem;cursor:pointer;' +
+          'text-decoration:none;font-family:inherit}' +
+          '.dfs-helper button.dfs-helper-btn.is-light{background:transparent;color:#3D3A36}' +
+          '.dfs-helper-who{margin:1.25rem 0 0;font-size:.8rem;opacity:.7}' +
+          '.dfs-helper-status{margin:.4rem 0 0;font-size:.8rem;min-height:1.2em;color:#1A97D7}';
+        document.head.appendChild(style);
+      }
 
-    var card = document.createElement('section');
-    card.className = 'dfs-helper';
-    card.innerHTML =
-      '<svg viewBox="0 0 32 32" aria-hidden="true"><path fill="#3D3A36" fill-rule="evenodd" d="' + STAR + '"/></svg>' +
-      '<h3>DFS Helper</h3>' +
-      '<p>The course’s helper app for your Mac. Get it, open it, and connect it to your account here.</p>' +
-      '<div class="dfs-helper-row">' +
-      '<a class="dfs-helper-btn" href="' + WORKER + '/download">Get the helper</a>' +
-      '<button type="button" class="dfs-helper-btn is-light" data-helper-connect>Connect the app</button>' +
-      '</div>' +
-      '<p class="dfs-helper-who" data-helper-who>Checking who’s logged in…</p>' +
-      '<p class="dfs-helper-status" data-helper-status></p>';
-    document.body.appendChild(card);
+      card = document.createElement('section');
+      card.className = 'dfs-helper';
+      card.innerHTML =
+        '<svg viewBox="0 0 32 32" aria-hidden="true"><path fill="#3D3A36" fill-rule="evenodd" d="' + STAR + '"/></svg>' +
+        '<h3>DFS Helper</h3>' +
+        '<p>The course’s helper app for your Mac. Get it, open it, and connect it to your account here.</p>' +
+        '<div class="dfs-helper-row">' +
+        '<a class="dfs-helper-btn" href="' + WORKER + '/download">Get the helper</a>' +
+        '<button type="button" class="dfs-helper-btn is-light" data-helper-connect>Connect the app</button>' +
+        '</div>' +
+        '<p class="dfs-helper-who" data-helper-who>Checking who’s logged in…</p>' +
+        '<p class="dfs-helper-status" data-helper-status></p>';
+      document.body.appendChild(card);
+    }
 
     var status = card.querySelector('[data-helper-status]');
     var who = card.querySelector('[data-helper-who]');
@@ -6131,10 +6141,11 @@
       });
     }
 
-    card.querySelector('[data-helper-connect]').addEventListener('click', connect);
+    var connectBtn = card.querySelector('[data-helper-connect]');
+    connectBtn.addEventListener('click', function (e) { e.preventDefault(); connect(); });
     // Opened by the app: connect straight away.
     if (new URLSearchParams(location.search).get('helper') === 'connect') {
-      card.scrollIntoView({ block: 'center' });
+      connectBtn.scrollIntoView({ block: 'center' });
       connect();
     }
   }
@@ -6162,6 +6173,9 @@
   } else if (path === '/feedback' || path.indexOf('/feedback/') === 0) {
     // /feedback/fundamentals (course), /feedback/rythems (the Rhythms app), ...
     dfsFeedback();
+  } else if (path === '/helper-test') {
+    dfsCourse({ demo: true, lesson: 'lesson-2.1' });
+    dfsHelper();
   } else if (path === '/onbaording-test') {
     // Order matters: Feedback sets up the form first, so Form validation skips it.
     dfsFeedback();

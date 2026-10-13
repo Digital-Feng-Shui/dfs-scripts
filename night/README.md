@@ -1,7 +1,7 @@
 # Night mode (Thomas, prototype 7 Oct 2026)
 
-A day/night switch for the homepage, in deep night blue. Off by default: only the
-moon/sun button in the nav turns it on; the choice is remembered in the browser.
+A day/night switch for the homepage, in deep night blue. Follows the visitor's Mac/phone dark mode until they use the
+moon/sun button in the nav; that choice wins and is remembered in the browser.
 `?night=1` / `?night=0` in the URL forces a mode (for testing).
 
 - `night.css`       all night colours, under `html.dfs-night` (generated from a CSS snapshot + hand-tuned extras)

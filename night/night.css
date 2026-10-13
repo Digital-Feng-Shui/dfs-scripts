@@ -419,6 +419,10 @@ html.dfs-night .mac_text.is-5 { color: #fbf7ee; }
 /* Instructor photo: the same moonlit blue as the chapter illustrations. */
 html.dfs-night .instructor_image { filter: brightness(.8) sepia(.3) hue-rotate(185deg) saturate(.9); }
 
+/* Lesson video cover (the grey mountains behind the title): the same moonlit blue as the instructor photo,
+   a bit deeper so it sits with the night mountains instead of glaring out of the dark page. */
+html.dfs-night .bunny-player__placeholder { filter: brightness(.62) sepia(.75) hue-rotate(185deg) saturate(1.5); }
+
 /* Login / sign-up backdrop: night version of the same mountains (recoloured, no AI). */
 html.dfs-night .sing_in_bg { background-image: url(large_BG3-night.webp); }
 

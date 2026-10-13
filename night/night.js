@@ -81,7 +81,7 @@
   });
 
   // In 'system' mode, follow the device live (until the visitor picks by hand).
-  if ((window.DFS_NIGHT_AUTO || 'off') === 'system' && window.matchMedia) {
+  if ((window.DFS_NIGHT_AUTO || 'system') === 'system' && window.matchMedia) {
     var mq = matchMedia('(prefers-color-scheme: dark)');
     var follow = function (e) { var s = null; try { s = localStorage.getItem('dfs-theme'); } catch (x) {} if (!s) set(e.matches); };
     mq.addEventListener ? mq.addEventListener('change', follow) : mq.addListener(follow);

@@ -4,7 +4,7 @@
    Separate from main.js on purpose: one page loads it in its own
    page custom code, nothing else on the site knows it exists.
 
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.1.5/dive/dive.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.2.0/dive/dive.js"></script>
 
    Webflow structure (classes are free, the attributes matter):
      [data-dive]                 section, its height sets the scroll length (e.g. 380vh)
@@ -17,7 +17,8 @@
          [data-dive-end2]        optional second end line
          [data-dive-cue]         square glass box; hover/click rolls the label to
                                  "Continue" (data-dive-cue-alt), which stays during the dive; click 1 = glide
-                                 to the first sentence, click 2 = to the closing sentence
+                                 to the first sentence, click 2 = to the closing sentence; there it turns
+                                 into the bottom nav ([data-bottom-nav-init], Osmo Expanding Bottom Nav)
 
    Optional settings on [data-dive] (defaults = the hero lab):
      data-zoom="2.4" data-spin="420" data-pixel="2" data-pixel-grow="2"
@@ -55,9 +56,11 @@ function init(root) {
   };
   const PAL = {
     night: { back: '#0e1628', front: '#5f719c', text: '#f1ede2', accent: '#1dabfa', end: '#05070d', endText: '#f1ede2',
-             glass: 'rgba(14,22,40,.42)', glassHover: 'rgba(14,22,40,.62)', glassHi: 'rgba(255,255,255,.07)' },
+             glass: 'rgba(14,22,40,.42)', glassHover: 'rgba(14,22,40,.62)', glassHi: 'rgba(255,255,255,.07)',
+             navBg: 'rgba(14,22,40,.82)', navLine: 'rgba(241,237,226,.14)' },
     day:   { back: '#f1ede2', front: '#3d3a35', text: '#3d3a35', accent: '#0297db', end: '#f1ede2', endText: '#3d3a35',
-             glass: 'rgba(241,237,226,.5)', glassHover: 'rgba(241,237,226,.78)', glassHi: 'rgba(255,255,255,.55)' },
+             glass: 'rgba(241,237,226,.5)', glassHover: 'rgba(241,237,226,.78)', glassHi: 'rgba(255,255,255,.55)',
+             navBg: 'rgba(241,237,226,.86)', navLine: 'rgba(61,58,53,.14)' },
   };
   const isNight = () => document.documentElement.classList.contains('dfs-night');
 
@@ -124,10 +127,12 @@ function init(root) {
   let P = PAL[isNight() ? 'night' : 'day'];
   function paint() {
     P = PAL[isNight() ? 'night' : 'day'];
-    const s = root.style;
+    // on <html>, so the bottom nav (outside the dive section) gets the same colours
+    const s = document.documentElement.style;
     s.setProperty('--dive-back', P.back); s.setProperty('--dive-text', P.text); s.setProperty('--dive-accent', P.accent);
     s.setProperty('--dive-end', P.end); s.setProperty('--dive-endtext', P.endText);
     s.setProperty('--dive-glass', P.glass); s.setProperty('--dive-glass-hover', P.glassHover); s.setProperty('--dive-glass-hi', P.glassHi);
+    s.setProperty('--dive-nav-bg', P.navBg); s.setProperty('--dive-nav-line', P.navLine);
     render();
   }
   new MutationObserver(paint).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
@@ -160,8 +165,12 @@ function init(root) {
     setState(el.title, p < S.titleIn ? 'pre' : p < outAt ? 'in' : 'out');
     const endAt = f0 + .3;
     if (el.cue) {
-      // stays through the dive as "Continue", leaves once the closing sentence is there
-      const o = 1 - sm(endAt - .05, endAt, p); el.cue.style.opacity = o; el.cue.style.pointerEvents = o > .3 ? 'auto' : 'none';
+      if (nav) {
+        // the cue stays as "Continue" until the closing sentence, then turns into the bottom nav (and back)
+        if (p >= endAt) showNav(true); else if (p < endAt - .03) showNav(false);
+      } else {
+        const o = 1 - sm(endAt - .05, endAt, p); el.cue.style.opacity = o; el.cue.style.pointerEvents = o > .3 ? 'auto' : 'none';
+      }
       el.cue.classList.toggle('is-alt', p > .005);   // at the very top it reads "Scroll down" (hover shows "Continue")
       el.cue.setAttribute('aria-label', p > .005 ? 'Continue to the closing sentence' : 'Scroll down to the first sentence');
     }
@@ -202,6 +211,52 @@ function init(root) {
     el.cue.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); press(); } });
   }
 
+  /* ---- the cue becomes the nav (Osmo Expanding Bottom Navigation, [data-bottom-nav-init]).
+     Same spot, same glass: the label rolls out, the box takes the nav bar's size, the nav takes over. ---- */
+  const nav = document.querySelector('[data-bottom-nav-init]');
+  const navInner = nav && nav.querySelector('[data-bottom-nav-inner]');
+  const navBar = nav && nav.querySelector('[data-bottom-nav-bar]');
+  const navToggle = nav && nav.querySelector('[data-bottom-nav-toggle]');
+  const G = window.gsap;
+  let navShown = null, cueSize = null, first = true;
+  if (nav) { nav.style.visibility = 'hidden'; nav.style.opacity = '0'; nav.setAttribute('inert', ''); }
+  function showNav(show) {
+    if (!nav || !navInner || show === navShown) return;
+    navShown = show;
+    const instant = first || reduce || !G;
+    first = false;
+    if (show) nav.removeAttribute('inert'); else nav.setAttribute('inert', '');
+    if (!show && nav.getAttribute('data-bottom-nav-open') === 'true' && navToggle) navToggle.click();   // close the menu first
+    const c = el.cue;
+    c.style.pointerEvents = show ? 'none' : '';
+    c.classList.toggle('is-leaving', show);
+    if (instant) {
+      nav.style.visibility = show ? 'visible' : 'hidden'; nav.style.opacity = show ? '1' : '0';
+      c.style.opacity = show ? '0' : '';
+      return;
+    }
+    const bar = navBar ? [...navBar.children] : [];
+    G.killTweensOf([c, nav, ...bar]);
+    if (show) {
+      const cr = c.getBoundingClientRect(), nr = navInner.getBoundingClientRect();
+      if (!cueSize) cueSize = { w: cr.width, h: cr.height };
+      G.timeline()
+        .set(c, { width: cr.width, height: cr.height, xPercent: -50, x: 0 })   // keep it centred while it grows
+        .to(c, { width: nr.width, height: nr.height, y: `+=${nr.bottom - cr.bottom}`, backgroundColor: getComputedStyle(navInner).backgroundColor, duration: .6, ease: 'osmo' }, .1)
+        .set(nav, { visibility: 'visible' }, .55)
+        .fromTo(nav, { opacity: 0 }, { opacity: 1, duration: .25, ease: 'none' }, .55)
+        .fromTo(bar, { yPercent: 70, opacity: 0 }, { yPercent: 0, opacity: 1, duration: .55, stagger: .07, ease: 'osmo' }, .6)
+        .to(c, { opacity: 0, duration: .2, ease: 'none' }, .75);
+    } else {
+      G.timeline()
+        .to(nav, { opacity: 0, duration: .2, ease: 'none' }, 0)
+        .set(nav, { visibility: 'hidden' })
+        .set(c, { opacity: 1 }, 0)
+        .to(c, { width: cueSize ? cueSize.w : 'auto', height: cueSize ? cueSize.h : 'auto', y: 0, duration: .5, ease: 'osmo' }, 0)
+        .set(c, { clearProps: 'width,height,backgroundColor,opacity,transform' });
+    }
+  }
+
   let queued = false;
   const onScroll = () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; render(); }); };
   addEventListener('scroll', onScroll, { passive: true });
@@ -223,6 +278,7 @@ function injectCSS() {
 [data-dive-end]{color:var(--dive-endtext);pointer-events:none}
 [data-dive-end2]{color:var(--dive-accent);pointer-events:none}
 [data-dive-cue]{color:var(--dive-text);cursor:pointer;background:var(--dive-glass);box-shadow:inset 0 1px 0 var(--dive-glass-hi),0 12px 32px rgba(0,0,0,.14);-webkit-backdrop-filter:blur(14px) saturate(1.3);backdrop-filter:blur(14px) saturate(1.3);transition:background-color .35s ease}
+[data-dive-cue]{justify-content:center}
 [data-dive-cue]:hover{background:var(--dive-glass-hover)}
 [data-dive-cue]:focus-visible{outline:1px solid var(--dive-text);outline-offset:4px}
 .dive-roll{display:inline-grid;justify-items:center}
@@ -231,6 +287,7 @@ function injectCSS() {
 .dive-rb{transform:translateY(110%)}
 [data-dive-cue]:hover .dive-ra,[data-dive-cue]:focus-visible .dive-ra,[data-dive-cue].is-alt .dive-ra{transform:translateY(-110%)}
 [data-dive-cue]:hover .dive-rb,[data-dive-cue]:focus-visible .dive-rb,[data-dive-cue].is-alt .dive-rb{transform:none}
+[data-dive-cue].is-leaving .dive-ra,[data-dive-cue].is-leaving .dive-rb{transform:translateY(-110%)!important}
 [data-dive-cue-text]{animation:dive-pulse 2.4s ease-in-out infinite}
 [data-dive-cue-line]{position:relative;overflow:hidden;background:color-mix(in srgb,currentColor 25%,transparent)}
 [data-dive-cue-line]::after{content:"";position:absolute;inset:0;background:currentColor;transform:scaleY(0);transform-origin:top;animation:dive-draw 2.4s cubic-bezier(.625,.05,0,1) infinite}

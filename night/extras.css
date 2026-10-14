@@ -170,13 +170,15 @@ html.dfs-night input:-webkit-autofill:hover,
 html.dfs-night input:-webkit-autofill:focus { -webkit-box-shadow: 0 0 0 1000px #11233d inset; -webkit-text-fill-color: #ece8de; caret-color: #ece8de; }
 
 /* Onboarding / feedback overlay: its grid comes from a page embed (onboard_css) with a
-   fixed #F2F0E7, which the generator can't see. Give it the same faint night grid. */
+   fixed #F2F0E7, which the generator can't see. At night it gets the same strength as the
+   page grid behind the form (0.045 at 50% opacity), so the panel rising over it doesn't
+   suddenly turn the grid up. */
 html.dfs-night .transition-panel,
 html.dfs-night .panel-cap-top,
 html.dfs-night .panel-cap-bottom {
   background-image:
-    repeating-linear-gradient(to right, rgba(242,238,229,0.045) 0, rgba(242,238,229,0.045) 1px, transparent 1px, transparent 2rem),
-    repeating-linear-gradient(to bottom, rgba(242,238,229,0.045) 0, rgba(242,238,229,0.045) 1px, transparent 1px, transparent 2rem);
+    repeating-linear-gradient(to right, rgba(242,238,229,0.022) 0, rgba(242,238,229,0.022) 1px, transparent 1px, transparent 2rem),
+    repeating-linear-gradient(to bottom, rgba(242,238,229,0.022) 0, rgba(242,238,229,0.022) 1px, transparent 1px, transparent 2rem);
 }
 
 /* Dashboard course covers: the mountain print gets the same moonlit tint as the chapter

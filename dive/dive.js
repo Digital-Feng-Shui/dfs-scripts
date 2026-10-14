@@ -229,16 +229,19 @@ function init(root) {
     const hex = /^#[0-9a-f]{6}$/i.test(v) ? v : P.back;
     return `rgba(${hex3(hex).join(',')},.72)`;
   }
+  let navTl = null;
   function showNav(show) {
     if (!nav || !navInner || show === navShown) return;
     navShown = show;
     const instant = first || reduce || !G;
     first = false;
     if (show) nav.removeAttribute('inert'); else nav.setAttribute('inert', '');
-    if (!show && nav.getAttribute('data-bottom-nav-open') === 'true' && navToggle) navToggle.click();   // close the menu first
+    // scrolling back with the menu open: it folds shut first, then the bar turns back into the box
+    const wasOpen = !show && nav.getAttribute('data-bottom-nav-open') === 'true' && navToggle;
+    if (wasOpen) navToggle.click();
     const c = el.cue;
     c.style.pointerEvents = show ? 'none' : '';
-    c.classList.toggle('is-leaving', show);
+    if (show || instant) c.classList.toggle('is-leaving', show);
     if (instant) {
       nav.style.visibility = show ? 'visible' : 'hidden'; nav.style.opacity = show ? '1' : '0';
       c.style.opacity = show ? '0' : '';
@@ -246,10 +249,11 @@ function init(root) {
     }
     const bar = navBar ? [...navBar.children] : [];
     G.killTweensOf([c, nav, ...bar]);
+    if (navTl) navTl.kill();   // a turn halfway: its timed steps (the label) must not fire later
     if (show) {
       const cr = c.getBoundingClientRect(), nr = navInner.getBoundingClientRect();
       if (!cueSize) cueSize = { w: cr.width, h: cr.height };
-      G.timeline()
+      navTl = G.timeline()
         .set(c, { width: cr.width, height: cr.height, xPercent: -50, x: 0 })   // keep it centred while it grows
         .to(c, { width: nr.width, height: nr.height, y: `+=${nr.bottom - cr.bottom}`, backgroundColor: navGlass(), borderRadius: getComputedStyle(navInner).borderTopLeftRadius, duration: .6, ease: 'osmo' }, .1)
         .set(nav, { visibility: 'visible' }, .55)
@@ -257,11 +261,16 @@ function init(root) {
         .fromTo(bar, { yPercent: 70, opacity: 0 }, { yPercent: 0, opacity: 1, duration: .55, stagger: .07, ease: 'osmo' }, .6)
         .to(c, { opacity: 0, duration: .2, ease: 'none' }, .75);
     } else {
-      G.timeline()
-        .to(nav, { opacity: 0, duration: .2, ease: 'none' }, 0)
-        .set(nav, { visibility: 'hidden' })
-        .set(c, { opacity: 1 }, 0)
-        .to(c, { width: cueSize ? cueSize.w : 'auto', height: cueSize ? cueSize.h : 'auto', y: 0, borderRadius: 0, duration: .5, ease: 'osmo' }, 0)
+      // the way in, played back: the bar's contents sink away, the box takes over and shrinks home
+      const d = wasOpen ? .75 : 0;
+      navTl = G.timeline()
+        .to(bar, { yPercent: 70, opacity: 0, duration: .3, stagger: { each: .05, from: 'end' }, ease: 'power2.in' }, d)
+        .set(c, { opacity: 1 }, d + .22)
+        .to(nav, { opacity: 0, duration: .15, ease: 'none' }, d + .22)
+        .set(nav, { visibility: 'hidden' }, d + .37)
+        .set(bar, { clearProps: 'transform,opacity' }, d + .37)
+        .call(() => c.classList.remove('is-leaving'), null, d + .45)
+        .to(c, { width: cueSize ? cueSize.w : 'auto', height: cueSize ? cueSize.h : 'auto', y: 0, borderRadius: 0, duration: .65, ease: 'osmo' }, d + .25)
         .set(c, { clearProps: 'width,height,backgroundColor,opacity,transform,borderRadius' });
     }
   }

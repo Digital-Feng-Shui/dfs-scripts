@@ -4,7 +4,7 @@
    Separate from main.js on purpose: one page loads it in its own
    page custom code, nothing else on the site knows it exists.
 
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.3.1/dive/dive.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.3.2/dive/dive.js"></script>
 
    Webflow structure (classes are free, the attributes matter):
      [data-dive]                 section, its height sets the scroll length (e.g. 380vh)
@@ -298,8 +298,9 @@ function initTime(root) {
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const isNight = () => document.documentElement.classList.contains('dfs-night');
   const PAL = {
-    night: { text: [241, 237, 226], orange: [250, 106, 29], blue: [29, 171, 250], back: '#05070d', mid: '#1c2942', calm: '#0f3a57' },
-    day:   { text: [61, 58, 53],    orange: [216, 67, 2],   blue: [2, 151, 219],  back: '#f1ede2', mid: '#d5ccbd', calm: '#c9e2ef' },
+    // orange = attention taken (the opposite hue of the brand blue), bleeding to red at its worst; blue = digital done right
+    night: { text: [241, 237, 226], orange: [250, 106, 29], red: [235, 45, 35], blue: [29, 171, 250], back: '#05070d', tense: '#4a1c0c', calm: '#0f3a57' },
+    day:   { text: [61, 58, 53],    orange: [216, 67, 2],   red: [200, 25, 15], blue: [2, 151, 219],  back: '#f1ede2', tense: '#dca98d', calm: '#c9e2ef' },
   };
   injectCSS();
 
@@ -354,7 +355,7 @@ function initTime(root) {
     const lit = [];
     while (lit.length < 7) { const h = pool.splice(Math.floor(rnd() * pool.length), 1)[0]; lit.push(h); }
     lit.sort((a, b) => a - b);
-    return { lit, taken: lit.filter(() => rnd() < .45), tOrange: rnd(), tBlue: rnd(), phase: lit.map(() => rnd() * 6.28) };
+    return { lit, taken: lit.filter(() => rnd() < .45), tOrange: rnd(), tBlue: rnd(), phase: lit.map(() => rnd() * 6.28), grab: lit.map(() => rnd()) };
   });
 
   const cv = document.createElement('canvas'); cv.setAttribute('aria-hidden', 'true');
@@ -406,7 +407,7 @@ function initTime(root) {
   // the year fills in time-based (in step with the odometer), not per scroll pixel
   let fillT = 0, fillFrom = 0, fillTo = 0, fillStart = 0, fillDur = 1;
   const setFill = (to, dur) => { fillFrom = fillT; fillTo = to; fillStart = performance.now(); fillDur = reduce ? .001 : dur; };
-  let visible = false, p = 0;
+  let visible = false, p = 0, lastSpeed = .35, lastHole = 42;
   new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(root);
 
   function frame(now) {
@@ -431,13 +432,27 @@ function initTime(root) {
       const k = Math.min(1, (now - fillStart) / (fillDur * 1000));
       fillT = fillFrom + (fillTo - fillFrom) * (1 - Math.pow(1 - k, 3));
       const shown = fold < 1 ? 0 : Math.max(1, Math.round(fillT * 365));
-      const orange = sm(.55, .68, p), blue = sm(.77, .92, p);
-      // dither: nothing at first, creeps in with the orange, calms into blue
-      if (mount) mount.setUniforms({
-        u_colorBack: col(P.back),
-        u_colorFront: col(blue > 0 ? hexLerp(P.mid, P.calm, blue) : hexLerp(P.back, P.mid, orange)),
-        u_scale: .7 + orange * .5 - blue * .3, u_rotation: p * 120,
-      });
+      const orange = sm(.55, .66, p), blue = sm(.79, .93, p);
+      const heat = orange * (1 - blue);                    // how hectic it is right now
+      // dither: nothing at first; with the orange it turns into restless noise, speeds up, shakes and closes in;
+      // with the blue it goes back to an ordered pattern, slows down and pulls back to the edges
+      if (mount) {
+        mount.setUniforms({
+          u_colorBack: col(P.back),
+          u_colorFront: col(blue > 0 ? hexLerp(P.tense, P.calm, blue) : hexLerp(P.back, P.tense, orange)),
+          u_type: heat > .35 ? 1 : 3,
+          u_scale: .7 + orange * .7 - blue * .45,
+          u_rotation: p * 120 + (reduce ? 0 : heat * Math.sin(t * 9) * 6),
+        });
+        const spd = reduce ? 0 : Math.max(.12, .35 + heat * 1.8 - blue * .22);
+        if (Math.abs(spd - lastSpeed) > .05) { lastSpeed = spd; mount.setSpeed(spd); }
+      }
+      const hole = 42 - heat * 30 + blue * 22;
+      if (ditherHost && Math.abs(hole - lastHole) > .5) {
+        lastHole = hole;
+        const m = `radial-gradient(ellipse 72% 64% at 50% 50%,transparent ${hole.toFixed(1)}%,#000 100%)`;
+        ditherHost.style.webkitMaskImage = m; ditherHost.style.maskImage = m;
+      }
       // pixels
       const { u, big, cell, rowX, rowY } = L;
       g.clearRect(0, 0, L.W, L.H);
@@ -458,9 +473,13 @@ function initTime(root) {
           let fill;
           if (litIdx === -1 || (d === 0 && fold === 0 && litIdx >= litN)) {
             fill = rgba(P.text, d === 0 && fold < 1 ? .14 : .07);
-          } else if (day.taken.includes(h) && isO && !isB) {
-            const on = reduce || Math.sin(t * 5 + day.phase[litIdx]) > -.35;
-            fill = rgba(P.orange, on ? 1 : .3);
+          } else if (isO && !isB && (day.taken.includes(h) || day.grab[litIdx] < heat * .85)) {
+            // taken: blinks faster, bleeds red and jitters the more hectic it gets
+            const ph = day.phase[litIdx];
+            const on = reduce || Math.sin(t * (5 + heat * 11) + ph) > -.35 + Math.sin(t * 2.3 + ph * 3) * .3 * heat;
+            const c = mix(P.orange, P.red, heat * (.35 + .35 * Math.sin(t * 6 + ph)));
+            fill = rgba(c, on ? 1 : .28);
+            if (!reduce && heat > .15) { x += Math.sin(t * 31 + ph * 17) * u * .7 * heat; y += Math.cos(t * 27 + ph * 11) * u * .5 * heat; }
           } else if (isB && (day.taken.includes(h) || blue > .6)) {
             fill = rgba(P.blue, 1);
           } else {

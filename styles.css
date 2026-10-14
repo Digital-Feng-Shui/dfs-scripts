@@ -763,30 +763,25 @@ input:-webkit-autofill:focus {
 .rhythms-app [contenteditable="true"]{-webkit-user-select:text;user-select:text}
 
 /* Closes what pulls you away (main.js dfsRhythmsMarquee): the label sits above the row, a dashed gate line runs
-   through its middle. A chip closes as it crosses the line: colour drains, the ✕ morphs into a lock that drops
-   under the name, next to the hours it's closed. */
+   through its middle. Right of the line the open row shows, left of it a closed copy, so a chip is wiped grey as it
+   crosses; its ✕ morphs into a lock in place. */
 .rhythms-marquee,.rhythms-marquee_label{-webkit-user-select:none;user-select:none}
 .rhythms-marquee_component.is-gate{position:relative;display:flex;flex-direction:column;align-items:stretch;padding-left:0}
 .is-gate .rhythms-marquee_label{align-self:center;margin-bottom:1.5rem;text-align:center;white-space:nowrap;pointer-events:none}
 .rhythms-marquee_gate{position:absolute;z-index:2;width:0;border-left:1px dashed var(--brand-colors--blue);opacity:.35;pointer-events:none}
-.is-gate .rhythms-marquee{-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
+.is-gate .rhythms-marquee{-webkit-mask-image:linear-gradient(90deg,transparent calc(50% - 2px),#000 calc(50% + 2px),#000 94%,transparent);mask-image:linear-gradient(90deg,transparent calc(50% - 2px),#000 calc(50% + 2px),#000 94%,transparent)}
+.is-gate .rhythms-marquee.is-locked{position:absolute;z-index:1;pointer-events:none;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 calc(50% - 2px),transparent calc(50% + 2px));mask-image:linear-gradient(90deg,transparent,#000 6%,#000 calc(50% - 2px),transparent calc(50% + 2px))}
 .rhythms-chip{cursor:pointer;transition:background-color .6s,border-color .3s}
 .rhythms-chip_icon,.rhythms-chip_badge{transition:filter .7s,opacity .7s}
-.rhythms-chip_text{display:flex;flex-direction:column;justify-content:center;min-width:0}
 .rhythms-chip_name{transition:opacity .6s}
-.rhythms-chip_time{display:flex;align-items:center;gap:4px;height:0;margin-top:0;overflow:hidden;opacity:0;visibility:hidden;color:var(--brand-colors--blue);font-size:.625rem;line-height:1;letter-spacing:.02em;white-space:nowrap}
-.rhythms-chip_lock{display:block;flex:none;width:9px;height:9px}
-.rhythms-chip_x{position:relative;display:inline-flex;flex:none;width:11px;height:11px;transition:color .3s,transform .35s}
+.rhythms-chip_x{display:inline-flex;flex:none;width:13px;height:13px;transition:color .3s,transform .35s}
 .rhythms-chip_glyph{display:block;width:100%;height:100%;overflow:visible}
-.rhythms-chip:not(.is-closed):not(.is-closing):hover{border-color:rgba(181,80,63,.45)}
-.rhythms-chip:not(.is-closed):not(.is-closing):hover .rhythms-chip_x{color:#b5503f;transform:scale(1.2)}
-.rhythms-chip.is-closing,.rhythms-chip.is-closed{cursor:default;background-color:transparent}
-.rhythms-chip.is-closing .rhythms-chip_icon,.rhythms-chip.is-closing .rhythms-chip_badge,
+.rhythms-chip:not(.is-closed):hover{border-color:rgba(181,80,63,.45)}
+.rhythms-chip:not(.is-closed):hover .rhythms-chip_x{color:#b5503f;transform:scale(1.2)}
+.rhythms-chip.is-closed{cursor:default;background-color:transparent}
 .rhythms-chip.is-closed .rhythms-chip_icon,.rhythms-chip.is-closed .rhythms-chip_badge{filter:grayscale(1);opacity:.4}
-.rhythms-chip.is-closing .rhythms-chip_name,.rhythms-chip.is-closed .rhythms-chip_name{opacity:.5}
-.rhythms-chip.is-closing .rhythms-chip_x{color:var(--brand-colors--blue)}
-.rhythms-chip.is-closed .rhythms-chip_x{visibility:hidden}
-.rhythms-chip.is-closed .rhythms-chip_time{height:10px;margin-top:3px;opacity:1;visibility:visible}
+.rhythms-chip.is-closed .rhythms-chip_name{opacity:.5}
+.rhythms-chip.is-closed .rhythms-chip_x{color:var(--brand-colors--blue)}
 
 /* Skeleton reveal (after Osmo's Skeleton Loader Text) for the type-to-unlock text and its tip (page script) */
 .rhythms-skel-wait{color:transparent!important}

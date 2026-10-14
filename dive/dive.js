@@ -4,7 +4,7 @@
    Separate from main.js on purpose: one page loads it in its own
    page custom code, nothing else on the site knows it exists.
 
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.1.3/dive/dive.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.1.4/dive/dive.js"></script>
 
    Webflow structure (classes are free, the attributes matter):
      [data-dive]                 section, its height sets the scroll length (e.g. 380vh)
@@ -16,7 +16,8 @@
          [data-dive-end]         line on the empty page at the end
          [data-dive-end2]        optional second end line
          [data-dive-cue]         square glass box with dashed guide lines; hover/click rolls the label to
-                                 "Continue" (data-dive-cue-alt), click = glide to the first sentence
+                                 "Continue" (data-dive-cue-alt), which stays during the dive; click 1 = glide
+                                 to the first sentence, click 2 = to the closing sentence
 
    Optional settings on [data-dive] (defaults = the hero lab):
      data-zoom="2.4" data-spin="420" data-pixel="2" data-pixel-grow="2"
@@ -155,19 +156,21 @@ function init(root) {
       el.logo.style.transform = `scale(${1 - lo * .6})`;
       logoVisible = lo < 1;
     }
-    if (el.cue) {
-      const o = 1 - sm(0, .03, p); el.cue.style.opacity = o; el.cue.style.pointerEvents = o > .3 ? 'auto' : 'none';
-      if (p < .005) el.cue.classList.remove('is-alt');   // back at the top: the label reads "Scroll down" again
-    }
     const outAt = Math.min(f0 - .04, S.titleIn + .26);
     setState(el.title, p < S.titleIn ? 'pre' : p < outAt ? 'in' : 'out');
     const endAt = f0 + .3;
+    if (el.cue) {
+      // stays through the dive as "Continue", leaves once the closing sentence is there
+      const o = 1 - sm(endAt - .05, endAt, p); el.cue.style.opacity = o; el.cue.style.pointerEvents = o > .3 ? 'auto' : 'none';
+      el.cue.classList.toggle('is-alt', p > .005);   // at the very top it reads "Scroll down" (hover shows "Continue")
+      el.cue.setAttribute('aria-label', p > .005 ? 'Continue to the closing sentence' : 'Scroll down to the first sentence');
+    }
     setState(el.end, p < endAt ? 'pre' : 'in');
     setState(el.end2, p < endAt + .1 ? 'pre' : 'in');
     if (el.fade) el.fade.style.opacity = dark;
   }
-  /* ---- the cue is also a button: the label rolls to "Continue" (hover, or the click itself on touch),
-     then one click glides to the first sentence ---- */
+  /* ---- the cue is also a button: the label rolls to "Continue" (hover, or the click itself on touch).
+     Click 1 glides to the first sentence, click 2 to the closing sentence ---- */
   if (el.cue) {
     const label = el.cue.querySelector('[data-dive-cue-text]');
     if (label) {
@@ -181,12 +184,20 @@ function init(root) {
     el.cue.setAttribute('tabindex', '0');
     el.cue.setAttribute('aria-label', 'Scroll down to the first sentence');
     const go = () => {
-      const top = root.getBoundingClientRect().top + scrollY;
-      const target = top + (S.titleIn + .06) * (root.offsetHeight - innerHeight);
-      if (window.lenis && typeof window.lenis.scrollTo === 'function') window.lenis.scrollTo(target, { duration: reduce ? 0 : 1.8 });
+      const top = root.getBoundingClientRect().top + scrollY, run = root.offsetHeight - innerHeight;
+      const stops = [S.titleIn + .06, S.fade + .34];          // the first sentence, the closing sentence
+      const now = progress(), next = stops.find(s => s > now + .01);
+      if (next === undefined) return;
+      const target = top + next * run;
+      const duration = Math.min(3.2, Math.max(1.6, Math.abs(target - scrollY) / innerHeight * .55));
+      if (window.lenis && typeof window.lenis.scrollTo === 'function') window.lenis.scrollTo(target, { duration: reduce ? 0 : duration });
       else scrollTo({ top: target, behavior: reduce ? 'auto' : 'smooth' });
     };
-    const press = () => { el.cue.classList.add('is-alt'); setTimeout(go, reduce ? 0 : 420); };
+    const press = () => {
+      const wasAlt = el.cue.classList.contains('is-alt') || el.cue.matches(':hover');
+      el.cue.classList.add('is-alt');
+      setTimeout(go, reduce || wasAlt ? 0 : 420);          // on touch, let the roll to "Continue" play first
+    };
     el.cue.addEventListener('click', press);
     el.cue.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); press(); } });
   }

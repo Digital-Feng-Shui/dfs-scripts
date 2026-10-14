@@ -4,7 +4,7 @@
    Separate from main.js on purpose: one page loads it in its own
    page custom code, nothing else on the site knows it exists.
 
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.2.1/dive/dive.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.2.2/dive/dive.js"></script>
 
    Webflow structure (classes are free, the attributes matter):
      [data-dive]                 section, its height sets the scroll length (e.g. 380vh)
@@ -220,6 +220,12 @@ function init(root) {
   const G = window.gsap;
   let navShown = null, cueSize = null, first = true;
   if (nav) { nav.style.visibility = 'hidden'; nav.style.opacity = '0'; nav.setAttribute('inert', ''); }
+  // the nav's frosted colour is a color-mix() that GSAP can't tween (it flashed yellow): use the brand beige/navy at 72%
+  function navGlass() {
+    const v = getComputedStyle(document.documentElement).getPropertyValue('--brand-colors--bage').trim();
+    const hex = /^#[0-9a-f]{6}$/i.test(v) ? v : P.back;
+    return `rgba(${hex3(hex).join(',')},.72)`;
+  }
   function showNav(show) {
     if (!nav || !navInner || show === navShown) return;
     navShown = show;
@@ -242,7 +248,7 @@ function init(root) {
       if (!cueSize) cueSize = { w: cr.width, h: cr.height };
       G.timeline()
         .set(c, { width: cr.width, height: cr.height, xPercent: -50, x: 0 })   // keep it centred while it grows
-        .to(c, { width: nr.width, height: nr.height, y: `+=${nr.bottom - cr.bottom}`, backgroundColor: getComputedStyle(navInner).backgroundColor, borderRadius: getComputedStyle(navInner).borderTopLeftRadius, duration: .6, ease: 'osmo' }, .1)
+        .to(c, { width: nr.width, height: nr.height, y: `+=${nr.bottom - cr.bottom}`, backgroundColor: navGlass(), borderRadius: getComputedStyle(navInner).borderTopLeftRadius, duration: .6, ease: 'osmo' }, .1)
         .set(nav, { visibility: 'visible' }, .55)
         .fromTo(nav, { opacity: 0 }, { opacity: 1, duration: .25, ease: 'none' }, .55)
         .fromTo(bar, { yPercent: 70, opacity: 0 }, { yPercent: 0, opacity: 1, duration: .55, stagger: .07, ease: 'osmo' }, .6)

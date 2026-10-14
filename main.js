@@ -6121,12 +6121,38 @@
   // Owned = an ACTIVE Memberstack plan from TINKO_PLANS (empty until the Tinko plan exists, so everyone
   // sees the locked view for now). Preview either state with ?tinko=owned or ?tinko=locked.
   // This only hides the steps on the page: the real check is the dfs-helper worker's licence.
-  // [data-tinko-scroll] links glide to the block.
+  // [data-tinko-scroll] links glide to the block. [data-tinko-buy] buttons go to TINKO_BUY_URL (a Stripe
+  // payment link) with the member's email and id filled in, so the payment lands on the right account;
+  // without a link yet they say "Coming soon" for a moment.
   // =========================================================
   var TINKO_PLANS = [];
+  var TINKO_BUY_URL = '';
 
   function dfsTinko() {
     var root = document.documentElement;
+    var member = null;
+    function buyHref() {
+      if (!TINKO_BUY_URL) return null;
+      var url = new URL(TINKO_BUY_URL);
+      var email = member && member.auth && member.auth.email;
+      if (email) url.searchParams.set('prefilled_email', email);
+      if (member && member.id) url.searchParams.set('client_reference_id', member.id);
+      return url.toString();
+    }
+    document.addEventListener('click', function (event) {
+      var button = event.target.closest && event.target.closest('[data-tinko-buy]');
+      if (!button) return;
+      var href = buyHref();
+      if (href) { button.setAttribute('href', href); return; }
+      event.preventDefault();
+      if (button.getAttribute('data-label')) return;
+      button.setAttribute('data-label', button.textContent);
+      button.textContent = 'Coming soon';
+      setTimeout(function () {
+        button.textContent = button.getAttribute('data-label');
+        button.removeAttribute('data-label');
+      }, 2000);
+    });
     function set(state) {
       root.setAttribute('data-tinko', state);
       document.querySelectorAll('[data-tinko-gate]').forEach(function (gate) {
@@ -6141,9 +6167,10 @@
     else {
       set('locked');
       whenMemberstackReady(function () {
-        if (!window.$memberstackDom || !TINKO_PLANS.length) return;
+        if (!window.$memberstackDom) return;
         window.$memberstackDom.getCurrentMember().then(function (res) {
-          var plans = (res && res.data && res.data.planConnections) || [];
+          member = res && res.data;
+          var plans = (member && member.planConnections) || [];
           var owned = plans.some(function (p) {
             return TINKO_PLANS.indexOf(p.planId) > -1 && String(p.status).toUpperCase() === 'ACTIVE';
           });

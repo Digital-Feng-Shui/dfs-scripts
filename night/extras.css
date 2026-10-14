@@ -250,3 +250,8 @@ html.dfs-night .rhythms-shot { background-color: #282723; }
 /* Form fields at night: typed text and placeholder readable on the dark field (the .is-login / .is-blue combos had dark text). */
 html.dfs-night .form-input { color: #ece8de; }
 html.dfs-night .form-input::placeholder { color: rgba(236, 232, 222, .42); }
+
+/* Course lesson 0.3 (Tinko): the generator makes the see-through text on the stage too faint at night. */
+html.dfs-night .tinko-stage_text { color: rgba(221, 216, 204, .8); }
+html.dfs-night .tinko-stage_link { color: rgba(221, 216, 204, .7); }
+html.dfs-night .tinko-stage { background-image: linear-gradient(rgba(221, 216, 204, .05) 1px, transparent 1px), linear-gradient(90deg, rgba(221, 216, 204, .05) 1px, transparent 1px); }

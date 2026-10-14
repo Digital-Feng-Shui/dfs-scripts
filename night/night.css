@@ -243,6 +243,38 @@ html.dfs-night{--brand-colors--light-bage:#0e1628;--brand-colors--bage:#141e34;-
 :where(html.dfs-night) .rhythms-browser_start-title{color:rgba(221,216,204,0.247)}
 :where(html.dfs-night) .rhythms-calmpage_button{color:#0e1628;background-color:#dcd8cc}
 :where(html.dfs-night) .rhythms-review{background-color:#172138}
+:where(html.dfs-night) .login-help{color:#dcd8cc}
+:where(html.dfs-night) .ht-video{background-color:#dcd8cc}
+:where(html.dfs-night) .ht-video-play{border:1px solid rgba(14,22,40,0.6)}
+:where(html.dfs-night) .ht-video-label{color:rgba(14,22,40,0.6)}
+:where(html.dfs-night) .ht-side{border:1px dashed #24314f}
+:where(html.dfs-night) .ht-side-label{color:#8d919f}
+:where(html.dfs-night) .tk_window{color:#0e1628;background-color:#e5e0d5;border:1px solid rgba(23,33,56,0.078)}
+:where(html.dfs-night) .tk_bar{border-bottom:1px dashed rgba(14,22,40,0.18)}
+:where(html.dfs-night) .tk_body{background-image:linear-gradient(rgba(14,22,40,0.051) 1px,#0000 1px),linear-gradient(90deg,rgba(14,22,40,0.051) 1px,#0000 1px);border-bottom:1px dashed rgba(14,22,40,0.18)}
+:where(html.dfs-night) .tk_tool{color:#0e1628;border:1px solid rgba(14,22,40,0.18)}
+:where(html.dfs-night) .tk_words{color:#0e1628}
+:where(html.dfs-night) .tk_button{color:#e5e0d5;background-color:#0e1628}
+:where(html.dfs-night) .tk_cap{border:1px solid rgba(229,224,213,0.226)}
+:where(html.dfs-night) .tk_code{color:#0e1628;background-color:#e5e0d5;border:1px solid rgba(14,22,40,0.122)}
+:where(html.dfs-night) .tk_copy{color:#0e1628;background-color:#dcd8cc;border-left:1px solid rgba(14,22,40,0.122)}
+:where(html.dfs-night) .tk_copy:hover{background-color:#d0ccc2}
+:where(html.dfs-night) .look-inside_section{color:#dcd8cc;background-color:#0e1628}
+:where(html.dfs-night) .look-inside_video{background-color:#141e33;border:1px solid #24314f}
+:where(html.dfs-night) .look-inside_text{color:#dcd8cc}
+:where(html.dfs-night) .tinko-stage{color:#ddd8cc;background-color:#141e34;background-image:linear-gradient(rgba(221,216,204,0.032) 1px,#0000 1px),linear-gradient(90deg,rgba(221,216,204,0.032) 1px,#0000 1px)}
+:where(html.dfs-night) .tinko-stage_tag{color:#1a97d7;background-color:#11233d}
+:where(html.dfs-night) .tinko-stage_title{color:#ddd8cc}
+:where(html.dfs-night) .tinko-stage_text{color:rgba(221,216,204,0.36)}
+:where(html.dfs-night) .tinko-stage_cta{color:#0e1628;background-color:#ddd8cc}
+:where(html.dfs-night) .tinko-stage_cta.is-light{color:#e5e0d5;background-color:#0e1628}
+:where(html.dfs-night) .tinko-stage_link{color:rgba(221,216,204,0.316)}
+:where(html.dfs-night) .tinko-stage_art{border-left:1px dashed rgba(221,216,204,0.09)}
+:where(html.dfs-night) .tinko-stage_tinko{color:#ddd8cc}
+:where(html.dfs-night) .tinko-gate_card{color:#0e1628;background-color:#e5e0d5}
+:where(html.dfs-night) .tinko-gate_title{color:#0e1628}
+:where(html.dfs-night) .tinko-gate_text{color:rgba(14,22,40,0.8)}
+:where(html.dfs-night) .tinko-connect{color:#0e1628;background-color:#e5e0d5}
 @media screen and (max-width:479px){:where(html.dfs-night) .cta_content{background-color:rgba(14,22,40,0.659)}}
 /* from styles.css */
 :where(html.dfs-night) .grid-background{background-image:repeating-linear-gradient(to right, rgba(242,238,229,0.045) 0, rgba(242,238,229,0.045) 1px, transparent 1px, transparent 2rem),
@@ -517,3 +549,8 @@ html.dfs-night .rhythms-shot { background-color: #282723; }
 /* Form fields at night: typed text and placeholder readable on the dark field (the .is-login / .is-blue combos had dark text). */
 html.dfs-night .form-input { color: #ece8de; }
 html.dfs-night .form-input::placeholder { color: rgba(236, 232, 222, .42); }
+
+/* Course lesson 0.3 (Tinko): the generator makes the see-through text on the stage too faint at night. */
+html.dfs-night .tinko-stage_text { color: rgba(221, 216, 204, .8); }
+html.dfs-night .tinko-stage_link { color: rgba(221, 216, 204, .7); }
+html.dfs-night .tinko-stage { background-image: linear-gradient(rgba(221, 216, 204, .05) 1px, transparent 1px), linear-gradient(90deg, rgba(221, 216, 204, .05) 1px, transparent 1px); }

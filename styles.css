@@ -793,3 +793,11 @@ input:-webkit-autofill:focus {
 /* Login help (main.js dfsLoginHelp): the second blue box stays closed until "Trouble logging in?" opens it */
 [data-login-help]{overflow:hidden}
 [data-login-help]:not(.is-open){display:none}
+
+/* TINKO ADD-ON — lesson 0.3 (main.js dfsTinko). Only the states live here; the look is Webflow's
+   tinko-stage_* / tinko-gate_* classes. The stage covers the video player while lesson 0.3 is open. */
+.tinko-stage:not(.is-active){display:none}
+html:not([data-tinko="owned"]) [data-tinko-show="owned"]{display:none}
+html[data-tinko="owned"] [data-tinko-show="locked"]{display:none}
+html:not([data-tinko="owned"]) .tinko-gate_content{filter:blur(6px);opacity:.6;user-select:none;pointer-events:none}
+@media (prefers-reduced-motion:no-preference){.tinko-gate_content{transition:filter .4s ease,opacity .4s ease}}

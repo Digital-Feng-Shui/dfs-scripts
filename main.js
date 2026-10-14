@@ -1911,6 +1911,9 @@
     const lessons = [
       { id: "lesson-0.1", complete: false },
       { id: "lesson-0.2", complete: false },
+      // extra: an add-on lesson (Tinko). Prev/Next pass through it, but it doesn't count towards
+      // the progress bar and the course never opens on it by itself.
+      { id: "lesson-0.3", complete: false, extra: true },
       { id: "lesson-1.1", complete: false },
       { id: "lesson-1.2", complete: false },
       { id: "lesson-1.3", complete: false },
@@ -2045,8 +2048,9 @@
     }
 
     function updateProgress(isPageLoad = false) {
-      const completed = lessons.filter(l => l.complete).length;
-      const total = lessons.length;
+      const counted = lessons.filter(l => !l.extra);
+      const completed = counted.filter(l => l.complete).length;
+      const total = counted.length;
       const percent = Math.round((completed / total) * 100);
       // Slower animation on page load, faster on lesson complete
       const duration = isPageLoad ? 1.2 : 0.6;
@@ -2072,7 +2076,7 @@
       document.querySelectorAll('.course_content').forEach(el => el.classList.remove(
         'is-active'));
       // Find first incomplete lesson
-      const firstIncompleteLesson = lessons.find(l => !l.complete);
+      const firstIncompleteLesson = lessons.find(l => !l.complete && !l.extra);
       // If all complete, use last lesson; otherwise use first incomplete
       const targetLesson = firstIncompleteLesson || lessons[lessons.length - 1];
       const targetLessonElement = document.getElementById(DEMO ? (opts.lesson || 'lesson-2.1') : targetLesson.id);
@@ -2125,6 +2129,20 @@
       const activeText = document.getElementById(textId);
       if (activeText) {
         activeText.classList.add('is-active');
+      }
+      // ---- STAGE SWITCH ----
+      // A lesson without a video can show a panel in the video's place: a Webflow element with
+      // data-lesson-stage="<lesson id>" next to the player. It covers the player while its lesson is open.
+      let hasStage = false;
+      document.querySelectorAll('[data-lesson-stage]').forEach(stage => {
+        const on = stage.getAttribute('data-lesson-stage') === item.id;
+        stage.classList.toggle('is-active', on);
+        if (on) hasStage = true;
+      });
+      if (hasStage) {
+        const playing = oldPlayer && oldPlayer.querySelector('video');
+        if (playing && !playing.paused) playing.pause();
+        return;
       }
       // ---- PLACEHOLDER SWITCH ----
       const placeholder = document.getElementById('placeholder_img');
@@ -6096,13 +6114,94 @@
   }
 
   // =========================================================
-  // DFS HELPER (test) — /helper-test (built in Webflow) and /onbaording-test (drawn here)
-  // On /helper-test the block is Webflow elements: [data-helper-connect] (the Connect button),
+  // TINKO ADD-ON — lesson 0.3 in the course (and /helper-test)
+  // Sets <html data-tinko="owned|locked">. styles.css then shows the [data-tinko-show="owned"] or
+  // [data-tinko-show="locked"] pieces, and blurs the [data-tinko-gate] block (install + connect) with a
+  // lock on top while locked; the block's content is made inert so nothing in it can be clicked.
+  // Owned = an ACTIVE Memberstack plan from TINKO_PLANS (empty until the Tinko plan exists, so everyone
+  // sees the locked view for now). Preview either state with ?tinko=owned or ?tinko=locked.
+  // This only hides the steps on the page: the real check is the dfs-helper worker's licence.
+  // [data-tinko-scroll] links glide to the block.
+  // =========================================================
+  var TINKO_PLANS = [];
+
+  function dfsTinko() {
+    var root = document.documentElement;
+    function set(state) {
+      root.setAttribute('data-tinko', state);
+      document.querySelectorAll('[data-tinko-gate]').forEach(function (gate) {
+        var content = gate.querySelector('.tinko-gate_content') || gate.firstElementChild;
+        if (!content) return;
+        if (state === 'owned') { content.removeAttribute('inert'); content.removeAttribute('aria-hidden'); }
+        else { content.setAttribute('inert', ''); content.setAttribute('aria-hidden', 'true'); }
+      });
+    }
+    var force = new URLSearchParams(location.search).get('tinko');
+    if (force === 'owned' || force === 'locked') set(force);
+    else {
+      set('locked');
+      whenMemberstackReady(function () {
+        if (!window.$memberstackDom || !TINKO_PLANS.length) return;
+        window.$memberstackDom.getCurrentMember().then(function (res) {
+          var plans = (res && res.data && res.data.planConnections) || [];
+          var owned = plans.some(function (p) {
+            return TINKO_PLANS.indexOf(p.planId) > -1 && String(p.status).toUpperCase() === 'ACTIVE';
+          });
+          set(owned ? 'owned' : 'locked');
+        }).catch(function () {});
+      });
+    }
+
+    document.addEventListener('click', function (event) {
+      var link = event.target.closest && event.target.closest('[data-tinko-scroll]');
+      if (!link) return;
+      var target = document.querySelector('[data-tinko-gate]');
+      if (!target) return;
+      event.preventDefault();
+      if (window.lenis && typeof window.lenis.scrollTo === 'function') window.lenis.scrollTo(target, { offset: -96 });
+      else target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
+  // The install line's Copy button: [data-helper-copy] copies the text of [data-helper-line] next to it.
+  // One listener on the page, so it keeps working when the course player swaps lessons.
+  function dfsHelperCopy() {
+    document.addEventListener('click', function (event) {
+      var button = event.target.closest && event.target.closest('[data-helper-copy]');
+      if (!button) return;
+      event.preventDefault();
+      var box = button.closest('.tk_code') || button.parentNode;
+      var line = box && box.querySelector('[data-helper-line]');
+      var text = line ? line.textContent.trim() : '';
+      if (!text) return;
+      var label = button.getAttribute('data-label') || button.textContent;
+      button.setAttribute('data-label', label);
+      function done() {
+        button.textContent = 'Copied';
+        setTimeout(function () { button.textContent = label; }, 2000);
+      }
+      function fallback() {
+        var area = document.createElement('textarea');
+        area.value = text;
+        area.style.position = 'fixed';
+        area.style.opacity = '0';
+        document.body.appendChild(area);
+        area.select();
+        try { document.execCommand('copy'); done(); } catch (e) {}
+        area.remove();
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+      else fallback();
+    });
+  }
+
+  // =========================================================
+  // DFS HELPER — lesson 0.3 in the course, /helper-test (built in Webflow) and /onbaording-test (drawn here)
+  // In Webflow the block is elements: [data-helper-connect] (the Connect button),
   // [data-helper-who] and [data-helper-status] (text lines); this only wires them up. Without them
-  // (/onbaording-test) it draws its own card. The Mac helper app (Tinko) opens this page with
+  // (/onbaording-test) it draws its own card. The Mac helper app (Tinko) opens /helper-test with
   // ?helper=connect; once Memberstack knows who's logged in, the member token goes to the app through
-  // dfshelper://connect, and the dfs-helper worker turns it into a licence. Test page only for now:
-  // nothing of this is on the course pages.
+  // dfshelper://connect, and the dfs-helper worker turns it into a licence.
   // =========================================================
   function dfsHelper() {
     var WORKER = 'https://dfs-helper.dfs-helper-worker.workers.dev';
@@ -6223,6 +6322,7 @@
   if (path === '/courses/fundamentals') {
     dfsCourse();
     dfsFormValidation();
+    if (document.querySelector('[data-helper-connect]')) dfsHelper();   // lesson 0.3: Tinko
   } else if (path === '/dashboard') {
     dfsDashboard();
   } else if (path === '/feedback' || path.indexOf('/feedback/') === 0) {
@@ -6262,6 +6362,8 @@
     if (document.querySelector('.form-field-icon')) dfsSquareFieldIcons();
     if (document.querySelector('[data-rhythms-app]')) dfsRhythmsApp();
     if (document.querySelector('[data-rhythms-marquee]')) dfsRhythmsMarquee();
+    if (document.querySelector('[data-tinko-gate], [data-lesson-stage]')) dfsTinko();
+    if (document.querySelector('[data-helper-copy]')) dfsHelperCopy();
     if (path === '/'|| path === '/course' || path === '/test-zone') dfsHome();
   });
 

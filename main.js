@@ -105,6 +105,8 @@
   //   [data-choice-reveal="Plan"]   opens while the radio/checkbox with value
   //                                 "Plan" (in the same field group) is picked.
   //                                 Also for "Something else" + a text field.
+  //   [data-choice-display="flex"]  optional: how it shows when open (default
+  //                                 block; flex keeps the class's gap)
   //
   // 3. Day picker
   //   [data-choice-dates="next-week"] on a radio group with ONE radio button in
@@ -251,7 +253,7 @@
         open = next;
         reveal.classList.toggle('is-open', open);
         if (open) {
-          reveal.style.display = 'block';
+          reveal.style.display = reveal.getAttribute('data-choice-display') || 'block';
           gsap.fromTo(reveal, { height: 0 }, {
             height: 'auto', duration: 0.5, ease: 'power2.out', onComplete: relayoutScroll
           });

@@ -4,7 +4,7 @@
    Separate from main.js on purpose: one page loads it in its own
    page custom code, nothing else on the site knows it exists.
 
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.1.4/dive/dive.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.1.5/dive/dive.js"></script>
 
    Webflow structure (classes are free, the attributes matter):
      [data-dive]                 section, its height sets the scroll length (e.g. 380vh)
@@ -15,7 +15,7 @@
          [data-dive-title]       first line, words rise in
          [data-dive-end]         line on the empty page at the end
          [data-dive-end2]        optional second end line
-         [data-dive-cue]         square glass box with dashed guide lines; hover/click rolls the label to
+         [data-dive-cue]         square glass box; hover/click rolls the label to
                                  "Continue" (data-dive-cue-alt), which stays during the dive; click 1 = glide
                                  to the first sentence, click 2 = to the closing sentence
 
@@ -55,9 +55,9 @@ function init(root) {
   };
   const PAL = {
     night: { back: '#0e1628', front: '#5f719c', text: '#f1ede2', accent: '#1dabfa', end: '#05070d', endText: '#f1ede2',
-             glass: 'rgba(14,22,40,.42)', glassHover: 'rgba(14,22,40,.62)', glassHi: 'rgba(255,255,255,.07)', dash: 'rgba(241,237,226,.26)' },
+             glass: 'rgba(14,22,40,.42)', glassHover: 'rgba(14,22,40,.62)', glassHi: 'rgba(255,255,255,.07)' },
     day:   { back: '#f1ede2', front: '#3d3a35', text: '#3d3a35', accent: '#0297db', end: '#f1ede2', endText: '#3d3a35',
-             glass: 'rgba(241,237,226,.5)', glassHover: 'rgba(241,237,226,.78)', glassHi: 'rgba(255,255,255,.55)', dash: 'rgba(61,58,53,.24)' },
+             glass: 'rgba(241,237,226,.5)', glassHover: 'rgba(241,237,226,.78)', glassHi: 'rgba(255,255,255,.55)' },
   };
   const isNight = () => document.documentElement.classList.contains('dfs-night');
 
@@ -127,7 +127,7 @@ function init(root) {
     const s = root.style;
     s.setProperty('--dive-back', P.back); s.setProperty('--dive-text', P.text); s.setProperty('--dive-accent', P.accent);
     s.setProperty('--dive-end', P.end); s.setProperty('--dive-endtext', P.endText);
-    s.setProperty('--dive-glass', P.glass); s.setProperty('--dive-glass-hover', P.glassHover); s.setProperty('--dive-glass-hi', P.glassHi); s.setProperty('--dive-dash', P.dash);
+    s.setProperty('--dive-glass', P.glass); s.setProperty('--dive-glass-hover', P.glassHover); s.setProperty('--dive-glass-hi', P.glassHi);
     render();
   }
   new MutationObserver(paint).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
@@ -225,9 +225,6 @@ function injectCSS() {
 [data-dive-cue]{color:var(--dive-text);cursor:pointer;background:var(--dive-glass);box-shadow:inset 0 1px 0 var(--dive-glass-hi),0 12px 32px rgba(0,0,0,.14);-webkit-backdrop-filter:blur(14px) saturate(1.3);backdrop-filter:blur(14px) saturate(1.3);transition:background-color .35s ease}
 [data-dive-cue]:hover{background:var(--dive-glass-hover)}
 [data-dive-cue]:focus-visible{outline:1px solid var(--dive-text);outline-offset:4px}
-[data-dive-cue]::before,[data-dive-cue]::after{content:"";position:absolute;z-index:-1;pointer-events:none}
-[data-dive-cue]::before{top:-1px;bottom:-1px;left:-10rem;right:-10rem;background:repeating-linear-gradient(90deg,var(--dive-dash) 0 10px,transparent 10px 18px) top/100% 1px no-repeat,repeating-linear-gradient(90deg,var(--dive-dash) 0 10px,transparent 10px 18px) bottom/100% 1px no-repeat;-webkit-mask-image:linear-gradient(90deg,transparent,#000 34%,#000 66%,transparent);mask-image:linear-gradient(90deg,transparent,#000 34%,#000 66%,transparent)}
-[data-dive-cue]::after{left:-1px;right:-1px;top:-7.5rem;bottom:-7.5rem;background:repeating-linear-gradient(180deg,var(--dive-dash) 0 10px,transparent 10px 18px) left/1px 100% no-repeat,repeating-linear-gradient(180deg,var(--dive-dash) 0 10px,transparent 10px 18px) right/1px 100% no-repeat;-webkit-mask-image:linear-gradient(180deg,transparent,#000 42%,#000 58%,transparent);mask-image:linear-gradient(180deg,transparent,#000 42%,#000 58%,transparent)}
 .dive-roll{display:inline-grid;justify-items:center}
 .dive-roll>span{grid-area:1/1;white-space:nowrap}
 .dive-ra,.dive-rb{display:inline-block;transition:transform .55s cubic-bezier(.625,.05,0,1)}

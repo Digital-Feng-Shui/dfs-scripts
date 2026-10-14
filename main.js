@@ -5440,9 +5440,13 @@
       twins.forEach(function (chip) { chip.classList.add('is-closed'); });
       anims(locked).forEach(function (a) { if (a) a.pause(); });
       component.appendChild(locked);
-      gate = document.createElement('div');
-      gate.className = 'rhythms-marquee_gate';
-      component.appendChild(gate);
+      // The dashed line can be a Webflow element (so the Designer shows it); otherwise it's made here
+      gate = component.querySelector('.rhythms-marquee_gate');
+      if (!gate) {
+        gate = document.createElement('div');
+        gate.className = 'rhythms-marquee_gate';
+        component.appendChild(gate);
+      }
       component.classList.add('is-gate');
       place();
       if ('ResizeObserver' in window) new ResizeObserver(place).observe(component);

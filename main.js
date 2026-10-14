@@ -6139,12 +6139,14 @@
       if (member && member.id) url.searchParams.set('client_reference_id', member.id);
       return url.toString();
     }
-    document.addEventListener('click', function (event) {
+    // Capture on window: Webflow's own handler for href="#" links would scroll the page to the top.
+    window.addEventListener('click', function (event) {
       var button = event.target.closest && event.target.closest('[data-tinko-buy]');
       if (!button) return;
       var href = buyHref();
       if (href) { button.setAttribute('href', href); return; }
       event.preventDefault();
+      event.stopPropagation();
       if (button.getAttribute('data-label')) return;
       button.setAttribute('data-label', button.textContent);
       button.textContent = 'Coming soon';
@@ -6152,7 +6154,7 @@
         button.textContent = button.getAttribute('data-label');
         button.removeAttribute('data-label');
       }, 2000);
-    });
+    }, true);
     function set(state) {
       root.setAttribute('data-tinko', state);
       document.querySelectorAll('[data-tinko-gate]').forEach(function (gate) {
@@ -6179,24 +6181,26 @@
       });
     }
 
-    document.addEventListener('click', function (event) {
+    window.addEventListener('click', function (event) {
       var link = event.target.closest && event.target.closest('[data-tinko-scroll]');
       if (!link) return;
       var target = document.querySelector('[data-tinko-gate]');
       if (!target) return;
       event.preventDefault();
+      event.stopPropagation();
       if (window.lenis && typeof window.lenis.scrollTo === 'function') window.lenis.scrollTo(target, { offset: -96 });
       else target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+    }, true);
   }
 
   // The install line's Copy button: [data-helper-copy] copies the text of [data-helper-line] next to it.
   // One listener on the page, so it keeps working when the course player swaps lessons.
   function dfsHelperCopy() {
-    document.addEventListener('click', function (event) {
+    window.addEventListener('click', function (event) {
       var button = event.target.closest && event.target.closest('[data-helper-copy]');
       if (!button) return;
       event.preventDefault();
+      event.stopPropagation();   // capture on window: before Webflow's href="#" scroll-to-top
       var box = button.closest('.tk_code') || button.parentNode;
       var line = box && box.querySelector('[data-helper-line]');
       var text = line ? line.textContent.trim() : '';
@@ -6219,7 +6223,7 @@
       }
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
       else fallback();
-    });
+    }, true);
   }
 
   // =========================================================

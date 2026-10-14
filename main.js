@@ -2008,22 +2008,29 @@
       }
     }
 
+    // A lesson that's hidden for this member (lesson 0.3 without Tinko: data-tinko-show="owned")
+    // is skipped by Previous/Next.
+    function isHiddenLesson(el) {
+      return el.matches('[data-tinko-show="owned"]') &&
+        document.documentElement.getAttribute('data-tinko') !== 'owned';
+    }
+
     function goToNextLesson(currentLessonId) {
-      const currentIndex = lessons.findIndex(l => l.id === currentLessonId);
-      if (currentIndex === -1 || currentIndex >= lessons.length - 1) return;
-      const nextLesson = lessons[currentIndex + 1];
-      const nextLessonElement = document.getElementById(nextLesson.id);
-      if (!nextLessonElement) return;
-      nextLessonElement.click();
+      let index = lessons.findIndex(l => l.id === currentLessonId);
+      if (index === -1) return;
+      while (++index < lessons.length) {
+        const el = document.getElementById(lessons[index].id);
+        if (el && !isHiddenLesson(el)) return el.click();
+      }
     }
 
     function goToPreviousLesson(currentLessonId) {
-      const currentIndex = lessons.findIndex(l => l.id === currentLessonId);
-      if (currentIndex === -1 || currentIndex <= 0) return;
-      const previousLesson = lessons[currentIndex - 1];
-      const previousLessonElement = document.getElementById(previousLesson.id);
-      if (!previousLessonElement) return;
-      previousLessonElement.click();
+      let index = lessons.findIndex(l => l.id === currentLessonId);
+      if (index === -1) return;
+      while (--index >= 0) {
+        const el = document.getElementById(lessons[index].id);
+        if (el && !isHiddenLesson(el)) return el.click();
+      }
     }
 
     function toggleLessonComplete(lessonId) {
@@ -6118,14 +6125,15 @@
   // Sets <html data-tinko="owned|locked">. styles.css then shows the [data-tinko-show="owned"] or
   // [data-tinko-show="locked"] pieces, and blurs the [data-tinko-gate] block (install + connect) with a
   // lock on top while locked; the block's content is made inert so nothing in it can be clicked.
-  // Owned = an ACTIVE Memberstack plan from TINKO_PLANS (empty until the Tinko plan exists, so everyone
-  // sees the locked view for now). Preview either state with ?tinko=owned or ?tinko=locked.
+  // Owned = an ACTIVE Memberstack plan from TINKO_PLANS. Without it, everything marked
+  // data-tinko-show="owned" is hidden: in the course that's all of lesson 0.3 (menu item, text, stage),
+  // and Previous/Next skip it. Preview either state with ?tinko=owned or ?tinko=locked.
   // This only hides the steps on the page: the real check is the dfs-helper worker's licence.
   // [data-tinko-scroll] links glide to the block. [data-tinko-buy] buttons go to TINKO_BUY_URL (a Stripe
   // payment link) with the member's email and id filled in, so the payment lands on the right account;
   // without a link yet they say "Coming soon" for a moment.
   // =========================================================
-  var TINKO_PLANS = [];
+  var TINKO_PLANS = ['pln_tinko-pj5v09p0'];   // Memberstack plan "Tinko" (added by dfs-cart after a Tinko purchase)
   var TINKO_BUY_URL = '';
 
   function dfsTinko() {

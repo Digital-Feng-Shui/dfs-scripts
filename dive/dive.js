@@ -4,7 +4,7 @@
    Separate from main.js on purpose: one page loads it in its own
    page custom code, nothing else on the site knows it exists.
 
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.2.0/dive/dive.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.2.1/dive/dive.js"></script>
 
    Webflow structure (classes are free, the attributes matter):
      [data-dive]                 section, its height sets the scroll length (e.g. 380vh)
@@ -242,7 +242,7 @@ function init(root) {
       if (!cueSize) cueSize = { w: cr.width, h: cr.height };
       G.timeline()
         .set(c, { width: cr.width, height: cr.height, xPercent: -50, x: 0 })   // keep it centred while it grows
-        .to(c, { width: nr.width, height: nr.height, y: `+=${nr.bottom - cr.bottom}`, backgroundColor: getComputedStyle(navInner).backgroundColor, duration: .6, ease: 'osmo' }, .1)
+        .to(c, { width: nr.width, height: nr.height, y: `+=${nr.bottom - cr.bottom}`, backgroundColor: getComputedStyle(navInner).backgroundColor, borderRadius: getComputedStyle(navInner).borderTopLeftRadius, duration: .6, ease: 'osmo' }, .1)
         .set(nav, { visibility: 'visible' }, .55)
         .fromTo(nav, { opacity: 0 }, { opacity: 1, duration: .25, ease: 'none' }, .55)
         .fromTo(bar, { yPercent: 70, opacity: 0 }, { yPercent: 0, opacity: 1, duration: .55, stagger: .07, ease: 'osmo' }, .6)
@@ -252,8 +252,8 @@ function init(root) {
         .to(nav, { opacity: 0, duration: .2, ease: 'none' }, 0)
         .set(nav, { visibility: 'hidden' })
         .set(c, { opacity: 1 }, 0)
-        .to(c, { width: cueSize ? cueSize.w : 'auto', height: cueSize ? cueSize.h : 'auto', y: 0, duration: .5, ease: 'osmo' }, 0)
-        .set(c, { clearProps: 'width,height,backgroundColor,opacity,transform' });
+        .to(c, { width: cueSize ? cueSize.w : 'auto', height: cueSize ? cueSize.h : 'auto', y: 0, borderRadius: 0, duration: .5, ease: 'osmo' }, 0)
+        .set(c, { clearProps: 'width,height,backgroundColor,opacity,transform,borderRadius' });
     }
   }
 

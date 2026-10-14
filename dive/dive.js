@@ -4,7 +4,7 @@
    Separate from main.js on purpose: one page loads it in its own
    page custom code, nothing else on the site knows it exists.
 
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.3.2/dive/dive.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.3.3/dive/dive.js"></script>
 
    Webflow structure (classes are free, the attributes matter):
      [data-dive]                 section, its height sets the scroll length (e.g. 380vh)
@@ -299,8 +299,8 @@ function initTime(root) {
   const isNight = () => document.documentElement.classList.contains('dfs-night');
   const PAL = {
     // orange = attention taken (the opposite hue of the brand blue), bleeding to red at its worst; blue = digital done right
-    night: { text: [241, 237, 226], orange: [250, 106, 29], red: [235, 45, 35], blue: [29, 171, 250], back: '#05070d', tense: '#4a1c0c', calm: '#0f3a57' },
-    day:   { text: [61, 58, 53],    orange: [216, 67, 2],   red: [200, 25, 15], blue: [2, 151, 219],  back: '#f1ede2', tense: '#dca98d', calm: '#c9e2ef' },
+    night: { text: [241, 237, 226], orange: [240, 110, 40], red: [215, 55, 40], blue: [29, 171, 250], back: '#05070d', tense: '#361509', calm: '#0f3a57', calmTo: .75 },
+    day:   { text: [61, 58, 53],    orange: [216, 67, 2],   red: [200, 25, 15], blue: [2, 151, 219],  back: '#f1ede2', tense: '#dca98d', calm: '#c9e2ef', calmTo: 1 },
   };
   injectCSS();
 
@@ -326,8 +326,23 @@ function initTime(root) {
   }
   const countEl = q('[data-time-count]');
   const countFinal = countEl ? countEl.textContent.trim() : '';
-  if (countEl) { countEl.setAttribute('data-odometer-element', ''); countEl.textContent = '7'; }
+  let countBox = null;
+  if (countEl) {
+    // the number gets its own box, as wide as the final number, so nothing around it shifts while it rolls
+    countBox = document.createElement('span'); countBox.className = 'time-count-box';
+    countEl.replaceWith(countBox); countBox.append(countEl);
+    countEl.setAttribute('data-odometer-element', '');
+  }
   lines.forEach(l => split(l, 70));
+  function sizeCountBox() {
+    if (!countBox) return;
+    const keep = countEl.textContent;
+    countEl.textContent = countFinal; countBox.style.width = '';
+    const em = countEl.getBoundingClientRect().width / parseFloat(getComputedStyle(countEl).fontSize);
+    countBox.style.width = (em + .04).toFixed(3) + 'em';
+    countEl.textContent = keep;
+  }
+  if (countEl) { sizeCountBox(); countEl.textContent = '7'; (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { if (countEl.textContent === '7') sizeCountBox(); }); }
   notes.forEach(n => split(n, 25));
   const setState = (node, state) => {
     if (!node || node.dataset.diveState === state) return;
@@ -340,11 +355,14 @@ function initTime(root) {
      code as  window.dfsOdometer = initNumberOdometer()). Without it, the number just switches. */
   const finalCount = countFinal;
   let yearOn = false;
+  let countTimer = 0;
   function rollCount(up) {
     if (!countEl) return;
+    clearTimeout(countTimer);
     const text = up ? finalCount : '7';
-    if (window.dfsOdometer && !reduce) window.dfsOdometer(countEl, text, { duration: up ? 2.2 : .6 });
-    else countEl.textContent = text;
+    if (!window.dfsOdometer || reduce) { countEl.textContent = text; return; }
+    // up: roll once the words have risen; down: reset quietly once the line has left
+    countTimer = setTimeout(() => window.dfsOdometer(countEl, text, { duration: up ? 2.2 : .01 }), up ? 380 : 700);
   }
 
   /* the year: 365 days × 24 hours, 7 of them on a screen (seeded, so it looks the same every visit) */
@@ -428,12 +446,12 @@ function initTime(root) {
       const rowIn = sm(.04, .1, p), litN = Math.floor(sm(.08, .22, p) * 7.999);
       const fold = sm(.24, .31, p);
       const inYear = p >= .31;
-      if (inYear !== yearOn) { yearOn = inYear; rollCount(inYear); setFill(inYear ? 1 : 0, inYear ? 2.2 : .6); }
+      if (inYear !== yearOn) { yearOn = inYear; rollCount(inYear); setFill(inYear ? 1 : 0, inYear ? 2.4 : .6); }
       const k = Math.min(1, (now - fillStart) / (fillDur * 1000));
       fillT = fillFrom + (fillTo - fillFrom) * (1 - Math.pow(1 - k, 3));
       const shown = fold < 1 ? 0 : Math.max(1, Math.round(fillT * 365));
       const orange = sm(.55, .66, p), blue = sm(.79, .93, p);
-      const heat = orange * (1 - blue);                    // how hectic it is right now
+      const heat = orange * (1 - blue) * P.calmTo;         // how hectic it is right now (a little softer at night)
       // dither: nothing at first; with the orange it turns into restless noise, speeds up, shakes and closes in;
       // with the blue it goes back to an ordered pattern, slows down and pulls back to the edges
       if (mount) {
@@ -481,7 +499,11 @@ function initTime(root) {
             fill = rgba(c, on ? 1 : .28);
             if (!reduce && heat > .15) { x += Math.sin(t * 31 + ph * 17) * u * .7 * heat; y += Math.cos(t * 27 + ph * 11) * u * .5 * heat; }
           } else if (isB && (day.taken.includes(h) || blue > .6)) {
-            fill = rgba(P.blue, 1);
+            // a few blue sparks: rare, short glints with a soft glow
+            const ph = day.phase[litIdx];
+            const spark = reduce || day.grab[litIdx] > .09 ? 0 : Math.pow(Math.max(0, Math.sin(t * .8 + ph * 5.3)), 60) * blue;
+            fill = spark > .02 ? rgba(mix(P.blue, [255, 255, 255], spark * .85), 1) : rgba(P.blue, 1);
+            if (spark > .02) { g.globalAlpha = spark * .55; g.fillStyle = rgba(P.blue, 1); g.fillRect(x - s, y - s, s * 3, s * 3); g.globalAlpha = 1; }
           } else {
             fill = rgba(P.text, .72);
           }
@@ -537,6 +559,7 @@ function injectCSS() {
 [data-time-canvas] canvas{width:100%!important;height:100%!important;display:block}
 [data-time-grid] canvas{display:block;margin:0 auto}
 [data-time-line],[data-time-note]{pointer-events:none}
+.time-count-box{display:inline-flex;justify-content:flex-end;vertical-align:top;white-space:nowrap}
 [data-time-note]{opacity:.72}
 @media (prefers-reduced-motion: reduce){[data-dive-cue-text],[data-dive-cue-line]::after{animation:none}[data-dive-cue-line]::after{transform:scaleY(1)}.dive-wi,.dive-ra,.dive-rb{transition:none}}
 `;

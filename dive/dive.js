@@ -4,7 +4,7 @@
    Separate from main.js on purpose: one page loads it in its own
    page custom code, nothing else on the site knows it exists.
 
-   <script type="module" src="https://cdn.jsdelivr.net/gh/rimbodesigns/dfs-scripts@dive-v0.1.0/dive/dive.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.1.1/dive/dive.js"></script>
 
    Webflow structure (classes are free, the attributes matter):
      [data-dive]                 section, its height sets the scroll length (e.g. 380vh)
@@ -15,7 +15,7 @@
          [data-dive-title]       first line, words rise in
          [data-dive-end]         line on the empty page at the end
          [data-dive-end2]        optional second end line
-         [data-dive-cue]         "Scroll" + line; [data-dive-cue-line] draws down
+         [data-dive-cue]         glass box: "Scroll" + line; [data-dive-cue-line] draws down
 
    Optional settings on [data-dive] (defaults = the hero lab):
      data-zoom="2.4" data-spin="420" data-pixel="2" data-pixel-grow="2"
@@ -52,8 +52,10 @@ function init(root) {
     logo: root.dataset.logo || 'keeper',
   };
   const PAL = {
-    night: { back: '#0e1628', front: '#5f719c', text: '#f1ede2', accent: '#1dabfa', end: '#05070d', endText: '#f1ede2' },
-    day:   { back: '#f1ede2', front: '#3d3a35', text: '#3d3a35', accent: '#0297db', end: '#f1ede2', endText: '#3d3a35' },
+    night: { back: '#0e1628', front: '#5f719c', text: '#f1ede2', accent: '#1dabfa', end: '#05070d', endText: '#f1ede2',
+             glass: 'rgba(14,22,40,.45)', glassLine: 'rgba(241,237,226,.18)', glassHi: 'rgba(255,255,255,.08)' },
+    day:   { back: '#f1ede2', front: '#3d3a35', text: '#3d3a35', accent: '#0297db', end: '#f1ede2', endText: '#3d3a35',
+             glass: 'rgba(241,237,226,.55)', glassLine: 'rgba(61,58,53,.16)', glassHi: 'rgba(255,255,255,.6)' },
   };
   const isNight = () => document.documentElement.classList.contains('dfs-night');
 
@@ -123,6 +125,7 @@ function init(root) {
     const s = root.style;
     s.setProperty('--dive-back', P.back); s.setProperty('--dive-text', P.text); s.setProperty('--dive-accent', P.accent);
     s.setProperty('--dive-end', P.end); s.setProperty('--dive-endtext', P.endText);
+    s.setProperty('--dive-glass', P.glass); s.setProperty('--dive-glass-line', P.glassLine); s.setProperty('--dive-glass-hi', P.glassHi);
     render();
   }
   new MutationObserver(paint).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
@@ -179,11 +182,11 @@ function injectCSS() {
 [data-dive-title]{color:var(--dive-text);pointer-events:none}
 [data-dive-end]{color:var(--dive-endtext);pointer-events:none}
 [data-dive-end2]{color:var(--dive-accent);pointer-events:none}
-[data-dive-cue]{color:var(--dive-text);pointer-events:none}
+[data-dive-cue]{color:var(--dive-text);pointer-events:none;background:var(--dive-glass);border:1px solid var(--dive-glass-line);box-shadow:0 10px 30px rgba(0,0,0,.18),inset 0 1px 0 var(--dive-glass-hi);-webkit-backdrop-filter:blur(14px) saturate(1.3);backdrop-filter:blur(14px) saturate(1.3)}
 [data-dive-cue-text]{animation:dive-pulse 2.4s ease-in-out infinite}
 [data-dive-cue-line]{position:relative;overflow:hidden;background:color-mix(in srgb,currentColor 25%,transparent)}
 [data-dive-cue-line]::after{content:"";position:absolute;inset:0;background:currentColor;transform:scaleY(0);transform-origin:top;animation:dive-draw 2.4s cubic-bezier(.625,.05,0,1) infinite}
-@keyframes dive-pulse{0%,100%{opacity:.4}50%{opacity:1}}
+@keyframes dive-pulse{0%,100%{opacity:.55}50%{opacity:1}}
 @keyframes dive-draw{0%{transform:scaleY(0);transform-origin:top}45%{transform:scaleY(1);transform-origin:top}55%{transform:scaleY(1);transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
 .dive-txt{display:block}
 .dive-w{display:inline-block;overflow:hidden;vertical-align:top;padding:.06em .02em .12em;margin:-.06em -.02em -.12em}

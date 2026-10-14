@@ -334,15 +334,27 @@ function initTime(root) {
     countEl.setAttribute('data-odometer-element', '');
   }
   lines.forEach(l => split(l, 70));
+  /* the number is always drawn the way the odometer draws it: one equal-width cell per digit (Mondwest's digits are
+     not equal width, and the rolling columns are as wide as the widest digit), so nothing jumps when it starts or ends */
+  const lineStep = () => { const cs = getComputedStyle(countEl); return cs.lineHeight === 'normal' ? 1.2 : parseFloat(cs.lineHeight) / parseFloat(cs.fontSize); };
+  function drawCount(text) {
+    const step = lineStep();
+    countEl.style.width = countEl.style.overflow = '';
+    countEl.innerHTML = [...text].map(ch => `<span data-odometer-part="${/\d/.test(ch) ? 'mask' : 'static'}" style="height:${step}em;line-height:${step}">${ch}</span>`).join('');
+  }
   function sizeCountBox() {
     if (!countBox) return;
-    const keep = countEl.textContent;
-    countEl.textContent = countFinal; countBox.style.width = '';
-    const em = countEl.getBoundingClientRect().width / parseFloat(getComputedStyle(countEl).fontSize);
-    countBox.style.width = (em + .04).toFixed(3) + 'em';
-    countEl.textContent = keep;
+    const keep = countEl.textContent, fs = parseFloat(getComputedStyle(countEl).fontSize);
+    const probe = document.createElement('span'); probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre';
+    countEl.append(probe);
+    let dw = 0; for (let d = 0; d < 10; d++) { probe.textContent = d; dw = Math.max(dw, probe.getBoundingClientRect().width); }
+    probe.remove();
+    countEl.style.setProperty('--time-digit', (dw / fs).toFixed(3) + 'em');
+    drawCount(countFinal); countBox.style.width = '';
+    countBox.style.width = (countEl.getBoundingClientRect().width / fs + .04).toFixed(3) + 'em';
+    drawCount(keep);
   }
-  if (countEl) { sizeCountBox(); countEl.textContent = '7'; (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { if (countEl.textContent === '7') sizeCountBox(); }); }
+  if (countEl) { countEl.textContent = '7'; sizeCountBox(); (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { if (!countEl.querySelector('[data-odometer-part="roller"]')) sizeCountBox(); }); }
   notes.forEach(n => split(n, 25));
   const setState = (node, state) => {
     if (!node || node.dataset.diveState === state) return;
@@ -359,10 +371,18 @@ function initTime(root) {
   function rollCount(up) {
     if (!countEl) return;
     clearTimeout(countTimer);
-    const text = up ? finalCount : '7';
-    if (!window.dfsOdometer || reduce) { countEl.textContent = text; return; }
+    if (!window.dfsOdometer || reduce) { drawCount(up ? finalCount : '7'); return; }
     // up: roll once the words have risen; down: reset quietly once the line has left
-    countTimer = setTimeout(() => window.dfsOdometer(countEl, text, { duration: up ? 2.2 : .01 }), up ? 380 : 700);
+    countTimer = setTimeout(() => {
+      if (!up) { drawCount('7'); return; }
+      window.dfsOdometer(countEl, finalCount, { duration: 2.2 });
+      // the box already has the final width: drop the odometer's width squeeze (it clipped the digits)
+      if (window.gsap) gsap.killTweensOf(countEl);
+      countEl.style.width = countEl.style.overflow = '';
+      // the comma waits for the thousands digit instead of floating in alone
+      const statics = countEl.querySelectorAll('[data-odometer-part="static"]');
+      if (window.gsap && statics.length) { gsap.killTweensOf(statics); gsap.fromTo(statics, { opacity: 0 }, { opacity: 1, duration: .35, delay: .3, ease: 'power2.out' }); }
+    }, up ? 380 : 700);
   }
 
   /* the year: 365 days × 24 hours, 7 of them on a screen (seeded, so it looks the same every visit) */
@@ -560,6 +580,7 @@ function injectCSS() {
 [data-time-grid] canvas{display:block;margin:0 auto}
 [data-time-line],[data-time-note]{pointer-events:none}
 .time-count-box{display:inline-flex;justify-content:flex-end;vertical-align:top;white-space:nowrap}
+.time-count-box [data-odometer-part="mask"]{width:var(--time-digit,auto);text-align:center}
 [data-time-note]{opacity:.72}
 @media (prefers-reduced-motion: reduce){[data-dive-cue-text],[data-dive-cue-line]::after{animation:none}[data-dive-cue-line]::after{transform:scaleY(1)}.dive-wi,.dive-ra,.dive-rb{transition:none}}
 `;

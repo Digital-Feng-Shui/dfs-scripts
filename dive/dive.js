@@ -4,7 +4,7 @@
    Separate from main.js on purpose: one page loads it in its own
    page custom code, nothing else on the site knows it exists.
 
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.2.2/dive/dive.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.3.0/dive/dive.js"></script>
 
    Webflow structure (classes are free, the attributes matter):
      [data-dive]                 section, its height sets the scroll length (e.g. 380vh)
@@ -29,12 +29,15 @@
    Colours follow the site's night mode (html.dfs-night):
    night = Mist (navy + dusk blue, ends in black), day = Ink (bage + dark grey, ends in bage).
    Shader: Paper Shaders Dithering, @paper-design/shaders 0.0.81, Apache 2.0.
+   Also here: section 2, the time story ([data-time]), see initTime below.
    ========================================================= */
 
 import { ShaderMount, ditheringFragmentShader, getShaderColorFromString as col } from 'https://cdn.jsdelivr.net/npm/@paper-design/shaders@0.0.81/+esm';
 
 const root = document.querySelector('[data-dive]');
 if (root) init(root);
+const timeRoot = document.querySelector('[data-time]');
+if (timeRoot) initTime(timeRoot);
 
 function init(root) {
   const q = sel => root.querySelector(sel);
@@ -270,6 +273,215 @@ function init(root) {
   paint();
 }
 
+/* =========================================================
+   Section 2 — the time story ("the space we never designed")
+   Starts in the same black/paper the dive ends in, pinned:
+     1. "7+ Hours A Day."      24 hour-pixels in a row, 7 light up
+     2. "2,555 Hours A Year."  the row folds into one 6×4 day tile, a year of tiles fills in, digits roll
+     3. orange                 lit hours turn orange and blink like badges, the dither creeps in at the edges
+     4. blue                   orange becomes blue, the dither calms: "Tech can make life better"
+   Webflow:
+     [data-time]                 section (height = scroll length, e.g. 440vh)
+       [data-time-sticky]        sticky 100vh
+         [data-time-canvas]      dither around the edges (Paper Shaders, warp)
+         [data-time-line="1-4"]  the four big lines (stacked, words rise in/out)
+         [data-time-count]       inside line 2: the rolling number
+         [data-time-grid]        the pixel hours (canvas is added here)
+         [data-time-note="1-4"]  the small mono line under each beat
+   ========================================================= */
+function initTime(root) {
+  const q = s => root.querySelector(s);
+  const sticky = q('[data-time-sticky]'), gridHost = q('[data-time-grid]'), ditherHost = q('[data-time-canvas]');
+  if (!sticky || !gridHost) return;
+  const byNum = attr => [...root.querySelectorAll(`[${attr}]`)].sort((a, b) => +a.getAttribute(attr) - +b.getAttribute(attr));
+  const lines = byNum('data-time-line'), notes = byNum('data-time-note');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isNight = () => document.documentElement.classList.contains('dfs-night');
+  const PAL = {
+    night: { text: [241, 237, 226], orange: [250, 106, 29], blue: [29, 171, 250], back: '#05070d', mid: '#1c2942', calm: '#0f3a57' },
+    day:   { text: [61, 58, 53],    orange: [216, 67, 2],   blue: [2, 151, 219],  back: '#f1ede2', mid: '#d5ccbd', calm: '#c9e2ef' },
+  };
+  injectCSS();
+
+  /* words (keeps the counter element as one "word") */
+  function split(node, step) {
+    const parts = [];
+    [...node.childNodes].forEach(n => {
+      if (n.nodeType === 3) n.textContent.split(/\s+/).filter(Boolean).forEach(t => parts.push({ t }));
+      else if (n.nodeType === 1) parts.push({ el: n });
+    });
+    node.setAttribute('aria-label', node.textContent.replace(/\s+/g, ' ').trim());
+    node.textContent = '';
+    const txt = document.createElement('span'); txt.className = 'dive-txt'; txt.setAttribute('aria-hidden', 'true');
+    parts.forEach((p, i) => {
+      const w = document.createElement('span'); w.className = 'dive-w';
+      const wi = document.createElement('span'); wi.className = 'dive-wi';
+      wi.style.transitionDelay = (reduce ? 0 : i * step) + 'ms';
+      if (p.el) wi.append(p.el); else wi.textContent = p.t;
+      w.append(wi); txt.append(w);
+      if (i < parts.length - 1) txt.append(' ');
+    });
+    node.append(txt);
+  }
+  const countEl = q('[data-time-count]');
+  lines.forEach(l => split(l, 70));
+  notes.forEach(n => split(n, 25));
+  const setState = (node, state) => {
+    if (!node || node.dataset.diveState === state) return;
+    node.dataset.diveState = state;
+    node.classList.toggle('dive-in', state === 'in');
+    node.classList.toggle('dive-out', state === 'out');
+  };
+
+  /* rolling digits, odometer style: always "0,000", leading zeros dimmed */
+  let setCount = () => {};
+  if (countEl) {
+    countEl.classList.add('time-count');
+    countEl.innerHTML = '0,000'.split('').map(ch => ch === ',' ? '<span class="tc-c">,</span>'
+      : `<span class="tc-d"><span class="tc-s">${'0123456789'.split('').map(d => `<span>${d}</span>`).join('')}</span></span>`).join('');
+    const digits = [...countEl.querySelectorAll('.tc-d')];
+    const comma = countEl.querySelector('.tc-c');
+    let last = -1;
+    setCount = v => {
+      v = Math.max(0, Math.min(9999, Math.round(v)));
+      if (v === last) return; last = v;
+      const s = String(v).padStart(4, '0');
+      let lead = true;
+      digits.forEach((d, i) => {
+        d.firstChild.style.transform = `translateY(${-s[i] * 10}%)`;
+        if (s[i] !== '0' || i === 3) lead = false;
+        d.classList.toggle('is-lead', lead);
+      });
+      comma.classList.toggle('is-lead', v < 1000);
+    };
+    setCount(7);
+  }
+
+  /* the year: 365 days × 24 hours, 7 of them on a screen (seeded, so it looks the same every visit) */
+  let seed = 7;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+  const days = Array.from({ length: 365 }, () => {
+    const pool = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23];
+    const lit = [];
+    while (lit.length < 7) { const h = pool.splice(Math.floor(rnd() * pool.length), 1)[0]; lit.push(h); }
+    lit.sort((a, b) => a - b);
+    return { lit, taken: lit.filter(() => rnd() < .45), tOrange: rnd(), tBlue: rnd(), phase: lit.map(() => rnd() * 6.28) };
+  });
+
+  const cv = document.createElement('canvas'); cv.setAttribute('aria-hidden', 'true');
+  gridHost.append(cv);
+  const g = cv.getContext('2d');
+  let L = null;
+  function layout() {
+    const dpr = Math.min(devicePixelRatio || 1, 2), W = gridHost.clientWidth || 300;
+    const cols = W >= 640 ? 53 : 19, rows = Math.ceil(365 / cols);
+    const u = W / (cols * 6 + (cols - 1) * 2);                  // one hour-pixel; a day is 6×4 of them, 2 between days
+    const gridH = rows * 4 * u + (rows - 1) * 2 * u;
+    const big = Math.min(W / 30, 30);                            // the hour row in beat 1
+    const H = Math.max(gridH, big * 2.2);
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const oy = (H - gridH) / 2;
+    const cell = d => cols === 53
+      ? { x: Math.floor(d / 7) * 8 * u, y: oy + (d % 7) * 6 * u }
+      : { x: (d % cols) * 8 * u, y: oy + Math.floor(d / cols) * 6 * u };
+    const rowX = h => W / 2 - (24 * big * 1.25) / 2 + h * big * 1.25 + big * .125;
+    L = { W, H, u, big, cell, rowX, rowY: H / 2 - big / 2 };
+  }
+  new ResizeObserver(layout).observe(gridHost);
+  layout();
+
+  const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+  const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+  let P = PAL[isNight() ? 'night' : 'day'];
+
+  /* dither around the edges */
+  let mount = null;
+  if (ditherHost) {
+    try {
+      mount = new ShaderMount(ditherHost, ditheringFragmentShader, {
+        u_fit: 0, u_scale: 1, u_rotation: 0, u_offsetX: 0, u_offsetY: 0, u_originX: .5, u_originY: .5, u_worldWidth: 0, u_worldHeight: 0,
+        u_colorBack: col(P.back), u_colorFront: col(P.back), u_shape: 2, u_type: 3, u_pxSize: 2, u_scale: .7,
+      }, undefined, reduce ? 0 : .35, 0);
+    } catch (e) { console.warn('[time] dither did not start', e); }
+  }
+  const hexLerp = (a, b, t) => { const A = [1, 3, 5].map(i => parseInt(a.slice(i, i + 2), 16)), B = [1, 3, 5].map(i => parseInt(b.slice(i, i + 2), 16)); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',')})`; };
+
+  function progress() {
+    const r = root.getBoundingClientRect();
+    return Math.min(1, Math.max(0, -r.top / Math.max(1, r.height - innerHeight)));
+  }
+
+  let visible = false, p = 0;
+  new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(root);
+
+  function frame(now) {
+    if (visible && L) {
+      P = PAL[isNight() ? 'night' : 'day'];
+      p = progress();
+      const t = now / 1000;
+      // words
+      setState(lines[0], p < .03 ? 'pre' : p < .28 ? 'in' : 'out');
+      setState(lines[1], p < .3 ? 'pre' : p < .54 ? 'in' : 'out');
+      setState(lines[2], p < .56 ? 'pre' : p < .75 ? 'in' : 'out');
+      setState(lines[3], p < .78 ? 'pre' : 'in');
+      setState(notes[0], p < .08 ? 'pre' : p < .28 ? 'in' : 'out');
+      setState(notes[1], p < .4 ? 'pre' : p < .54 ? 'in' : 'out');
+      setState(notes[2], p < .6 ? 'pre' : p < .75 ? 'in' : 'out');
+      setState(notes[3], p < .83 ? 'pre' : 'in');
+      // the beats
+      const rowIn = sm(.04, .1, p), litN = Math.floor(sm(.08, .22, p) * 7.999);
+      const fold = sm(.24, .32, p), shown = fold < 1 ? 0 : Math.max(1, Math.round(sm(.32, .52, p) * 365));
+      const orange = sm(.55, .68, p), blue = sm(.77, .92, p);
+      setCount(Math.max(7, shown * 7));
+      // dither: nothing at first, creeps in with the orange, calms into blue
+      if (mount) mount.setUniforms({
+        u_colorBack: col(P.back),
+        u_colorFront: col(blue > 0 ? hexLerp(P.mid, P.calm, blue) : hexLerp(P.back, P.mid, orange)),
+        u_scale: .7 + orange * .5 - blue * .3, u_rotation: p * 120,
+      });
+      // pixels
+      const { u, big, cell, rowX, rowY } = L;
+      g.clearRect(0, 0, L.W, L.H);
+      const gap = u > 2.5 ? .18 : 0;
+      for (let d = 0; d < 365; d++) {
+        if (d > 0 && d >= shown) continue;
+        const day = days[d], c = cell(d);
+        const isO = orange > day.tOrange, isB = blue > day.tBlue;
+        for (let h = 0; h < 24; h++) {
+          const litIdx = day.lit.indexOf(h);
+          let x, y, s;
+          const hx = c.x + (h % 6) * u, hy = c.y + Math.floor(h / 6) * u;
+          if (d === 0 && fold < 1) {                     // beat 1: the hour row, folding into day one
+            const k = reduce ? (fold > .5 ? 1 : 0) : fold;
+            x = rowX(h) + (hx - rowX(h)) * k; y = rowY + (hy - rowY) * k; s = big + (u - big) * k;
+          } else { x = hx; y = hy; s = u; }
+          const inset = s * (d === 0 && fold < 1 ? .12 : gap);
+          let fill;
+          if (litIdx === -1 || (d === 0 && fold === 0 && litIdx >= litN)) {
+            fill = rgba(P.text, d === 0 && fold < 1 ? .14 : .07);
+          } else if (day.taken.includes(h) && isO && !isB) {
+            const on = reduce || Math.sin(t * 5 + day.phase[litIdx]) > -.35;
+            fill = rgba(P.orange, on ? 1 : .3);
+          } else if (isB && (day.taken.includes(h) || blue > .6)) {
+            fill = rgba(P.blue, 1);
+          } else {
+            fill = rgba(P.text, .72);
+          }
+          if (d === 0 && fold === 0 && rowIn < 1) g.globalAlpha = rowIn; else g.globalAlpha = 1;
+          g.fillStyle = fill;
+          g.fillRect(x + inset / 2, y + inset / 2, s - inset, s - inset);
+        }
+      }
+      g.globalAlpha = 1;
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
 function injectCSS() {
   if (document.getElementById('dive-css')) return;
   const css = `
@@ -301,10 +513,24 @@ function injectCSS() {
 @keyframes dive-draw{0%{transform:scaleY(0);transform-origin:top}45%{transform:scaleY(1);transform-origin:top}55%{transform:scaleY(1);transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
 .dive-txt{display:block}
 .dive-w{display:inline-block;overflow:hidden;vertical-align:top;padding:.06em .02em .12em;margin:-.06em -.02em -.12em}
-.dive-wi{display:inline-block;transform:translateY(110%);transition:transform .8s cubic-bezier(.625,.05,0,1)}
+.dive-wi{display:inline-block;transform:translateY(130%);transition:transform .8s cubic-bezier(.625,.05,0,1)}
 .dive-in .dive-wi{transform:none}
-.dive-out .dive-wi{transform:translateY(-110%)}
-@media (prefers-reduced-motion: reduce){[data-dive-cue-text],[data-dive-cue-line]::after{animation:none}[data-dive-cue-line]::after{transform:scaleY(1)}.dive-wi,.dive-ra,.dive-rb{transition:none}}
+.dive-out .dive-wi{transform:translateY(-130%)}
+[data-time]{background:var(--dive-end,#05070d);color:var(--dive-endtext,#f1ede2)}
+[data-time-sticky]{background:var(--dive-end,#05070d)}
+[data-time-canvas]{pointer-events:none;-webkit-mask-image:radial-gradient(ellipse 72% 64% at 50% 50%,transparent 42%,#000 100%);mask-image:radial-gradient(ellipse 72% 64% at 50% 50%,transparent 42%,#000 100%)}
+[data-time-canvas] canvas{width:100%!important;height:100%!important;display:block}
+[data-time-grid] canvas{display:block;margin:0 auto}
+[data-time-line],[data-time-note]{pointer-events:none}
+[data-time-note]{opacity:.72}
+.time-count{display:inline-flex;align-items:flex-start}
+.tc-d{display:inline-block;height:1.06em;overflow:hidden;vertical-align:top}
+.tc-s{display:flex;flex-direction:column;transition:transform .6s cubic-bezier(.625,.05,0,1)}
+.tc-s>span{display:block;height:1.06em;line-height:1.06}
+.tc-c{display:inline-block}
+.tc-d,.tc-c{transition:opacity .4s ease}
+.tc-d.is-lead,.tc-c.is-lead{opacity:.18}
+@media (prefers-reduced-motion: reduce){[data-dive-cue-text],[data-dive-cue-line]::after{animation:none}[data-dive-cue-line]::after{transform:scaleY(1)}.dive-wi,.dive-ra,.dive-rb,.tc-s{transition:none}}
 `;
   const s = document.createElement('style'); s.id = 'dive-css'; s.textContent = css; document.head.append(s);
 }

@@ -4,7 +4,7 @@
    Separate from main.js on purpose: one page loads it in its own
    page custom code, nothing else on the site knows it exists.
 
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.3.0/dive/dive.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.3.1/dive/dive.js"></script>
 
    Webflow structure (classes are free, the attributes matter):
      [data-dive]                 section, its height sets the scroll length (e.g. 380vh)
@@ -285,7 +285,7 @@ function init(root) {
        [data-time-sticky]        sticky 100vh
          [data-time-canvas]      dither around the edges (Paper Shaders, warp)
          [data-time-line="1-4"]  the four big lines (stacked, words rise in/out)
-         [data-time-count]       inside line 2: the rolling number
+         [data-time-count]       inside line 2: the number (rolled by Osmo's Number Odometer, window.dfsOdometer)
          [data-time-grid]        the pixel hours (canvas is added here)
          [data-time-note="1-4"]  the small mono line under each beat
    ========================================================= */
@@ -324,6 +324,8 @@ function initTime(root) {
     node.append(txt);
   }
   const countEl = q('[data-time-count]');
+  const countFinal = countEl ? countEl.textContent.trim() : '';
+  if (countEl) { countEl.setAttribute('data-odometer-element', ''); countEl.textContent = '7'; }
   lines.forEach(l => split(l, 70));
   notes.forEach(n => split(n, 25));
   const setState = (node, state) => {
@@ -333,28 +335,15 @@ function initTime(root) {
     node.classList.toggle('dive-out', state === 'out');
   };
 
-  /* rolling digits, odometer style: always "0,000", leading zeros dimmed */
-  let setCount = () => {};
-  if (countEl) {
-    countEl.classList.add('time-count');
-    countEl.innerHTML = '0,000'.split('').map(ch => ch === ',' ? '<span class="tc-c">,</span>'
-      : `<span class="tc-d"><span class="tc-s">${'0123456789'.split('').map(d => `<span>${d}</span>`).join('')}</span></span>`).join('');
-    const digits = [...countEl.querySelectorAll('.tc-d')];
-    const comma = countEl.querySelector('.tc-c');
-    let last = -1;
-    setCount = v => {
-      v = Math.max(0, Math.min(9999, Math.round(v)));
-      if (v === last) return; last = v;
-      const s = String(v).padStart(4, '0');
-      let lead = true;
-      digits.forEach((d, i) => {
-        d.firstChild.style.transform = `translateY(${-s[i] * 10}%)`;
-        if (s[i] !== '0' || i === 3) lead = false;
-        d.classList.toggle('is-lead', lead);
-      });
-      comma.classList.toggle('is-lead', v < 1000);
-    };
-    setCount(7);
+  /* the number: Osmo's Number Odometer rolls it once from 7 to the year total (window.dfsOdometer, set in the page
+     code as  window.dfsOdometer = initNumberOdometer()). Without it, the number just switches. */
+  const finalCount = countFinal;
+  let yearOn = false;
+  function rollCount(up) {
+    if (!countEl) return;
+    const text = up ? finalCount : '7';
+    if (window.dfsOdometer && !reduce) window.dfsOdometer(countEl, text, { duration: up ? 2.2 : .6 });
+    else countEl.textContent = text;
   }
 
   /* the year: 365 days × 24 hours, 7 of them on a screen (seeded, so it looks the same every visit) */
@@ -414,6 +403,9 @@ function initTime(root) {
     return Math.min(1, Math.max(0, -r.top / Math.max(1, r.height - innerHeight)));
   }
 
+  // the year fills in time-based (in step with the odometer), not per scroll pixel
+  let fillT = 0, fillFrom = 0, fillTo = 0, fillStart = 0, fillDur = 1;
+  const setFill = (to, dur) => { fillFrom = fillT; fillTo = to; fillStart = performance.now(); fillDur = reduce ? .001 : dur; };
   let visible = false, p = 0;
   new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(root);
 
@@ -433,9 +425,13 @@ function initTime(root) {
       setState(notes[3], p < .83 ? 'pre' : 'in');
       // the beats
       const rowIn = sm(.04, .1, p), litN = Math.floor(sm(.08, .22, p) * 7.999);
-      const fold = sm(.24, .32, p), shown = fold < 1 ? 0 : Math.max(1, Math.round(sm(.32, .52, p) * 365));
+      const fold = sm(.24, .31, p);
+      const inYear = p >= .31;
+      if (inYear !== yearOn) { yearOn = inYear; rollCount(inYear); setFill(inYear ? 1 : 0, inYear ? 2.2 : .6); }
+      const k = Math.min(1, (now - fillStart) / (fillDur * 1000));
+      fillT = fillFrom + (fillTo - fillFrom) * (1 - Math.pow(1 - k, 3));
+      const shown = fold < 1 ? 0 : Math.max(1, Math.round(fillT * 365));
       const orange = sm(.55, .68, p), blue = sm(.77, .92, p);
-      setCount(Math.max(7, shown * 7));
       // dither: nothing at first, creeps in with the orange, calms into blue
       if (mount) mount.setUniforms({
         u_colorBack: col(P.back),
@@ -523,14 +519,7 @@ function injectCSS() {
 [data-time-grid] canvas{display:block;margin:0 auto}
 [data-time-line],[data-time-note]{pointer-events:none}
 [data-time-note]{opacity:.72}
-.time-count{display:inline-flex;align-items:flex-start}
-.tc-d{display:inline-block;height:1.06em;overflow:hidden;vertical-align:top}
-.tc-s{display:flex;flex-direction:column;transition:transform .6s cubic-bezier(.625,.05,0,1)}
-.tc-s>span{display:block;height:1.06em;line-height:1.06}
-.tc-c{display:inline-block}
-.tc-d,.tc-c{transition:opacity .4s ease}
-.tc-d.is-lead,.tc-c.is-lead{opacity:.18}
-@media (prefers-reduced-motion: reduce){[data-dive-cue-text],[data-dive-cue-line]::after{animation:none}[data-dive-cue-line]::after{transform:scaleY(1)}.dive-wi,.dive-ra,.dive-rb,.tc-s{transition:none}}
+@media (prefers-reduced-motion: reduce){[data-dive-cue-text],[data-dive-cue-line]::after{animation:none}[data-dive-cue-line]::after{transform:scaleY(1)}.dive-wi,.dive-ra,.dive-rb{transition:none}}
 `;
   const s = document.createElement('style'); s.id = 'dive-css'; s.textContent = css; document.head.append(s);
 }

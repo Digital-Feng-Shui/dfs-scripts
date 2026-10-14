@@ -6201,6 +6201,149 @@
     }, true);
   }
 
+  // =========================================================
+  // TINKO, ALIVE — any element with data-tinko-mascot (an <svg> or a box) becomes Tinko from the app.
+  // Ported from Thomas + Marko's web version for the bundle page (team repo,
+  // dashboard/site-loader/parts/bundle_offer-v3-0.1.0.js), which is itself Rim's Tinko.swift: the 14 x 11
+  // cell body as one outline that slowly morphs (11 s), a 1.2° sway (1.85 s), eyes that blink every
+  // 2.5–6 s, follow the mouse, a goofy moment every 6–14 s and now and then one of his working gestures.
+  // A click (and the first time he comes into view) gives the "bwoop": swell, wobble, big eyes, crossed, home.
+  // Body = currentColor, eyes = var(--tinko-eye) (styles.css). Only works while he's on screen.
+  // =========================================================
+  function dfsTinkoMascot() {
+    var CORNERS = [0,4,1,4,1,2,2,2,2,1,4,1,4,0,10,0,10,1,12,1,12,2,13,2,13,3,14,3,14,7,13,7,13,9,12,9,12,10,9,10,9,11,4,11,4,10,2,10,2,9,1,9,1,7,0,7];
+    var HOME = [[-1.5, -0.5, 1, 2], [1.5, -0.5, 1, 2]];   // eyes in cells from the body centre: x, y, w, h
+    var GOOFS = [[[-4.2, -0.3, 1, 2], [4.2, -0.3, 1, 2]], [[-4.0, 0.8, 1, 2], [3.8, -1.6, 1, 2]], [[-1.8, -0.5, 2.2, 2.2], [1.9, -0.3, 0.9, 1.6]], [[-3.6, -2.2, 1, 2], [3.6, -2.2, 1, 2]], [[-0.7, -0.5, 1, 2], [0.7, -0.5, 1, 2]]];
+    var GESTURES = [[[-1.6, -1.4, 1, 2], [1.6, 0.6, 1, 2]], [[-1.3, -0.5, 2, 2], [1.3, -0.5, 2, 2]], [[-1.5, -0.3, 2, 0.4], [1.5, -0.3, 2, 0.4]], [[-3.2, -1.8, 1, 2], [-0.2, -1.8, 1, 2]], [[0.4, 1.2, 1, 2], [3.4, 1.2, 1, 2]], [[-1.6, 0.4, 1, 2], [1.6, -1.2, 1, 2]], [[-1.8, -0.5, 2.2, 2.2], [1.9, -0.3, 0.9, 1.4]], [[-3.6, -0.3, 1, 2], [3.6, -0.3, 1, 2]], [[-0.8, -0.5, 1, 2], [0.8, -0.5, 1, 2]]];
+    var EASE = { io: function (t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }, out: function (t) { return 1 - Math.pow(1 - t, 3); }, in: function (t) { return t * t * t; } };
+    var NS = 'http://www.w3.org/2000/svg';
+    var still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var all = [], mouse = null, raf = 0;
+
+    function path(c) { var o = 'M' + c[0].toFixed(2) + ' ' + c[1].toFixed(2); for (var i = 2; i < c.length; i += 2) o += 'L' + c[i].toFixed(2) + ' ' + c[i + 1].toFixed(2); return o + 'Z'; }
+    function deformed() {   // every edge moves along its outward normal by -0.3 to 0.45 cells; the corners follow
+      var n = CORNERS.length / 2, off = [], out = [], i;
+      for (i = 0; i < n; i++) off.push(-0.3 + Math.random() * 0.75);
+      for (i = 0; i < n; i++) {
+        var px = CORNERS[2 * i], py = CORNERS[2 * i + 1], qx = px, qy = py, pv = (i + n - 1) % n, nx = (i + 1) % n;
+        [[CORNERS[2 * pv], CORNERS[2 * pv + 1], px, py, off[pv]], [px, py, CORNERS[2 * nx], CORNERS[2 * nx + 1], off[i]]].forEach(function (e) {
+          var dx = e[2] - e[0], dy = e[3] - e[1], len = Math.max(Math.abs(dx), Math.abs(dy));
+          qx += dy / len * e[4]; qy += -dx / len * e[4];
+        });
+        out.push(qx, qy);
+      }
+      return out;
+    }
+    function svgMarkup() {
+      var morph = '';
+      if (!still) {
+        var v = [deformed(), deformed(), deformed(), deformed()].map(path);
+        v.push(v[0]);
+        morph = '<animate attributeName="d" dur="11s" repeatCount="indefinite" values="' + v.join(';') +
+          '" keyTimes="0;.25;.5;.75;1" calcMode="spline" keySplines=".42 0 .58 1;.42 0 .58 1;.42 0 .58 1;.42 0 .58 1"/>';
+      }
+      return '<g class="dfs-tinko-sway"><g class="dfs-tinko-body"><path fill="currentColor" d="' + path(CORNERS) + '">' + morph + '</path>' +
+        '<rect class="dfs-tinko-eye" x="5" y="4" width="1" height="2"/><rect class="dfs-tinko-eye" x="8" y="4" width="1" height="2"/></g></g>';
+    }
+
+    function set(k, l, r, dur, ease) {   // both eyes move with an eased transition
+      k.from = [k.now[0].slice(), k.now[1].slice()]; k.to = [l, r]; k.t0 = Date.now(); k.dur = dur * 1000; k.ease = EASE[ease || 'io'];
+      if (!raf) raf = requestAnimationFrame(frame);
+    }
+    function draw(k) {
+      for (var j = 0; j < 2; j++) {
+        var e = k.now[j];
+        k.eyes[j].setAttribute('x', (7 + e[0] - e[2] / 2).toFixed(3)); k.eyes[j].setAttribute('y', (5.5 + e[1] - e[3] / 2).toFixed(3));
+        k.eyes[j].setAttribute('width', e[2].toFixed(3)); k.eyes[j].setAttribute('height', e[3].toFixed(3));
+      }
+    }
+    function frame() {
+      raf = 0; var busy = false, now = Date.now();
+      all.forEach(function (k) {
+        if (!k.to) return;
+        var t = Math.min(1, (now - k.t0) / k.dur), f = k.ease(t);
+        for (var j = 0; j < 2; j++) for (var q = 0; q < 4; q++) k.now[j][q] = k.from[j][q] + (k.to[j][q] - k.from[j][q]) * f;
+        draw(k);
+        if (t < 1) busy = true; else k.to = null;
+      });
+      if (busy) raf = requestAnimationFrame(frame);
+    }
+    function blink(k) {   // eyes close with ease-in, stay shut a moment, open with ease-out
+      if (Date.now() < k.nextBlink || k.blinking) return;
+      k.blinking = true; k.nextBlink = Date.now() + 2500 + Math.random() * 3500;
+      var l = k.to ? k.to[0] : k.now[0].slice(), r = k.to ? k.to[1] : k.now[1].slice();
+      set(k, [l[0], l[1] + 0.8, l[2], 0.25], [r[0], r[1] + 0.8, r[2], 0.25], 0.07, 'in');
+      setTimeout(function () { set(k, l, r, 0.16, 'out'); k.blinking = false; }, 130);
+    }
+    function goof(k) {    // the eyes drift far apart, one grows, or both float up; held, then home
+      if (Date.now() < k.nextGoof || k.goofing || k.blinking) return;
+      k.goofing = true; k.nextGoof = Date.now() + 6000 + Math.random() * 8000;
+      var g = GOOFS[Math.floor(Math.random() * GOOFS.length)];
+      set(k, g[0].slice(), g[1].slice(), 0.9);
+      setTimeout(function () { k.gaze = [0, 0]; set(k, HOME[0].slice(), HOME[1].slice(), 0.7); setTimeout(function () { k.goofing = false; }, 700); }, 1200 + Math.random() * 800);
+    }
+    function follow(k) {  // the eyes drift towards the mouse, up to about a cell either way
+      var b = k.el.getBoundingClientRect(), gx = 0, gy = 0;
+      if (mouse) {
+        gx = Math.max(-1, Math.min(1, (mouse[0] - (b.left + b.width / 2)) / 220));
+        gy = Math.max(-1, Math.min(1, (mouse[1] - (b.top + b.height / 2)) / 220));
+      }
+      if (Math.abs(gx - k.gaze[0]) <= 0.04 && Math.abs(gy - k.gaze[1]) <= 0.04) return;
+      k.gaze = [gx, gy];
+      set(k, [HOME[0][0] + gx * 1.8, HOME[0][1] + gy * 1.1, 1, 2], [HOME[1][0] + gx * 1.8, HOME[1][1] + gy * 1.1, 1, 2], 0.25, 'out');
+    }
+    function bwoop(k) {   // swell 1.22, settle with a wobble, tilt; eyes big, then crossed, then home
+      var g = k.el.querySelector('.dfs-tinko-body');
+      if (g && g.animate) g.animate([{ transform: 'scale(1) rotate(0)' }, { transform: 'scale(1.22) rotate(6deg)', offset: 0.18 }, { transform: 'scale(.92) rotate(-5deg)', offset: 0.42 }, { transform: 'scale(1.06) rotate(3deg)', offset: 0.62 }, { transform: 'scale(.98) rotate(-1.5deg)', offset: 0.82 }, { transform: 'scale(1) rotate(0)' }], { duration: 700, easing: 'ease-in-out' });
+      k.bwoop = true;
+      set(k, [-1.4, -0.6, 2.2, 2.2], [1.4, -0.6, 2.2, 2.2], 0.12, 'out');
+      setTimeout(function () { set(k, [0.4, -0.3, 1, 2], [-0.4, -1.1, 1, 2], 0.18); }, 280);
+      setTimeout(function () { k.gaze = [9, 9]; set(k, HOME[0].slice(), HOME[1].slice(), 0.3); k.bwoop = false; }, 750);
+    }
+    function step() {
+      all.forEach(function (k) {
+        if (!k.seen || k.bwoop) return;
+        k.tick++;
+        if (k.seq) {      // a working gesture: one pose every 0.9 s
+          if (k.tick % 9 === 0) { var f = k.seq.shift(); if (f) set(k, f[0].slice(), f[1].slice(), 0.45); else { k.seq = null; k.gaze = [9, 9]; } }
+          return;
+        }
+        if (Date.now() > k.nextGesture && !k.goofing) {
+          k.nextGesture = Date.now() + 7000 + Math.random() * 9000;
+          var gi = GESTURES[Math.floor(Math.random() * GESTURES.length)]; k.seq = [gi, gi]; return;
+        }
+        goof(k); if (!k.goofing) follow(k);
+        blink(k);
+      });
+    }
+
+    document.querySelectorAll('[data-tinko-mascot]:not([data-tinko-on])').forEach(function (el) {
+      el.setAttribute('data-tinko-on', '');
+      var svg = el.tagName.toLowerCase() === 'svg' ? el : el.appendChild(document.createElementNS(NS, 'svg'));
+      svg.setAttribute('viewBox', '-1 -1 16 13');
+      svg.setAttribute('aria-hidden', 'true');
+      svg.style.overflow = 'visible';
+      svg.innerHTML = svgMarkup();
+      if (still) return;
+      var k = { el: el, eyes: svg.querySelectorAll('.dfs-tinko-eye'), now: [HOME[0].slice(), HOME[1].slice()], gaze: [0, 0], tick: 0,
+        nextBlink: Date.now() + 2000, nextGoof: Date.now() + 5000, nextGesture: Date.now() + 9000, seq: null, seen: false, met: false };
+      all.push(k);
+      el.addEventListener('click', function () { bwoop(k); });
+      // The first time he comes into view he says hello with the bwoop
+      if ('IntersectionObserver' in window) {
+        new IntersectionObserver(function (entries) {
+          k.seen = entries[0].isIntersecting;
+          if (k.seen && !k.met) { k.met = true; setTimeout(function () { bwoop(k); }, 350); }
+        }, { threshold: 0.6 }).observe(el);
+      } else k.seen = true;
+    });
+    if (all.length && !dfsTinkoMascot.running) {
+      dfsTinkoMascot.running = true;
+      setInterval(step, 100);
+      document.addEventListener('mousemove', function (e) { mouse = [e.clientX, e.clientY]; }, { passive: true });
+    }
+  }
+
   // The install line's Copy button: [data-helper-copy] copies the text of [data-helper-line] next to it.
   // One listener on the page, so it keeps working when the course player swaps lessons.
   function dfsHelperCopy() {
@@ -6402,6 +6545,7 @@
     if (document.querySelector('[data-rhythms-app]')) dfsRhythmsApp();
     if (document.querySelector('[data-rhythms-marquee]')) dfsRhythmsMarquee();
     if (document.querySelector('[data-tinko-gate], [data-lesson-stage]')) dfsTinko();
+    if (document.querySelector('[data-tinko-mascot]')) dfsTinkoMascot();
     if (document.querySelector('[data-helper-copy]')) dfsHelperCopy();
     if (path === '/'|| path === '/course' || path === '/test-zone') dfsHome();
   });

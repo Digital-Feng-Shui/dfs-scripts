@@ -803,3 +803,12 @@ html[data-tinko="owned"] [data-tinko-show="locked"]{display:none}
 html:not([data-tinko="owned"]) .c_item:has(+ .c_item[data-tinko-show="owned"]:last-child){border-bottom-style:none;border-bottom-width:0}
 html:not([data-tinko="owned"]) .tinko-gate_content{filter:blur(6px);opacity:.6;user-select:none;pointer-events:none}
 @media (prefers-reduced-motion:no-preference){.tinko-gate_content{transition:filter .4s ease,opacity .4s ease}}
+
+/* Tinko, alive (main.js dfsTinkoMascot): the sway, his eyes in the colour of what's behind him, a click = bwoop */
+[data-tinko-mascot]{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.dfs-tinko-sway{transform-box:view-box;transform-origin:7px 6.6px;animation:dfsTinkoSway 1.85s ease-in-out infinite alternate}
+.dfs-tinko-body{transform-box:view-box;transform-origin:7px 6.6px}
+@keyframes dfsTinkoSway{from{transform:rotate(-1.2deg)}to{transform:rotate(1.2deg)}}
+@media (prefers-reduced-motion:reduce){.dfs-tinko-sway{animation:none}}
+.dfs-tinko-eye{fill:var(--tinko-eye,#FBF7EE)}
+.tinko-stage{--tinko-eye:#F1EBE1}

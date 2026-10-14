@@ -5355,12 +5355,12 @@
 
   // =========================================================
   // RHYTHMS MARQUEE — /rythems-app "Closes what pulls you away"
-  // The label sits in the middle of the row like a gate. Chips drift in from the right, open and
-  // colourful; they slip behind the label and come out on the left closed: the ✕ is a lock, the
-  // logo grey, the chip quiet. Two copies of the row run in step: the open one shows right of the
-  // label, a closed copy shows left of it. Click an open chip to close it early; a closed one
-  // shakes (it won't open again). Hover slows the row down. The page script clones the lists and
-  // runs the CSS marquee; this adds the gate. Without JS the label simply stays on the left.
+  // The label sits above the row; a dashed gate line runs through the middle of it. Chips drift in
+  // from the right, open and colourful. As one crosses the line it closes in view: the colour drains,
+  // the ✕ morphs into a lock (GSAP MorphSVG, loaded here) and drops under the name, next to the hours
+  // it's closed (blue). Left of the line everything is closed. Click an open chip to close it early; a
+  // closed one shakes. Hover slows the row down. The page script clones the lists and runs the CSS
+  // marquee; this adds the gate. Without JS the label simply stays on the left.
   // =========================================================
   function dfsRhythmsMarquee() {
     var marquee = document.querySelector('[data-rhythms-marquee]');
@@ -5368,77 +5368,146 @@
     var label = component.querySelector('.rhythms-marquee_label');
     var gs = window.gsap;
     var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var LOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-      '<rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
-    var addLock = function (chip) {
-      var x = chip.querySelector('.rhythms-chip_x');
-      if (x && !x.querySelector('svg')) x.insertAdjacentHTML('beforeend', LOCK);
+    // The hours a chip shows once closed, after the demo's rhythms above (Deep work 09:00–12:30,
+    // Evenings 21:30–07:00, ...). A chip can set its own in Webflow: data-closed="09:00–17:00".
+    var HOURS = {
+      'Instagram': '09:00–12:30', 'YouTube': '09:00–12:30', 'X (Twitter)': '09:00–12:30', 'Reddit': '09:00–12:30',
+      'Facebook': '09:00–12:30', 'CNN': '09:00–12:30', 'The New York Times': '09:00–12:30',
+      'Messages': '09:00–12:30', 'WhatsApp': '09:00–12:30',
+      'TikTok': '21:30–07:00', 'Netflix': '21:30–07:00', 'Amazon': '21:30–07:00', 'Temu': '21:30–07:00',
+      'Discord': '21:30–07:00', 'Twitch': '21:30–07:00', 'Slack': '18:00–09:00', 'Adult sites': 'All day'
     };
-    var anims = function (layer) {
-      return [].slice.call(layer.querySelectorAll('[data-css-marquee-list]')).map(function (l) { return l.getAnimations ? l.getAnimations()[0] : null; });
+    var X = 'M6.4 4.3 12 9.9l5.6-5.6 2.1 2.1L14.1 12l5.6 5.6-2.1 2.1L12 14.1l-5.6 5.6-2.1-2.1L9.9 12 4.3 6.4z';
+    var LOCK = 'M7 10V8a5 5 0 0 1 10 0v2h1.5A1.5 1.5 0 0 1 20 11.5v8a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19.5v-8A1.5 1.5 0 0 1 5.5 10zm2.5 0h5V8a2.5 2.5 0 0 0-5 0z';
+    var icon = function (d, cls) {
+      return '<svg class="' + cls + '" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="' + d + '"/></svg>';
     };
-    var locked, tries = 0;
+    var chips = [], gate, morph = false, tries = 0, lastPulse = 0;
+    var anims = function () {
+      return [].slice.call(marquee.querySelectorAll('[data-css-marquee-list]')).map(function (l) { return l.getAnimations ? l.getAnimations()[0] : null; });
+    };
 
-    // Wait until the page script has cloned the lists, then build the closed copy on top
+    // Each chip gets a second line (lock + hours, hidden while open) and an SVG ✕ that can morph
+    function dress(chip) {
+      var name = chip.querySelector('.rhythms-chip_name'), x = chip.querySelector('.rhythms-chip_x');
+      var hours = chip.getAttribute('data-closed') || HOURS[name.textContent.trim()] || '09:00–17:00';
+      var text = document.createElement('span');
+      text.className = 'rhythms-chip_text';
+      name.parentNode.insertBefore(text, name);
+      text.appendChild(name);
+      var time = document.createElement('span');
+      time.className = 'rhythms-chip_time';
+      time.innerHTML = icon(LOCK, 'rhythms-chip_lock') + '<span>' + hours + '</span>';
+      text.appendChild(time);
+      if (x) x.innerHTML = icon(X, 'rhythms-chip_glyph');
+      chip._x = x;
+      chip._path = x && x.querySelector('path');
+      chip._time = time;
+      chip._lock = time.firstChild;
+    }
+
+    // Straight to open or closed, no animation (start, the loop jumping back, reduced motion)
+    function setClosed(chip, closed) {
+      if (chip._tl) { chip._tl.kill(); chip._tl = null; }
+      chip.classList.remove('is-closing');
+      chip.classList.toggle('is-closed', closed);
+      if (chip._path) chip._path.setAttribute('d', X);
+      if (gs) gs.set([chip._x, chip._time, chip._lock], { clearProps: 'all' });
+    }
+
+    // In view: colour drains, ✕ becomes a lock, the lock drops next to the hours
+    function closeChip(chip) {
+      if (chip.classList.contains('is-closed') || chip._tl) return;
+      if (reduce || !gs || !chip._x) { setClosed(chip, true); return; }
+      chip.classList.add('is-closing');
+      var tl = chip._tl = gs.timeline();
+      if (morph) tl.to(chip._path, { morphSVG: LOCK, duration: 0.4, ease: 'power2.inOut' }, 0);
+      else tl.set(chip._path, { attr: { d: LOCK } }, 0.2);
+      tl.fromTo(chip._x, { scale: 1 }, { scale: 1.25, duration: 0.4, ease: 'power2.out' }, 0)
+        .set(chip._lock, { autoAlpha: 0 }, 0)
+        .to(chip._time, { height: 10, marginTop: 3, autoAlpha: 1, duration: 0.4, ease: 'power2.out' }, 0.3)
+        .add(function () {
+          // Fly from where the ✕ is to the lock's spot (both move with the chip, so the gap is fixed)
+          var a = chip._x.getBoundingClientRect(), b = chip._lock.getBoundingClientRect();
+          tl.to(chip._x, {
+            x: '+=' + (b.left + b.width / 2 - (a.left + a.width / 2)),
+            y: '+=' + (b.top + b.height / 2 - (a.top + a.height / 2)),
+            scale: 0.9, duration: 0.45, ease: 'power3.inOut',
+            onComplete: function () { chip._tl = null; setClosed(chip, true); }
+          }, tl.time());
+        }, 0.7);
+    }
+
+    function pulse() {
+      var now = Date.now();
+      if (!gs || reduce || now - lastPulse < 600) return;
+      lastPulse = now;
+      gs.fromTo(gate, { opacity: 0.9 }, { opacity: 0.35, duration: 0.8, ease: 'power2.out', overwrite: true });
+    }
+
+    // The gate runs from just under the label through the row
+    function place() {
+      var top = label.offsetTop + label.offsetHeight + 6;
+      gate.style.left = Math.round(component.clientWidth / 2) + 'px';
+      gate.style.top = top + 'px';
+      gate.style.height = (marquee.offsetTop + marquee.offsetHeight + 10 - top) + 'px';
+    }
+
+    // Every frame: a chip whose middle passed the gate closes. When the loop jumps a list back, its
+    // chips land on the other side: they take that side's state at once.
+    function tick() {
+      var g = gate.getBoundingClientRect().left;
+      for (var i = 0; i < chips.length; i++) {
+        var chip = chips[i], r = chip.getBoundingClientRect(), c = r.left + r.width / 2;
+        var jumped = chip._c === undefined || Math.abs(c - chip._c) > 300;
+        chip._c = c;
+        if (jumped) setClosed(chip, c < g);
+        else if (c < g && !chip.classList.contains('is-closed') && !chip._tl) { closeChip(chip); pulse(); }
+      }
+    }
+
     function build() {
       if (marquee.querySelectorAll('[data-css-marquee-list]').length < 2 && tries++ < 20) { setTimeout(build, 150); return; }
-      locked = marquee.cloneNode(true);
-      locked.removeAttribute('data-rhythms-marquee');
-      locked.classList.add('is-locked');
-      locked.setAttribute('aria-hidden', 'true');
-      [].slice.call(locked.querySelectorAll('.rhythms-chip')).forEach(function (chip) { chip.classList.add('is-closed'); addLock(chip); });
-      [].slice.call(locked.querySelectorAll('[data-css-marquee-list]')).forEach(function (l) { l.style.animationPlayState = 'paused'; });
-      component.appendChild(locked);
+      chips = [].slice.call(marquee.querySelectorAll('.rhythms-chip'));
+      chips.forEach(dress);
+      // The lists got a bit wider: keep the page script's speed
+      var speed = parseFloat(marquee.getAttribute('data-css-marquee-speed')) || 40;
+      [].slice.call(marquee.querySelectorAll('[data-css-marquee-list]')).forEach(function (l) { l.style.animationDuration = l.offsetWidth / speed + 's'; });
+      gate = document.createElement('div');
+      gate.className = 'rhythms-marquee_gate';
+      component.appendChild(gate);
       component.classList.add('is-gate');
       place();
       if ('ResizeObserver' in window) new ResizeObserver(place).observe(component);
-      sync();
+      tick();
+      if (!gs) return;
       if ('IntersectionObserver' in window) new IntersectionObserver(function (entries) {
-        if (!gs) return;
-        if (entries[0].isIntersecting) gs.ticker.add(sync); else gs.ticker.remove(sync);
+        if (entries[0].isIntersecting) gs.ticker.add(tick); else gs.ticker.remove(tick);
       }).observe(component);
-      else if (gs) gs.ticker.add(sync);
+      else gs.ticker.add(tick);
     }
-    // The closed copy covers the open row exactly; the gap around the label follows its width
-    function place() {
-      locked.style.top = marquee.offsetTop + 'px';
-      locked.style.left = marquee.offsetLeft + 'px';
-      locked.style.width = marquee.offsetWidth + 'px';
-      locked.style.height = marquee.offsetHeight + 'px';
-      component.style.setProperty('--gate', Math.round(label.offsetWidth / 2 + (component.offsetWidth < 480 ? 10 : 32)) + 'px');
-    }
-    // Every frame the closed copy takes the open row's place in the loop
-    function sync() {
-      var open = anims(marquee), shut = anims(locked);
-      shut.forEach(function (a, i) {
-        if (!a || !open[i]) return;
-        if (a.playState !== 'paused') a.pause();
-        a.currentTime = open[i].currentTime;
-      });
-      // A chip closed by hand opens again once it's well past the gate (out of sight on the open side)
-      var mid = marquee.getBoundingClientRect();
-      mid = mid.left + mid.width / 2;
-      [].slice.call(marquee.querySelectorAll('.rhythms-chip.is-closed')).forEach(function (chip) {
-        if (chip.getBoundingClientRect().right < mid - 200) chip.classList.remove('is-closed');
-      });
-    }
-    (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(function () { setTimeout(build, 0); });
 
-    // Click: an open chip closes right away; a closed one (left of the gate, or closed by hand) shakes
+    // MorphSVG comes from Webflow's GSAP folder, same version as the site's GSAP; without it the ✕ just swaps
+    function loadMorph(done) {
+      if (!gs) return done();
+      if (window.MorphSVGPlugin) { gs.registerPlugin(window.MorphSVGPlugin); morph = true; return done(); }
+      var s = document.createElement('script');
+      s.src = 'https://cdn.prod.website-files.com/gsap/' + gs.version + '/MorphSVGPlugin.min.js';
+      s.onload = function () { if (window.MorphSVGPlugin) { gs.registerPlugin(window.MorphSVGPlugin); morph = true; } done(); };
+      s.onerror = done;
+      document.head.appendChild(s);
+    }
+    (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(function () { loadMorph(function () { setTimeout(build, 0); }); });
+
+    // Click: an open chip right of the gate closes right away; a closed one shakes
     function shake(el) {
       if (gs && !reduce) gs.fromTo(el, { x: 0 }, { x: 0, duration: 0.4, keyframes: { x: [-4, 4, -2, 2, 0] }, ease: 'power2.out', clearProps: 'transform' });
     }
     marquee.addEventListener('click', function (e) {
       var chip = e.target.closest('.rhythms-chip');
-      if (!chip || !locked) return;
-      var all = [].slice.call(marquee.querySelectorAll('.rhythms-chip'));
-      var twin = locked.querySelectorAll('.rhythms-chip')[all.indexOf(chip)];
-      var r = chip.getBoundingClientRect(), box = marquee.getBoundingClientRect();
-      if (r.left + r.width / 2 < box.left + box.width / 2) { if (twin) shake(twin); return; }
-      if (chip.classList.contains('is-closed')) { shake(chip); return; }
-      addLock(chip);
-      chip.classList.add('is-closed');
-      if (gs && !reduce) gs.fromTo(chip, { scale: 0.93 }, { scale: 1, duration: 0.6, ease: 'back.out(2.5)', clearProps: 'transform' });
+      if (!chip || !gate) return;
+      if (chip.classList.contains('is-closed') || chip._tl) { shake(chip); return; }
+      closeChip(chip);
     });
 
     // Hover: the row eases down to a crawl, so a chip is easy to catch
@@ -5446,7 +5515,7 @@
     function ease(to) {
       if (!gs) return;
       gs.to(rate, { v: to, duration: 0.9, ease: 'power2.out', overwrite: true, onUpdate: function () {
-        anims(marquee).forEach(function (a) { if (a) a.playbackRate = rate.v; });
+        anims().forEach(function (a) { if (a) a.playbackRate = rate.v; });
       } });
     }
     if (window.matchMedia('(hover: hover)').matches) {

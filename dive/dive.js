@@ -4,7 +4,7 @@
    Separate from main.js on purpose: one page loads it in its own
    page custom code, nothing else on the site knows it exists.
 
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.1.2/dive/dive.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.1.3/dive/dive.js"></script>
 
    Webflow structure (classes are free, the attributes matter):
      [data-dive]                 section, its height sets the scroll length (e.g. 380vh)
@@ -15,7 +15,8 @@
          [data-dive-title]       first line, words rise in
          [data-dive-end]         line on the empty page at the end
          [data-dive-end2]        optional second end line
-         [data-dive-cue]         square glass box with dashed guide lines; click = glide to the first sentence
+         [data-dive-cue]         square glass box with dashed guide lines; hover/click rolls the label to
+                                 "Continue" (data-dive-cue-alt), click = glide to the first sentence
 
    Optional settings on [data-dive] (defaults = the hero lab):
      data-zoom="2.4" data-spin="420" data-pixel="2" data-pixel-grow="2"
@@ -154,7 +155,10 @@ function init(root) {
       el.logo.style.transform = `scale(${1 - lo * .6})`;
       logoVisible = lo < 1;
     }
-    if (el.cue) { const o = 1 - sm(0, .03, p); el.cue.style.opacity = o; el.cue.style.pointerEvents = o > .3 ? 'auto' : 'none'; }
+    if (el.cue) {
+      const o = 1 - sm(0, .03, p); el.cue.style.opacity = o; el.cue.style.pointerEvents = o > .3 ? 'auto' : 'none';
+      if (p < .005) el.cue.classList.remove('is-alt');   // back at the top: the label reads "Scroll down" again
+    }
     const outAt = Math.min(f0 - .04, S.titleIn + .26);
     setState(el.title, p < S.titleIn ? 'pre' : p < outAt ? 'in' : 'out');
     const endAt = f0 + .3;
@@ -162,8 +166,17 @@ function init(root) {
     setState(el.end2, p < endAt + .1 ? 'pre' : 'in');
     if (el.fade) el.fade.style.opacity = dark;
   }
-  /* ---- the cue is also a button: one click glides to the first sentence ---- */
+  /* ---- the cue is also a button: the label rolls to "Continue" (hover, or the click itself on touch),
+     then one click glides to the first sentence ---- */
   if (el.cue) {
+    const label = el.cue.querySelector('[data-dive-cue-text]');
+    if (label) {
+      const alt = el.cue.dataset.diveCueAlt || 'Continue';
+      const words = (t, cls) => t.trim().split(/\s+/).map((w, i) =>
+        `<span class="dive-w"><span class="${cls}" style="transition-delay:${reduce ? 0 : i * 45}ms">${w.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</span></span>`).join(' ');
+      label.setAttribute('aria-hidden', 'true');
+      label.innerHTML = `<span class="dive-roll"><span>${words(label.textContent, 'dive-ra')}</span><span>${words(alt, 'dive-rb')}</span></span>`;
+    }
     el.cue.setAttribute('role', 'button');
     el.cue.setAttribute('tabindex', '0');
     el.cue.setAttribute('aria-label', 'Scroll down to the first sentence');
@@ -173,8 +186,9 @@ function init(root) {
       if (window.lenis && typeof window.lenis.scrollTo === 'function') window.lenis.scrollTo(target, { duration: reduce ? 0 : 1.8 });
       else scrollTo({ top: target, behavior: reduce ? 'auto' : 'smooth' });
     };
-    el.cue.addEventListener('click', go);
-    el.cue.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+    const press = () => { el.cue.classList.add('is-alt'); setTimeout(go, reduce ? 0 : 420); };
+    el.cue.addEventListener('click', press);
+    el.cue.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); press(); } });
   }
 
   let queued = false;
@@ -201,8 +215,14 @@ function injectCSS() {
 [data-dive-cue]:hover{background:var(--dive-glass-hover)}
 [data-dive-cue]:focus-visible{outline:1px solid var(--dive-text);outline-offset:4px}
 [data-dive-cue]::before,[data-dive-cue]::after{content:"";position:absolute;z-index:-1;pointer-events:none}
-[data-dive-cue]::before{top:-1px;bottom:-1px;left:-38vw;right:-38vw;background:repeating-linear-gradient(90deg,var(--dive-dash) 0 10px,transparent 10px 18px) top/100% 1px no-repeat,repeating-linear-gradient(90deg,var(--dive-dash) 0 10px,transparent 10px 18px) bottom/100% 1px no-repeat;-webkit-mask-image:linear-gradient(90deg,transparent,#000 30%,#000 70%,transparent);mask-image:linear-gradient(90deg,transparent,#000 30%,#000 70%,transparent)}
-[data-dive-cue]::after{left:-1px;right:-1px;top:-60vh;bottom:-14vh;background:repeating-linear-gradient(180deg,var(--dive-dash) 0 10px,transparent 10px 18px) left/1px 100% no-repeat,repeating-linear-gradient(180deg,var(--dive-dash) 0 10px,transparent 10px 18px) right/1px 100% no-repeat;-webkit-mask-image:linear-gradient(180deg,transparent,#000 55%,#000 85%,transparent);mask-image:linear-gradient(180deg,transparent,#000 55%,#000 85%,transparent)}
+[data-dive-cue]::before{top:-1px;bottom:-1px;left:-10rem;right:-10rem;background:repeating-linear-gradient(90deg,var(--dive-dash) 0 10px,transparent 10px 18px) top/100% 1px no-repeat,repeating-linear-gradient(90deg,var(--dive-dash) 0 10px,transparent 10px 18px) bottom/100% 1px no-repeat;-webkit-mask-image:linear-gradient(90deg,transparent,#000 34%,#000 66%,transparent);mask-image:linear-gradient(90deg,transparent,#000 34%,#000 66%,transparent)}
+[data-dive-cue]::after{left:-1px;right:-1px;top:-7.5rem;bottom:-7.5rem;background:repeating-linear-gradient(180deg,var(--dive-dash) 0 10px,transparent 10px 18px) left/1px 100% no-repeat,repeating-linear-gradient(180deg,var(--dive-dash) 0 10px,transparent 10px 18px) right/1px 100% no-repeat;-webkit-mask-image:linear-gradient(180deg,transparent,#000 42%,#000 58%,transparent);mask-image:linear-gradient(180deg,transparent,#000 42%,#000 58%,transparent)}
+.dive-roll{display:inline-grid;justify-items:center}
+.dive-roll>span{grid-area:1/1;white-space:nowrap}
+.dive-ra,.dive-rb{display:inline-block;transition:transform .55s cubic-bezier(.625,.05,0,1)}
+.dive-rb{transform:translateY(110%)}
+[data-dive-cue]:hover .dive-ra,[data-dive-cue]:focus-visible .dive-ra,[data-dive-cue].is-alt .dive-ra{transform:translateY(-110%)}
+[data-dive-cue]:hover .dive-rb,[data-dive-cue]:focus-visible .dive-rb,[data-dive-cue].is-alt .dive-rb{transform:none}
 [data-dive-cue-text]{animation:dive-pulse 2.4s ease-in-out infinite}
 [data-dive-cue-line]{position:relative;overflow:hidden;background:color-mix(in srgb,currentColor 25%,transparent)}
 [data-dive-cue-line]::after{content:"";position:absolute;inset:0;background:currentColor;transform:scaleY(0);transform-origin:top;animation:dive-draw 2.4s cubic-bezier(.625,.05,0,1) infinite}
@@ -213,7 +233,7 @@ function injectCSS() {
 .dive-wi{display:inline-block;transform:translateY(110%);transition:transform .8s cubic-bezier(.625,.05,0,1)}
 .dive-in .dive-wi{transform:none}
 .dive-out .dive-wi{transform:translateY(-110%)}
-@media (prefers-reduced-motion: reduce){[data-dive-cue-text],[data-dive-cue-line]::after{animation:none}[data-dive-cue-line]::after{transform:scaleY(1)}.dive-wi{transition:none}}
+@media (prefers-reduced-motion: reduce){[data-dive-cue-text],[data-dive-cue-line]::after{animation:none}[data-dive-cue-line]::after{transform:scaleY(1)}.dive-wi,.dive-ra,.dive-rb{transition:none}}
 `;
   const s = document.createElement('style'); s.id = 'dive-css'; s.textContent = css; document.head.append(s);
 }

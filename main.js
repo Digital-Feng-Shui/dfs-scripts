@@ -128,6 +128,28 @@
     if (window.lenis && typeof window.lenis.resize === 'function') window.lenis.resize();
   }
 
+  // Site-wide: whenever the page itself changes height (the course menu opening a module, a lesson
+  // switching, things that only show after login), tell Lenis, at most once a frame. Without this its
+  // cached height goes stale and the bottom of the page can't be reached.
+  function dfsScrollHeightWatch() {
+    if (!('ResizeObserver' in window)) return;
+    var queued = false, last = 0;
+    var watch = new ResizeObserver(function () {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(function () {
+        queued = false;
+        var h = document.documentElement.scrollHeight;
+        if (h !== last) { last = h; relayoutScroll(); }
+      });
+    });
+    // body itself can keep a fixed height while its content grows past it (the course page does),
+    // so watch the page's own blocks too: body's children and the main wrapper's children.
+    watch.observe(document.body);
+    [].slice.call(document.body.children).forEach(function (el) { watch.observe(el); });
+    [].slice.call(document.querySelectorAll('.page-wrapper > *, .main-wrapper > *')).forEach(function (el) { watch.observe(el); });
+  }
+
   // Webflow's API can only set data-name on radios; the browser groups radios
   // by name. Copy data-name over so one answer per question can be picked.
   function syncRadioNames(root) {
@@ -6534,6 +6556,7 @@
 
   onPageReady(function () {
     dfsGlobal();
+    dfsScrollHeightWatch();
     if (document.querySelector('.oneshot-race')) dfsRaceBars();
     if (document.querySelector('[data-pixel-reveal]')) dfsPixelReveal();
     if (document.querySelector('[data-float]')) dfsFloat();

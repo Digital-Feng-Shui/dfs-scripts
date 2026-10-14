@@ -698,10 +698,10 @@ function initMac(root) {
 
     // camera: from above and to the side, round to the front, then into the screen
     const aspect = W / H, fov = 30 * Math.PI / 180, ty = Math.tan(fov / 2), tx = ty * aspect;
-    const far = Math.max(4.4, 1.04 / (ty * Math.min(aspect, 1.6)));
+    const far = Math.max(4.4, .92 / (ty * Math.min(aspect, 1.6)));
     const yaw = (lerp(-36, 0, turn) + mx * 7 * (1 - zin)) * Math.PI / 180;
     const pitch = (lerp(22, 12, turn) * (1 - zin) - my * 4 * (1 - zin)) * Math.PI / 180;
-    const T = [0, lerp(.54, .99, zin), lerp(.36, .55, zin)];   // aimed low, so it sits above the bottom nav
+    const T = [0, lerp(.66, .99, zin), lerp(.3, .55, zin)];
     const dist = lerp(far, .9, zin);
     const C = [T[0] + dist * Math.sin(yaw) * Math.cos(pitch), T[1] + dist * Math.sin(pitch), T[2] + dist * Math.cos(yaw) * Math.cos(pitch)];
     let f = [T[0] - C[0], T[1] - C[1], T[2] - C[2]]; const fm = Math.hypot(...f); f = f.map(v => v / fm);

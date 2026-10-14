@@ -4,7 +4,7 @@
    Separate from main.js on purpose: one page loads it in its own
    page custom code, nothing else on the site knows it exists.
 
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.1.1/dive/dive.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@dive-v0.1.2/dive/dive.js"></script>
 
    Webflow structure (classes are free, the attributes matter):
      [data-dive]                 section, its height sets the scroll length (e.g. 380vh)
@@ -15,7 +15,7 @@
          [data-dive-title]       first line, words rise in
          [data-dive-end]         line on the empty page at the end
          [data-dive-end2]        optional second end line
-         [data-dive-cue]         glass box: "Scroll" + line; [data-dive-cue-line] draws down
+         [data-dive-cue]         square glass box with dashed guide lines; click = glide to the first sentence
 
    Optional settings on [data-dive] (defaults = the hero lab):
      data-zoom="2.4" data-spin="420" data-pixel="2" data-pixel-grow="2"
@@ -53,9 +53,9 @@ function init(root) {
   };
   const PAL = {
     night: { back: '#0e1628', front: '#5f719c', text: '#f1ede2', accent: '#1dabfa', end: '#05070d', endText: '#f1ede2',
-             glass: 'rgba(14,22,40,.45)', glassLine: 'rgba(241,237,226,.18)', glassHi: 'rgba(255,255,255,.08)' },
+             glass: 'rgba(14,22,40,.42)', glassHover: 'rgba(14,22,40,.62)', glassHi: 'rgba(255,255,255,.07)', dash: 'rgba(241,237,226,.26)' },
     day:   { back: '#f1ede2', front: '#3d3a35', text: '#3d3a35', accent: '#0297db', end: '#f1ede2', endText: '#3d3a35',
-             glass: 'rgba(241,237,226,.55)', glassLine: 'rgba(61,58,53,.16)', glassHi: 'rgba(255,255,255,.6)' },
+             glass: 'rgba(241,237,226,.5)', glassHover: 'rgba(241,237,226,.78)', glassHi: 'rgba(255,255,255,.55)', dash: 'rgba(61,58,53,.24)' },
   };
   const isNight = () => document.documentElement.classList.contains('dfs-night');
 
@@ -125,7 +125,7 @@ function init(root) {
     const s = root.style;
     s.setProperty('--dive-back', P.back); s.setProperty('--dive-text', P.text); s.setProperty('--dive-accent', P.accent);
     s.setProperty('--dive-end', P.end); s.setProperty('--dive-endtext', P.endText);
-    s.setProperty('--dive-glass', P.glass); s.setProperty('--dive-glass-line', P.glassLine); s.setProperty('--dive-glass-hi', P.glassHi);
+    s.setProperty('--dive-glass', P.glass); s.setProperty('--dive-glass-hover', P.glassHover); s.setProperty('--dive-glass-hi', P.glassHi); s.setProperty('--dive-dash', P.dash);
     render();
   }
   new MutationObserver(paint).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
@@ -154,7 +154,7 @@ function init(root) {
       el.logo.style.transform = `scale(${1 - lo * .6})`;
       logoVisible = lo < 1;
     }
-    if (el.cue) el.cue.style.opacity = 1 - sm(0, .03, p);
+    if (el.cue) { const o = 1 - sm(0, .03, p); el.cue.style.opacity = o; el.cue.style.pointerEvents = o > .3 ? 'auto' : 'none'; }
     const outAt = Math.min(f0 - .04, S.titleIn + .26);
     setState(el.title, p < S.titleIn ? 'pre' : p < outAt ? 'in' : 'out');
     const endAt = f0 + .3;
@@ -162,6 +162,21 @@ function init(root) {
     setState(el.end2, p < endAt + .1 ? 'pre' : 'in');
     if (el.fade) el.fade.style.opacity = dark;
   }
+  /* ---- the cue is also a button: one click glides to the first sentence ---- */
+  if (el.cue) {
+    el.cue.setAttribute('role', 'button');
+    el.cue.setAttribute('tabindex', '0');
+    el.cue.setAttribute('aria-label', 'Scroll down to the first sentence');
+    const go = () => {
+      const top = root.getBoundingClientRect().top + scrollY;
+      const target = top + (S.titleIn + .06) * (root.offsetHeight - innerHeight);
+      if (window.lenis && typeof window.lenis.scrollTo === 'function') window.lenis.scrollTo(target, { duration: reduce ? 0 : 1.8 });
+      else scrollTo({ top: target, behavior: reduce ? 'auto' : 'smooth' });
+    };
+    el.cue.addEventListener('click', go);
+    el.cue.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+  }
+
   let queued = false;
   const onScroll = () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; render(); }); };
   addEventListener('scroll', onScroll, { passive: true });
@@ -182,7 +197,12 @@ function injectCSS() {
 [data-dive-title]{color:var(--dive-text);pointer-events:none}
 [data-dive-end]{color:var(--dive-endtext);pointer-events:none}
 [data-dive-end2]{color:var(--dive-accent);pointer-events:none}
-[data-dive-cue]{color:var(--dive-text);pointer-events:none;background:var(--dive-glass);border:1px solid var(--dive-glass-line);box-shadow:0 10px 30px rgba(0,0,0,.18),inset 0 1px 0 var(--dive-glass-hi);-webkit-backdrop-filter:blur(14px) saturate(1.3);backdrop-filter:blur(14px) saturate(1.3)}
+[data-dive-cue]{color:var(--dive-text);cursor:pointer;background:var(--dive-glass);box-shadow:inset 0 1px 0 var(--dive-glass-hi),0 12px 32px rgba(0,0,0,.14);-webkit-backdrop-filter:blur(14px) saturate(1.3);backdrop-filter:blur(14px) saturate(1.3);transition:background-color .35s ease}
+[data-dive-cue]:hover{background:var(--dive-glass-hover)}
+[data-dive-cue]:focus-visible{outline:1px solid var(--dive-text);outline-offset:4px}
+[data-dive-cue]::before,[data-dive-cue]::after{content:"";position:absolute;z-index:-1;pointer-events:none}
+[data-dive-cue]::before{top:-1px;bottom:-1px;left:-38vw;right:-38vw;background:repeating-linear-gradient(90deg,var(--dive-dash) 0 10px,transparent 10px 18px) top/100% 1px no-repeat,repeating-linear-gradient(90deg,var(--dive-dash) 0 10px,transparent 10px 18px) bottom/100% 1px no-repeat;-webkit-mask-image:linear-gradient(90deg,transparent,#000 30%,#000 70%,transparent);mask-image:linear-gradient(90deg,transparent,#000 30%,#000 70%,transparent)}
+[data-dive-cue]::after{left:-1px;right:-1px;top:-60vh;bottom:-14vh;background:repeating-linear-gradient(180deg,var(--dive-dash) 0 10px,transparent 10px 18px) left/1px 100% no-repeat,repeating-linear-gradient(180deg,var(--dive-dash) 0 10px,transparent 10px 18px) right/1px 100% no-repeat;-webkit-mask-image:linear-gradient(180deg,transparent,#000 55%,#000 85%,transparent);mask-image:linear-gradient(180deg,transparent,#000 55%,#000 85%,transparent)}
 [data-dive-cue-text]{animation:dive-pulse 2.4s ease-in-out infinite}
 [data-dive-cue-line]{position:relative;overflow:hidden;background:color-mix(in srgb,currentColor 25%,transparent)}
 [data-dive-cue-line]::after{content:"";position:absolute;inset:0;background:currentColor;transform:scaleY(0);transform-origin:top;animation:dive-draw 2.4s cubic-bezier(.625,.05,0,1) infinite}

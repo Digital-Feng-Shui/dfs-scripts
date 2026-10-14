@@ -5420,22 +5420,22 @@
       if (chip.classList.contains('is-closed') || chip._tl) return;
       if (reduce || !gs || !chip._x) { setClosed(chip, true); return; }
       chip.classList.add('is-closing');
-      var tl = chip._tl = gs.timeline();
+      // Then the lock flies from where the ✕ was to its spot by the hours (both move with the chip)
+      function fly() {
+        var a = chip._x.getBoundingClientRect(), b = chip._lock.getBoundingClientRect();
+        chip._tl = gs.to(chip._x, {
+          x: '+=' + (b.left + b.width / 2 - (a.left + a.width / 2)),
+          y: '+=' + (b.top + b.height / 2 - (a.top + a.height / 2)),
+          scale: 0.9, duration: 0.45, ease: 'power3.inOut',
+          onComplete: function () { chip._tl = null; setClosed(chip, true); }
+        });
+      }
+      var tl = chip._tl = gs.timeline({ onComplete: fly });
       if (morph) tl.to(chip._path, { morphSVG: LOCK, duration: 0.4, ease: 'power2.inOut' }, 0);
       else tl.set(chip._path, { attr: { d: LOCK } }, 0.2);
       tl.fromTo(chip._x, { scale: 1 }, { scale: 1.25, duration: 0.4, ease: 'power2.out' }, 0)
         .set(chip._lock, { autoAlpha: 0 }, 0)
-        .to(chip._time, { height: 10, marginTop: 3, autoAlpha: 1, duration: 0.4, ease: 'power2.out' }, 0.3)
-        .add(function () {
-          // Fly from where the ✕ is to the lock's spot (both move with the chip, so the gap is fixed)
-          var a = chip._x.getBoundingClientRect(), b = chip._lock.getBoundingClientRect();
-          tl.to(chip._x, {
-            x: '+=' + (b.left + b.width / 2 - (a.left + a.width / 2)),
-            y: '+=' + (b.top + b.height / 2 - (a.top + a.height / 2)),
-            scale: 0.9, duration: 0.45, ease: 'power3.inOut',
-            onComplete: function () { chip._tl = null; setClosed(chip, true); }
-          }, tl.time());
-        }, 0.7);
+        .to(chip._time, { height: 10, marginTop: 3, autoAlpha: 1, duration: 0.4, ease: 'power2.out' }, 0.3);
     }
 
     function pulse() {

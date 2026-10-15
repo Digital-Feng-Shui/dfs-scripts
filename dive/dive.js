@@ -221,7 +221,7 @@ function init(root) {
   const navBar = nav && nav.querySelector('[data-bottom-nav-bar]');
   const navToggle = nav && nav.querySelector('[data-bottom-nav-toggle]');
   const G = window.gsap;
-  let navShown = null, cueSize = null, first = true, stung = false;
+  let navShown = null, cueSize = null, first = true, stung = false, stingW = 0;
   if (nav) { nav.style.visibility = 'hidden'; nav.style.opacity = '0'; nav.setAttribute('inert', ''); }
   const navLogo = navBar && navBar.querySelector('.bottom-nav__logo');
   const navIcon = navLogo && navLogo.querySelector('.logo_icon');
@@ -288,41 +288,48 @@ function init(root) {
     if (navTl) navTl.kill();   // a turn halfway: its timed steps (the label) must not fire later
     unscramble();
     G.set(parts, { clearProps: 'transform,opacity' });
+    if (stingW) { G.set(navInner, { width: stingW }); G.set(navBar, { clearProps: 'width' }); stingW = 0; }   // a sting cut short
     if (show) {
       const cr = c.getBoundingClientRect(), nr = navInner.getBoundingClientRect();
       if (!cueSize) cueSize = { w: cr.width, h: cr.height };
       const grow = { width: nr.width, height: nr.height, y: `+=${nr.bottom - cr.bottom}`, backgroundColor: navGlass(), borderRadius: getComputedStyle(navInner).borderTopLeftRadius, duration: .6, ease: 'osmo' };
-      // "Continue" rolls out first (the is-leaving class), then the box grows into the bar
-      navTl = G.timeline().set(c, { width: cr.width, height: cr.height, xPercent: -50, x: 0 }).to(c, grow, .28);
+      navTl = G.timeline().set(c, { width: cr.width, height: cr.height, xPercent: -50, x: 0 });
       if (!stung && navLogo && navIcon && navName && navToggle) {
-        // the first time: the logo sting. The star appears in the middle, ticks once, slides to its place,
-        // the name scrambles in, the button comes last
+        // the first time: the logo sting. "Continue" rolls out, the box folds into a square round the star, the star
+        // ticks once, then the box opens into the bar while the star slides to its place, the name scrambles in and
+        // the button comes last
         stung = true;
         const lr = navIcon.getBoundingClientRect();
         const dx = (nr.left + nr.width / 2) - (lr.left + lr.width / 2);
-        const sp = starParts();
+        const sq = nr.height, sp = starParts();
+        stingW = nr.width;
         navTl
+          .to(c, { ...grow, width: sq, duration: .55 }, .28)
+          .set(navBar, { width: nr.width }, 0)                 // the bar keeps its layout while the box is narrower
+          .set(navInner, { width: sq }, 0)
           .set(navLogo, { x: dx }, 0).set(navIcon, { opacity: 0, scale: .72 }, 0).set(navName, { opacity: 0 }, 0).set(navToggle, { opacity: 0, scale: .6 }, 0)
-          .set(nav, { visibility: 'visible' }, .8)
-          .fromTo(nav, { opacity: 0 }, { opacity: 1, duration: .2, ease: 'none' }, .8)
-          .to(c, { opacity: 0, duration: .2, ease: 'none' }, .95)
-          .to(navIcon, { opacity: 1, scale: 1, duration: .45, ease: 'back.out(1.7)' }, .82);
+          .set(nav, { visibility: 'visible', opacity: 1 }, .83)
+          .set(c, { opacity: 0 }, .84)
+          .to(navIcon, { opacity: 1, scale: 1, duration: .45, ease: 'back.out(1.7)' }, .85);
         if (sp) {
           // one tick, started an eighth back so it lands where main.js's own ticks expect it
           const r0 = G.getProperty(sp.ring, 'rotation'), i0 = G.getProperty(sp.inner, 'rotation');
-          navTl.fromTo(sp.ring, { rotation: r0 - 45 }, { rotation: r0, duration: .6, ease: 'osmo', transformOrigin: '50% 50%' }, 1.15)
-            .fromTo(sp.inner, { rotation: i0 + 45 }, { rotation: i0, duration: .6, ease: 'osmo', transformOrigin: '50% 50%' }, 1.15);
+          navTl.fromTo(sp.ring, { rotation: r0 - 45 }, { rotation: r0, duration: .6, ease: 'osmo', transformOrigin: '50% 50%' }, 1.1)
+            .fromTo(sp.inner, { rotation: i0 + 45 }, { rotation: i0, duration: .6, ease: 'osmo', transformOrigin: '50% 50%' }, 1.1);
         } else {
-          navTl.fromTo(navIcon, { rotation: -45 }, { rotation: 0, duration: .6, ease: 'osmo' }, 1.15);
+          navTl.fromTo(navIcon, { rotation: -45 }, { rotation: 0, duration: .6, ease: 'osmo' }, 1.1);
         }
         navTl
-          .to(navLogo, { x: 0, duration: .65, ease: 'osmo' }, 1.8)
+          .to(navInner, { width: nr.width, duration: .75, ease: 'osmo' }, 1.75)
+          .to(navLogo, { x: 0, duration: .75, ease: 'osmo' }, 1.75)
           .set(navName, { opacity: 1 }, 2.05)
           .to({ k: 0 }, { k: 1, duration: 1.2, ease: 'none', onUpdate() { scramble(this.targets()[0].k); }, onComplete: unscramble }, 2.05)
-          .to(navToggle, { opacity: 1, scale: 1, duration: .45, ease: 'back.out(1.8)' }, 2.35)
+          .to(navToggle, { opacity: 1, scale: 1, duration: .45, ease: 'back.out(1.8)' }, 2.3)
+          .set(navBar, { clearProps: 'width' }, 2.55)
+          .call(() => { stingW = 0; }, null, 2.55)
           .set([navLogo, navIcon, navToggle], { clearProps: 'transform,opacity' }, 3.3);
       } else {
-        navTl
+        navTl.to(c, grow, .28)
           .set(nav, { visibility: 'visible' }, .8)
           .fromTo(nav, { opacity: 0 }, { opacity: 1, duration: .25, ease: 'none' }, .8)
           .fromTo(bar, { yPercent: 70, opacity: 0 }, { yPercent: 0, opacity: 1, duration: .55, stagger: .07, ease: 'osmo' }, .82)

@@ -31,8 +31,12 @@
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', night ? THEME.night : THEME.day);
   }
-  // Warm the night images up so the first switch has nothing to wait for.
-  [NIGHT_HERO, NIGHT_OVERVIEW].forEach(function (u) { new Image().src = u; });
+  // Warm the night images up so the first switch has nothing to wait for, but only on pages that
+  // show them (the hero, the CTA background, the course overview), and once the page is idle.
+  var warm = [];
+  if (heroes.length || document.querySelector('.cta_bg')) warm.push(NIGHT_HERO);
+  if (document.querySelector('.course-overview_background')) warm.push(NIGHT_OVERVIEW);
+  if (warm.length) (window.requestIdleCallback || setTimeout)(function () { warm.forEach(function (u) { new Image().src = u; }); });
   applyImages(isNight());
 
   var btn = document.createElement('button');

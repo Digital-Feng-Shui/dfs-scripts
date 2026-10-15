@@ -429,8 +429,11 @@
         });
       };
 
+      // The timer exists before the first tick: once the deadline has passed, that first tick stops it
+      // straight away (it used to stop a timer that didn't exist yet, which threw and ended dfsGlobal).
+      let intervalId = null;
+      intervalId = setInterval(tick, 1000);
       tick(); // initial render
-      const intervalId = setInterval(tick, 1000);
     })();
 
     // ---- TEXT REVEAL (Osmo) ----

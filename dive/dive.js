@@ -571,17 +571,26 @@ function initTime(root) {
   const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
   let P = PAL[isNight() ? 'night' : 'day'];
 
-  /* dither around the edges */
+  /* the dither: one fixed layer behind the time story AND what we stand for (clipped to those two sections), so it
+     never stops at a hard edge. In the time story it's the dither around the edges; as the cards come up it fades out,
+     quietly turns into calm ripples, and fades back in. At night it leaves the dive's black early in the time story and
+     settles on the site's dark navy. ([data-time-canvas] is no longer drawn into; it can stay or go in Webflow.) */
+  const NAVY = '#0e1628';
+  const standEl = document.querySelector('[data-stand]');
+  const bgEl = document.createElement('div'); bgEl.className = 'dive-bg'; bgEl.setAttribute('aria-hidden', 'true');
+  const shaderEl = document.createElement('div'); shaderEl.className = 'dive-bg-shader'; bgEl.append(shaderEl);
+  document.body.append(bgEl);
+  if (ditherHost) ditherHost.style.display = 'none';
   let mount = null;
-  if (ditherHost) {
-    try {
-      mount = new ShaderMount(ditherHost, ditheringFragmentShader, {
-        u_fit: 0, u_scale: 1, u_rotation: 0, u_offsetX: 0, u_offsetY: 0, u_originX: .5, u_originY: .5, u_worldWidth: 0, u_worldHeight: 0,
-        u_colorBack: col(P.back), u_colorFront: col(P.back), u_shape: 2, u_type: 3, u_pxSize: 2, u_scale: .7,
-      }, undefined, reduce ? 0 : .35, 0);
-    } catch (e) { console.warn('[time] dither did not start', e); }
-  }
-  const hexLerp = (a, b, t) => { const A = [1, 3, 5].map(i => parseInt(a.slice(i, i + 2), 16)), B = [1, 3, 5].map(i => parseInt(b.slice(i, i + 2), 16)); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',')})`; };
+  try {
+    mount = new ShaderMount(shaderEl, ditheringFragmentShader, {
+      u_fit: 0, u_scale: 1, u_rotation: 0, u_offsetX: 0, u_offsetY: 0, u_originX: .5, u_originY: .5, u_worldWidth: 0, u_worldHeight: 0,
+      u_colorBack: col(P.back), u_colorFront: col(P.back), u_shape: 2, u_type: 3, u_pxSize: 2, u_scale: .7,
+    }, undefined, 0, 0);
+  } catch (e) { console.warn('[time] dither did not start', e); }
+  // mixes two colours, each '#rrggbb' or 'rgb(r,g,b)'
+  const parseCol = c => c[0] === '#' ? [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16)) : c.match(/\d+/g).slice(0, 3).map(Number);
+  const hexLerp = (a, b, t) => { const A = parseCol(a), B = parseCol(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',')})`; };
 
   function progress() {
     const r = root.getBoundingClientRect();
@@ -591,8 +600,52 @@ function initTime(root) {
   // the year fills with the scroll: every bit of scroll adds days (and the odometer rolls with them), a little
   // smoothed so a fast flick doesn't jump; scrolling back takes them away again
   let fillT = 0;
-  let visible = false, p = 0, lastSpeed = .35, lastHole = 42;
+  let visible = false, p = 0, lastSpeed = -1, lastHole = -1, lastShape = 2, lastBack = '', bgOn = null;
+  let orangeNow = 0, blueNow = 0, heatNow = 0;
   new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(root);
+
+  function bgFrame(now) {
+    const tr = root.getBoundingClientRect(), br = standEl ? standEl.getBoundingClientRect() : tr, vh = innerHeight;
+    const on = br.bottom > 0 && tr.top < vh;
+    if (on !== bgOn) { bgOn = on; bgEl.style.visibility = on ? 'visible' : 'hidden'; if (!on && mount) { mount.setSpeed(0); lastSpeed = 0; } }
+    if (on && mount) {
+      bgEl.style.clipPath = `inset(${Math.max(0, tr.top).toFixed(1)}px 0 ${Math.max(0, vh - br.bottom).toFixed(1)}px 0)`;
+      const t = now / 1000, P = PAL[isNight() ? 'night' : 'day'];
+      const tp = Math.min(1, Math.max(0, -tr.top / Math.max(1, tr.height - vh)));
+      const back = isNight() ? hexLerp(P.back, NAVY, sm(.02, .14, tp)) : P.back;
+      // 0 while the cards are still below the screen, 1 once their section reaches the top
+      const tS = standEl ? Math.min(1, Math.max(0, 1 - br.top / vh)) : 0;
+      let front, shape, u = {}, spd, hole;
+      if (tS < .5) {
+        const vis = 1 - sm(.15, .5, tS), heat = heatNow, orange = orangeNow, blue = blueNow;
+        // nothing at first; with the orange it turns into restless noise, speeds up, shakes and closes in;
+        // with the blue it goes back to an ordered pattern, slows down and pulls back to the edges
+        front = blue > 0 ? hexLerp(P.tense, P.calm, blue) : hexLerp(back, P.tense, orange);
+        front = hexLerp(back, front, vis);
+        shape = 2; u = { u_type: heat > .35 ? 1 : 3, u_scale: .7 + orange * .7 - blue * .45, u_rotation: tp * 120 + (reduce ? 0 : heat * Math.sin(t * 9) * 6) };
+        spd = reduce ? 0 : Math.max(.12, .35 + heat * 1.8 - blue * .22);
+        hole = 42 - heat * 30 + blue * 22;
+      } else {
+        // by the cards: calm ripples, the middle kept clear
+        const vis = sm(.5, .85, tS);
+        front = hexLerp(back, P.calm, .75 * vis);
+        shape = 5; u = { u_type: 3, u_scale: .85, u_rotation: 0 };
+        spd = reduce ? 0 : .18;
+        hole = 50;
+      }
+      if (shape !== lastShape) { lastShape = shape; u.u_shape = shape; }
+      mount.setUniforms({ u_colorBack: col(back), u_colorFront: col(front), ...u });
+      if (back !== lastBack) { lastBack = back; bgEl.style.background = back; }
+      if (Math.abs(spd - lastSpeed) > .05 || (spd === 0) !== (lastSpeed === 0)) { lastSpeed = spd; mount.setSpeed(spd); }
+      if (Math.abs(hole - lastHole) > .5) {
+        lastHole = hole;
+        const m = `radial-gradient(ellipse 72% 64% at 50% 50%,transparent ${hole.toFixed(1)}%,#000 100%)`;
+        shaderEl.style.webkitMaskImage = m; shaderEl.style.maskImage = m;
+      }
+    }
+    requestAnimationFrame(bgFrame);
+  }
+  requestAnimationFrame(bgFrame);
 
   function frame(now) {
     if (visible && L) {
@@ -618,25 +671,7 @@ function initTime(root) {
       rollCount(p >= .45);
       const orange = sm(.62, .7, p), blue = sm(.8, .92, p);
       const heat = orange * (1 - blue) * P.calmTo;         // how hectic it is right now (a little softer at night)
-      // dither: nothing at first; with the orange it turns into restless noise, speeds up, shakes and closes in;
-      // with the blue it goes back to an ordered pattern, slows down and pulls back to the edges
-      if (mount) {
-        mount.setUniforms({
-          u_colorBack: col(P.back),
-          u_colorFront: col(blue > 0 ? hexLerp(P.tense, P.calm, blue) : hexLerp(P.back, P.tense, orange)),
-          u_type: heat > .35 ? 1 : 3,
-          u_scale: .7 + orange * .7 - blue * .45,
-          u_rotation: p * 120 + (reduce ? 0 : heat * Math.sin(t * 9) * 6),
-        });
-        const spd = reduce ? 0 : Math.max(.12, .35 + heat * 1.8 - blue * .22);
-        if (Math.abs(spd - lastSpeed) > .05) { lastSpeed = spd; mount.setSpeed(spd); }
-      }
-      const hole = 42 - heat * 30 + blue * 22;
-      if (ditherHost && Math.abs(hole - lastHole) > .5) {
-        lastHole = hole;
-        const m = `radial-gradient(ellipse 72% 64% at 50% 50%,transparent ${hole.toFixed(1)}%,#000 100%)`;
-        ditherHost.style.webkitMaskImage = m; ditherHost.style.maskImage = m;
-      }
+      orangeNow = orange; blueNow = blue; heatNow = heat;   // the dither layer (bgFrame) follows these
       // pixels
       const { u, U, dpr, big, cell, rowX, blockX, rowY } = L;
       g.clearRect(0, 0, L.W, L.H);
@@ -869,6 +904,12 @@ function injectCSS() {
 .time-count-box [data-odometer-part="mask"]{width:var(--time-digit,auto);text-align:center}
 [data-time-note]{opacity:.72}
 [data-stand]{background:var(--dive-end,#05070d);color:var(--dive-endtext,#f1ede2)}
+.dive-bg{position:fixed;inset:0;z-index:0;pointer-events:none;visibility:hidden}
+.dive-bg-shader{position:absolute;inset:0}
+.dive-bg-shader canvas{width:100%!important;height:100%!important;display:block}
+/* above the dither layer (a sticky element is its own stack, so it's lifted as a whole, see-through) */
+[data-time] [data-time-sticky]{z-index:1;background:transparent}
+[data-stand-pin]{position:relative;z-index:1}
 @media (max-width:767px){[data-stand-rise] .dive-txt{display:inline}}
 [data-stand-card]{background:color-mix(in srgb,currentColor 4%,transparent);border-color:color-mix(in srgb,currentColor 13%,transparent);will-change:transform}
 @media (prefers-reduced-motion: reduce){[data-dive-cue-text],[data-dive-cue-line]::after{animation:none}[data-dive-cue-line]::after{transform:scaleY(1)}.dive-wi,.dive-ra,.dive-rb{transition:none}}

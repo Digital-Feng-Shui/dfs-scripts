@@ -221,18 +221,21 @@ function init(root) {
   const navBar = nav && nav.querySelector('[data-bottom-nav-bar]');
   const navToggle = nav && nav.querySelector('[data-bottom-nav-toggle]');
   const G = window.gsap;
-  let navShown = null, cueSize = null, first = true, stung = false, stingW = 0;
+  let navShown = null, cueSize = null, cueShadow = '', first = true, stingW = 0, starRest = null;
   if (nav) { nav.style.visibility = 'hidden'; nav.style.opacity = '0'; nav.setAttribute('inert', ''); }
   const navLogo = navBar && navBar.querySelector('.bottom-nav__logo');
   const navIcon = navLogo && navLogo.querySelector('.logo_icon');
   const navName = navLogo && navLogo.querySelector('.logo_text');
-  // the closed bar is as wide as what's in it: padding + logo + 2rem + button + padding (a fixed width broke the name
-  // onto three lines when the font came out wider). Measured again once the fonts are in; Osmo re-measures on resize.
+  // the closed bar is as wide as what's in it: its padding + logo + its 2rem gap + button + padding (a fixed width broke
+  // the name onto three lines when the font came out wider). Measured again once the fonts are in; Osmo re-measures on
+  // resize.
   function fitNav() {
-    if (!navBar || !navLogo || !navToggle) return;
-    const cs = getComputedStyle(navBar), rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-    const w = parseFloat(cs.paddingLeft) + navLogo.getBoundingClientRect().width + 2 * rem + navToggle.getBoundingClientRect().width + parseFloat(cs.paddingRight) + 2;
-    nav.style.setProperty('--closed-width', `min(90vw, ${Math.ceil(w)}px)`);
+    if (!navBar) return;
+    const keep = navBar.style.width;
+    navBar.style.width = 'max-content';
+    const w = navBar.offsetWidth + 2;   // + the inner box's two 1px borders
+    navBar.style.width = keep;
+    nav.style.setProperty('--closed-width', `min(90vw, ${w}px)`);
   }
   if (nav) {
     fitNav();
@@ -294,69 +297,94 @@ function init(root) {
     }
     const bar = navBar ? [...navBar.children] : [];
     const parts = [navLogo, navIcon, navName, navToggle].filter(Boolean);
-    G.killTweensOf([c, nav, ...bar, ...parts]);
+    const sp = starParts();
+    G.killTweensOf([c, nav, ...bar, ...parts, ...(sp ? [sp.ring, sp.inner] : [])]);
     if (navTl) navTl.kill();   // a turn halfway: its timed steps (the label) must not fire later
     unscramble();
-    G.set(parts, { clearProps: 'transform,opacity' });
-    if (stingW) { G.set(navInner, { width: stingW }); G.set(navBar, { clearProps: 'width' }); stingW = 0; }   // a sting cut short
+    const full = !!(navLogo && navIcon && navName && navToggle);
+    // the cue's soft shadow turns into the menu's thin line while it folds, so the square already looks like the menu
+    if (!cueShadow) cueShadow = getComputedStyle(c).boxShadow;
+    const line = `${getComputedStyle(navInner).borderTopColor} 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px`;
+    const tick = (tl, at, back) => {   // one Keeper tick; back = the other way. Ends where main.js's own ticks expect it
+      if (sp) {
+        const r = starRest ? starRest.r : G.getProperty(sp.ring, 'rotation'), i = starRest ? starRest.i : G.getProperty(sp.inner, 'rotation');
+        starRest = { r, i };
+        tl.fromTo(sp.ring, { rotation: back ? r : r - 45 }, { rotation: back ? r - 45 : r, duration: .6, ease: 'osmo', transformOrigin: '50% 50%' }, at)
+          .fromTo(sp.inner, { rotation: back ? i : i + 45 }, { rotation: back ? i + 45 : i, duration: .6, ease: 'osmo', transformOrigin: '50% 50%' }, at);
+      } else {
+        tl.fromTo(navIcon, { rotation: back ? 0 : -45 }, { rotation: back ? -45 : 0, duration: .6, ease: 'osmo' }, at);
+      }
+    };
+    // the bar as it rests, closed. The star is put back where it was before the tick only when a tick went the other way
+    // or was cut short (a forward tick already ends there)
+    const settle = resetStar => {
+      G.set(parts, { clearProps: 'transform,opacity' });
+      if (stingW) { G.set(navInner, { width: stingW }); stingW = 0; }
+      G.set(navBar, { clearProps: 'width' });
+      if (resetStar && starRest && sp) { G.set(sp.ring, { rotation: starRest.r }); G.set(sp.inner, { rotation: starRest.i }); }
+      starRest = null;
+    };
+    settle(true);
     if (show) {
       const cr = c.getBoundingClientRect(), nr = navInner.getBoundingClientRect();
       if (!cueSize) cueSize = { w: cr.width, h: cr.height };
-      const grow = { width: nr.width, height: nr.height, y: `+=${nr.bottom - cr.bottom}`, backgroundColor: navGlass(), borderRadius: getComputedStyle(navInner).borderTopLeftRadius, duration: .6, ease: 'osmo' };
+      const glass = navGlass(), radius = getComputedStyle(navInner).borderTopLeftRadius;
       navTl = G.timeline().set(c, { width: cr.width, height: cr.height, xPercent: -50, x: 0 });
-      if (!stung && navLogo && navIcon && navName && navToggle) {
-        // the first time: the logo sting. "Continue" rolls out, the box folds into a square round the star, the star
-        // ticks once, then the box opens into the bar while the star slides to its place, the name scrambles in and
-        // the button comes last
-        stung = true;
-        const lr = navIcon.getBoundingClientRect();
-        const dx = (nr.left + nr.width / 2) - (lr.left + lr.width / 2);
-        const sq = nr.height, sp = starParts();
-        stingW = nr.width;
-        navTl
-          .to(c, { ...grow, width: sq, duration: .55 }, .28)
-          .set(navBar, { width: nr.width }, 0)                 // the bar keeps its layout while the box is narrower
-          .set(navInner, { width: sq }, 0)
-          .set(navLogo, { x: dx }, 0).set(navIcon, { opacity: 0, scale: .72 }, 0).set(navName, { opacity: 0 }, 0).set(navToggle, { opacity: 0, scale: .6 }, 0)
-          .set(nav, { visibility: 'visible', opacity: 1 }, .83)
-          .set(c, { opacity: 0 }, .84)
-          .to(navIcon, { opacity: 1, scale: 1, duration: .45, ease: 'back.out(1.7)' }, .85);
-        if (sp) {
-          // one tick, started an eighth back so it lands where main.js's own ticks expect it
-          const r0 = G.getProperty(sp.ring, 'rotation'), i0 = G.getProperty(sp.inner, 'rotation');
-          navTl.fromTo(sp.ring, { rotation: r0 - 45 }, { rotation: r0, duration: .6, ease: 'osmo', transformOrigin: '50% 50%' }, 1.1)
-            .fromTo(sp.inner, { rotation: i0 + 45 }, { rotation: i0, duration: .6, ease: 'osmo', transformOrigin: '50% 50%' }, 1.1);
-        } else {
-          navTl.fromTo(navIcon, { rotation: -45 }, { rotation: 0, duration: .6, ease: 'osmo' }, 1.1);
-        }
-        navTl
-          .to(navInner, { width: nr.width, duration: .75, ease: 'osmo' }, 1.75)
-          .to(navLogo, { x: 0, duration: .75, ease: 'osmo' }, 1.75)
-          .set(navName, { opacity: 1 }, 2.05)
-          .to({ k: 0 }, { k: 1, duration: 1.2, ease: 'none', onUpdate() { scramble(this.targets()[0].k); }, onComplete: unscramble }, 2.05)
-          .to(navToggle, { opacity: 1, scale: 1, duration: .45, ease: 'back.out(1.8)' }, 2.3)
-          .set(navBar, { clearProps: 'width' }, 2.55)
-          .call(() => { stingW = 0; }, null, 2.55)
-          .set([navLogo, navIcon, navToggle], { clearProps: 'transform,opacity' }, 3.3);
-      } else {
-        navTl.to(c, grow, .28)
-          .set(nav, { visibility: 'visible' }, .8)
-          .fromTo(nav, { opacity: 0 }, { opacity: 1, duration: .25, ease: 'none' }, .8)
-          .fromTo(bar, { yPercent: 70, opacity: 0 }, { yPercent: 0, opacity: 1, duration: .55, stagger: .07, ease: 'osmo' }, .82)
-          .to(c, { opacity: 0, duration: .2, ease: 'none' }, .95);
+      if (!full) {
+        navTl.to(c, { width: nr.width, height: nr.height, y: `+=${nr.bottom - cr.bottom}`, backgroundColor: glass, borderRadius: radius, boxShadow: line, duration: .6, ease: 'osmo' }, .28)
+          .set(nav, { visibility: 'visible', opacity: 1 }, .85).set(c, { opacity: 0 }, .86);
+        return;
       }
+      // the logo sting: "Continue" rolls out, the box folds into a square round the star, the star ticks once, the box
+      // opens into the bar while the star slides to its place, the name scrambles in, the button comes last
+      const lr = navIcon.getBoundingClientRect();
+      const dx = (nr.left + nr.width / 2) - (lr.left + lr.width / 2), sq = nr.height;
+      stingW = nr.width;
+      navTl
+        .to(c, { width: sq, height: nr.height, y: `+=${nr.bottom - cr.bottom}`, backgroundColor: glass, borderRadius: radius, boxShadow: line, duration: .55, ease: 'osmo' }, .28)
+        .set(navBar, { width: nr.width }, 0)                 // the bar keeps its layout while the box is narrower
+        .set(navInner, { width: sq }, 0)
+        .set(navLogo, { x: dx }, 0).set(navIcon, { opacity: 0, scale: .72 }, 0).set(navName, { opacity: 0 }, 0).set(navToggle, { opacity: 0, scale: .6 }, 0)
+        .set(nav, { visibility: 'visible', opacity: 1 }, .83)
+        .set(c, { opacity: 0 }, .84)
+        .to(navIcon, { opacity: 1, scale: 1, duration: .45, ease: 'back.out(1.7)' }, .85);
+      tick(navTl, 1.1, false);
+      navTl
+        .to(navInner, { width: nr.width, duration: .75, ease: 'osmo' }, 1.75)
+        .to(navLogo, { x: 0, duration: .75, ease: 'osmo' }, 1.75)
+        .set(navName, { opacity: 1 }, 2.05)
+        .to({ k: 0 }, { k: 1, duration: 1.2, ease: 'none', onUpdate() { scramble(this.targets()[0].k); }, onComplete: unscramble }, 2.05)
+        .to(navToggle, { opacity: 1, scale: 1, duration: .45, ease: 'back.out(1.8)' }, 2.3)
+        .call(() => settle(false), null, 3.3);
     } else {
-      // the way in, played back: the bar's contents sink away, the box takes over and shrinks home
-      const d = wasOpen ? .75 : 0;
-      navTl = G.timeline()
-        .to(bar, { yPercent: 70, opacity: 0, duration: .3, stagger: { each: .05, from: 'end' }, ease: 'power2.in' }, d)
-        .set(c, { opacity: 1 }, d + .22)
-        .to(nav, { opacity: 0, duration: .15, ease: 'none' }, d + .22)
-        .set(nav, { visibility: 'hidden' }, d + .37)
-        .set(bar, { clearProps: 'transform,opacity' }, d + .37)
-        .call(() => c.classList.remove('is-leaving'), null, d + .45)
-        .to(c, { width: cueSize ? cueSize.w : 'auto', height: cueSize ? cueSize.h : 'auto', y: 0, borderRadius: 0, duration: .65, ease: 'osmo' }, d + .25)
-        .set(c, { clearProps: 'width,height,backgroundColor,opacity,transform,borderRadius' });
+      // the same, played back: the button shrinks away, the name scrambles back into noise, the box folds into the square
+      // while the star slides to the middle, the star ticks back and fades, the square grows into "Continue"
+      const d = wasOpen ? .75 : 0;   // with the menu open it folds shut first
+      const ir = navInner.getBoundingClientRect(), lr = navIcon ? navIcon.getBoundingClientRect() : ir;
+      const W = ir.width, sq = ir.height, dx = (ir.left + ir.width / 2) - (lr.left + lr.width / 2);
+      const back = { width: cueSize ? cueSize.w : 'auto', height: cueSize ? cueSize.h : 'auto', y: 0, borderRadius: 0, boxShadow: cueShadow, duration: .6, ease: 'osmo' };
+      navTl = G.timeline();
+      if (full) {
+        stingW = W;
+        navTl
+          .set(navBar, { width: W }, d)
+          .to(navToggle, { opacity: 0, scale: .6, duration: .3, ease: 'power2.in' }, d)
+          .to({ k: 1 }, { k: 0, duration: .7, ease: 'none', onUpdate() { scramble(this.targets()[0].k); } }, d + .05)
+          .set(navName, { opacity: 0 }, d + .76)
+          .call(unscramble, null, d + .77)
+          .to(navInner, { width: sq, duration: .7, ease: 'osmo' }, d + .45)
+          .to(navLogo, { x: dx, duration: .7, ease: 'osmo' }, d + .45);
+        tick(navTl, d + 1.15, true);
+        navTl.to(navIcon, { opacity: 0, scale: .72, duration: .35, ease: 'power2.in' }, d + 1.75);
+      }
+      const t = full ? d + 1.95 : d;
+      navTl
+        .set(c, { width: sq, height: sq, opacity: 1 }, t)
+        .set(nav, { visibility: 'hidden', opacity: 0 }, t + .01)
+        .to(c, back, t + .05)
+        .call(() => c.classList.remove('is-leaving'), null, t + .35)
+        .call(() => settle(true), null, t + .66)
+        .set(c, { clearProps: 'width,height,backgroundColor,opacity,transform,borderRadius,boxShadow' }, t + .66);
     }
   }
 

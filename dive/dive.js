@@ -345,7 +345,9 @@ function init(root) {
       const dx = (nr.left + nr.width / 2) - (lr.left + lr.width / 2), sq = nr.height;
       stingW = nr.width;
       navTl
-        .to(c, { width: sq, height: nr.height, y: `+=${nr.bottom - cr.bottom}`, backgroundColor: glass, borderRadius: radius, boxShadow: line, duration: .55, ease: 'osmo' }, .28)
+        .to(c, { width: sq, height: nr.height, y: `+=${nr.bottom - cr.bottom}`, backgroundColor: glass, borderRadius: radius, duration: .55, ease: 'osmo' }, .28)
+        .to(c, { boxShadow: lineAndDrop, duration: .22, ease: 'none' }, .28)     // the line comes in first,
+        .to(c, { boxShadow: line, duration: .3, ease: 'none' }, .53)            // then the soft shadow goes
         .set(navBar, { width: nr.width }, 0)                 // the bar keeps its layout while the box is narrower
         .set(navInner, { width: sq }, 0)
         .set(navLogo, { x: dx }, 0).set(navIcon, { opacity: 0, scale: .72 }, 0).set(navName, { opacity: 0 }, 0).set(navToggle, { opacity: 0, scale: .6 }, 0)

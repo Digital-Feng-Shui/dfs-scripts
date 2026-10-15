@@ -304,7 +304,9 @@ function init(root) {
     const full = !!(navLogo && navIcon && navName && navToggle);
     // the cue's soft shadow turns into the menu's thin line while it folds, so the square already looks like the menu
     if (!cueShadow) { cueShadow = getComputedStyle(c).boxShadow; cueBg = getComputedStyle(c).backgroundColor; }
-    const lineColor = getComputedStyle(navInner).borderTopColor;
+    // the border is a color-mix(): browsers report it as color(srgb r g b / a), which GSAP can't tween, so as rgba()
+    const toRgba = v => { const m = /color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+))?\)/.exec(v); return m ? `rgba(${Math.round(m[1] * 255)}, ${Math.round(m[2] * 255)}, ${Math.round(m[3] * 255)}, ${m[4] === undefined ? 1 : +m[4]})` : v; };
+    const lineColor = toRgba(getComputedStyle(navInner).borderTopColor);
     const line = `${lineColor} 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px`;
     // on the way back the line stays while the soft shadow returns (fading one out before the other made the box vanish)
     const drop = (cueShadow.match(/rgba?\([^)]*\)[^,]*$/) || ['rgba(0, 0, 0, 0.14) 0px 12px 32px 0px'])[0].trim();

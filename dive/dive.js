@@ -500,7 +500,7 @@ function initTime(root) {
      a real counter. Scroll back and it rolls back. Columns (and the comma) only show once the number reaches them. */
   const finalCount = countFinal;
   const finalNum = parseInt(finalCount.replace(/\D/g, ''), 10) || 0;
-  let cols = [], statics = [], shownCount = -1;
+  let cols = [], statics = [], shownCount = -1, dispCount = 7;
   function buildRoller() {
     if (!countEl || reduce) return;
     const step = lineStep();
@@ -525,6 +525,11 @@ function initTime(root) {
     if (!countEl) return;
     if (reduce) { const t = c >= finalNum ? finalCount : '7'; if (countEl.textContent !== t) drawCount(t); return; }
     if (!cols.length) buildRoller();
+    // the counter chases the whole number: it rolls while you scroll and always comes to rest on a full digit
+    const whole = Math.round(c);
+    dispCount += (whole - dispCount) * .3;
+    if (Math.abs(whole - dispCount) < .01) dispCount = whole;
+    c = dispCount;
     if (Math.abs(c - shownCount) < .002) return;
     shownCount = c;
     const step = lineStep();

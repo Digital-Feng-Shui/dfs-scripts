@@ -784,10 +784,13 @@ function initStand(root) {
     const g = c.g, P = PAL[isNight() ? 'night' : 'day'];
     const cols = 24, rows = 12, u = Math.min(W / cols, H / rows), ox = (W - cols * u) / 2, oy = (H - rows * u) / 2;
     const ink = rgb(P.ink), blue = rgb(P.blue), dim = `rgba(${P.ink.join(',')},${isNight() ? .09 : .11})`;
-    // the final moment: the blue flares up nearly white with a soft blue glow, then settles
+    // the final moment. At night the blue flares up nearly white with a neon glow, then settles; by day it stays the same
+    // blue and only the glow swells a little (lighter pixels look wrong on cream), and the glow itself is about half
+    const night = isNight();
     const charge = sm(.5, .97, k), chargeCol = rgb(mixc(P.ink, P.blue, charge));
-    const flare = spark > 0 ? rgb(mixc(P.blue, [255, 255, 255], .75 * spark)) : null;
-    const glow = on => { g.shadowColor = blue; g.shadowBlur = on ? u * 1.6 * charge + u * 3.2 * spark : 0; };
+    const flare = night && spark > 0 ? rgb(mixc(P.blue, [255, 255, 255], .75 * spark)) : null;
+    const glowCol = night ? blue : `rgba(${P.blue.join(',')},.55)`, gl = night ? [1.6, 3.2] : [.8, 1.4];
+    const glow = on => { g.shadowColor = glowCol; g.shadowBlur = on ? u * gl[0] * charge + u * gl[1] * spark : 0; };
     const px = (x, y, col, a = 1, lit = false) => {
       g.globalAlpha = a; g.fillStyle = lit && flare ? flare : col;
       g.fillRect(ox + x * u + u * .1, oy + y * u + u * .1, u * .8, u * .8);

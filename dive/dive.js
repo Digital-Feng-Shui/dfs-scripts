@@ -269,6 +269,8 @@ function init(root) {
     });
   }
   const unscramble = () => nameNodes.forEach(({ n, t }) => { n.nodeValue = t; });
+  // the star turns about its own middle, exactly as main.js's ticks do ('50% 50%'), and without GSAP's origin smoothing
+  const STAR_ORIGIN = { transformOrigin: '50% 50%', smoothOrigin: false };
   // the star's two parts as main.js splits them (ring + inner star); without main.js, the whole svg
   const starParts = () => {
     const ring = navIcon && navIcon.querySelector('svg g > path'), inner = navIcon && navIcon.querySelector('svg mask path');
@@ -318,8 +320,10 @@ function init(root) {
       if (sp) {
         const r = starRest ? starRest.r : G.getProperty(sp.ring, 'rotation'), i = starRest ? starRest.i : G.getProperty(sp.inner, 'rotation');
         starRest = { r, i };
-        tl.fromTo(sp.ring, { rotation: back ? r : r - 45 }, { rotation: back ? r - 45 : r, duration: .6, ease: 'osmo', transformOrigin: '50% 50%' }, at)
-          .fromTo(sp.inner, { rotation: back ? i : i + 45 }, { rotation: back ? i + 45 : i, duration: .6, ease: 'osmo', transformOrigin: '50% 50%' }, at);
+        // the turning centre goes in from the very first step (and never changes): a centre that only arrives with the
+        // 'to' half, after the star is already turned, makes GSAP shift it to compensate, and the star stays off-centre
+        tl.fromTo(sp.ring, { rotation: back ? r : r - 45, ...STAR_ORIGIN }, { rotation: back ? r - 45 : r, duration: .6, ease: 'osmo', ...STAR_ORIGIN }, at)
+          .fromTo(sp.inner, { rotation: back ? i : i + 45, ...STAR_ORIGIN }, { rotation: back ? i + 45 : i, duration: .6, ease: 'osmo', ...STAR_ORIGIN }, at);
       } else {
         tl.fromTo(navIcon, { rotation: back ? 0 : -45 }, { rotation: back ? -45 : 0, duration: .6, ease: 'osmo' }, at);
       }
@@ -330,7 +334,7 @@ function init(root) {
       G.set(parts, { clearProps: 'transform,opacity' });
       if (stingW) { G.set(navInner, { width: stingW }); stingW = 0; }
       G.set(navBar, { clearProps: 'width' });
-      if (resetStar && starRest && sp) { G.set(sp.ring, { rotation: starRest.r }); G.set(sp.inner, { rotation: starRest.i }); }
+      if (resetStar && starRest && sp) { G.set(sp.ring, { rotation: starRest.r, ...STAR_ORIGIN }); G.set(sp.inner, { rotation: starRest.i, ...STAR_ORIGIN }); }
       starRest = null;
     };
     settle(true);

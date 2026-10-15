@@ -632,7 +632,7 @@ function initTime(root) {
       fillT = reduce ? target : fillT + (target - fillT) * .2;
       if (Math.abs(target - fillT) < .0005) fillT = target;
       const shown = shrink < 1 ? 0 : Math.max(1, Math.round(fillT * 365));
-      setCount(Math.max(7, fillT * finalNum));
+      setCount(Math.max(7, shown * 7));             // seven hours for every day that's drawn: the number always matches the grid
       const orange = sm(.62, .7, p), blue = sm(.8, .92, p);
       const heat = orange * (1 - blue) * P.calmTo;         // how hectic it is right now (a little softer at night)
       // dither: nothing at first; with the orange it turns into restless noise, speeds up, shakes and closes in;

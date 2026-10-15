@@ -407,7 +407,9 @@ function init(root) {
    Section 2 — the time story ("the space we never designed")
    Starts in the same black/paper the dive ends in, pinned:
      1. "7+ Hours A Day."      24 hour-pixels in a row, 7 light up
-     2. "2,555 Hours A Year."  the row folds into one 6×4 day tile, a year of tiles fills in, digits roll
+     2. "2,555 Hours A Year."  the row breaks into its four sixes (up one, stay, down one, down two), they slide
+                               together into one 6×4 day tile, and the year fills in with the scroll; the digits roll
+                               with it like an odometer (scroll back and they roll back)
      3. orange                 lit hours turn orange and blink like badges, the dither creeps in at the edges
      4. blue                   orange becomes blue, the dither calms: "Tech can make life better"
    Webflow:
@@ -415,7 +417,7 @@ function init(root) {
        [data-time-sticky]        sticky 100vh
          [data-time-canvas]      dither around the edges (Paper Shaders, warp)
          [data-time-line="1-4"]  the four big lines (stacked, words rise in/out)
-         [data-time-count]       inside line 2: the number (rolled by Osmo's Number Odometer, window.dfsOdometer)
+         [data-time-count]       inside line 2: the number (an odometer driven by the scroll, drawn here)
          [data-time-grid]        the pixel hours (canvas is added here)
          [data-time-note="1-4"]  the small mono line under each beat
    ========================================================= */
@@ -484,7 +486,7 @@ function initTime(root) {
     countBox.style.width = (countEl.getBoundingClientRect().width / fs + .04).toFixed(3) + 'em';
     drawCount(keep);
   }
-  if (countEl) { countEl.textContent = '7'; sizeCountBox(); (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { if (!countEl.querySelector('[data-odometer-part="roller"]')) sizeCountBox(); }); }
+  if (countEl) { countEl.textContent = '7'; sizeCountBox(); (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { sizeCountBox(); cols = []; }); }
   notes.forEach(n => split(n, 25));
   const setState = (node, state) => {
     if (!node || node.dataset.diveState === state) return;
@@ -493,26 +495,48 @@ function initTime(root) {
     node.classList.toggle('dive-out', state === 'out');
   };
 
-  /* the number: Osmo's Number Odometer rolls it once from 7 to the year total (window.dfsOdometer, set in the page
-     code as  window.dfsOdometer = initNumberOdometer()). Without it, the number just switches. */
+  /* the number: an odometer that follows the scroll. Every digit is a column of 0-9 (and 0 again, so 9 can roll on
+     to 0); the ones roll freely, every column to the left only turns while the one to its right goes from 9 to 0, like
+     a real counter. Scroll back and it rolls back. Columns (and the comma) only show once the number reaches them. */
   const finalCount = countFinal;
-  let yearOn = false;
-  let countTimer = 0;
-  function rollCount(up) {
+  const finalNum = parseInt(finalCount.replace(/\D/g, ''), 10) || 0;
+  let cols = [], statics = [], shownCount = -1;
+  function buildRoller() {
+    if (!countEl || reduce) return;
+    const step = lineStep();
+    cols = []; statics = [];
+    let place = 1;
+    const chars = [...finalCount];
+    const html = chars.map(ch => /\d/.test(ch)
+      ? `<span data-odometer-part="mask" style="display:inline-block;overflow:hidden;vertical-align:top;height:${step}em;line-height:${step}"><span class="time-roll" style="display:block;will-change:transform">${[0,1,2,3,4,5,6,7,8,9,0].map(d => `<span style="display:block;height:${step}em">${d}</span>`).join('')}</span></span>`
+      : `<span data-odometer-part="static" style="display:inline-block;vertical-align:top;height:${step}em;line-height:${step};transition:opacity .3s">${ch}</span>`).join('');
+    countEl.style.width = countEl.style.overflow = '';
+    countEl.innerHTML = html;
+    // place values, right to left
+    const parts = [...countEl.children];
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const el = parts[i];
+      if (el.dataset.odometerPart === 'mask') { cols.push({ el, roll: el.firstChild, place, pos: -1, on: null }); place *= 10; }
+      else statics.push({ el, place, on: null });   // the comma shows once the column left of it does
+    }
+    shownCount = -1;
+  }
+  function setCount(c) {
     if (!countEl) return;
-    clearTimeout(countTimer);
-    if (!window.dfsOdometer || reduce) { drawCount(up ? finalCount : '7'); return; }
-    // up: roll once the words have risen; down: reset quietly once the line has left
-    countTimer = setTimeout(() => {
-      if (!up) { drawCount('7'); return; }
-      window.dfsOdometer(countEl, finalCount, { duration: 2.2 });
-      // the box already has the final width: drop the odometer's width squeeze (it clipped the digits)
-      if (window.gsap) gsap.killTweensOf(countEl);
-      countEl.style.width = countEl.style.overflow = '';
-      // the comma waits for the thousands digit instead of floating in alone
-      const statics = countEl.querySelectorAll('[data-odometer-part="static"]');
-      if (window.gsap && statics.length) { gsap.killTweensOf(statics); gsap.fromTo(statics, { opacity: 0 }, { opacity: 1, duration: .35, delay: .3, ease: 'power2.out' }); }
-    }, up ? 380 : 700);
+    if (reduce) { const t = c >= finalNum ? finalCount : '7'; if (countEl.textContent !== t) drawCount(t); return; }
+    if (!cols.length) buildRoller();
+    if (Math.abs(c - shownCount) < .002) return;
+    shownCount = c;
+    const step = lineStep();
+    cols.forEach(col => {
+      const P = col.place, low = c % P;
+      let pos = P === 1 ? c % 10 : Math.floor(c / P) % 10 + Math.max(0, low - (P - 1));
+      if (pos >= 10) pos -= 10;
+      if (Math.abs(pos - col.pos) > .0005) { col.pos = pos; col.roll.style.transform = `translate3d(0,${(-pos * step).toFixed(4)}em,0)`; }
+      const on = P === 1 || c >= P - 1;
+      if (on !== col.on) { col.on = on; col.el.style.opacity = on ? 1 : 0; col.el.style.transition = 'opacity .3s'; }
+    });
+    statics.forEach(st => { const on = c >= st.place - 1; if (on !== st.on) { st.on = on; st.el.style.opacity = on ? 1 : 0; } });
   }
 
   /* the year: 365 days × 24 hours, 7 of them on a screen (seeded, so it looks the same every visit) */
@@ -533,19 +557,23 @@ function initTime(root) {
   function layout() {
     const dpr = Math.min(devicePixelRatio || 1, 2), W = gridHost.clientWidth || 300;
     const cols = W >= 640 ? 53 : 19, rows = Math.ceil(365 / cols);
-    const u = W / (cols * 6 + (cols - 1) * 2);                  // one hour-pixel; a day is 6×4 of them, 2 between days
-    const gridH = rows * 4 * u + (rows - 1) * 2 * u;
-    const big = Math.min(W / 30, 30);                            // the hour row in beat 1
-    const H = Math.max(gridH, big * 2.2);
+    // one hour-pixel in whole device pixels (a day is 6×4 of them, 2 between days), so the year is a crisp microgrid:
+    // every hour its own square with a one-pixel seam, never a soft blob
+    const U = Math.max(2, Math.floor(W * dpr / (cols * 8 - 2))), u = U / dpr;
+    const gridW = (cols * 8 - 2) * u, gridH = rows * 6 * u - 2 * u;
+    const big = Math.min(W / 31, 28);                            // one hour in beat 1 (the strip of 24)
+    const H = Math.ceil(Math.max(gridH, big * 5.6));             // room for the four levels of the fold
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     cv.style.width = W + 'px'; cv.style.height = H + 'px';
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const oy = (H - gridH) / 2;
+    const snap = v => Math.round(v * dpr) / dpr;
+    const ox = snap((W - gridW) / 2), oy = snap((H - gridH) / 2);
     const cell = d => cols === 53
-      ? { x: Math.floor(d / 7) * 8 * u, y: oy + (d % 7) * 6 * u }
-      : { x: (d % cols) * 8 * u, y: oy + Math.floor(d / cols) * 6 * u };
-    const rowX = h => W / 2 - (24 * big * 1.25) / 2 + h * big * 1.25 + big * .125;
-    L = { W, H, u, big, cell, rowX, rowY: H / 2 - big / 2 };
+      ? { x: ox + Math.floor(d / 7) * 8 * u, y: oy + (d % 7) * 6 * u }
+      : { x: ox + (d % cols) * 8 * u, y: oy + Math.floor(d / cols) * 6 * u };
+    const rowX = h => W / 2 - 15 * big + h * big * 1.25;          // the strip, centred
+    const blockX = h => W / 2 - 3.75 * big + (h % 6) * big * 1.25; // the sixes slid together
+    L = { W, H, u, U, dpr, big, cell, rowX, blockX, rowY: H / 2 - big * 1.25 * .5 - big / 2 };
   }
   new ResizeObserver(layout).observe(gridHost);
   layout();
@@ -572,9 +600,9 @@ function initTime(root) {
     return Math.min(1, Math.max(0, -r.top / Math.max(1, r.height - innerHeight)));
   }
 
-  // the year fills in time-based (in step with the odometer), not per scroll pixel
-  let fillT = 0, fillFrom = 0, fillTo = 0, fillStart = 0, fillDur = 1;
-  const setFill = (to, dur) => { fillFrom = fillT; fillTo = to; fillStart = performance.now(); fillDur = reduce ? .001 : dur; };
+  // the year fills with the scroll: every bit of scroll adds days (and the odometer rolls with them), a little
+  // smoothed so a fast flick doesn't jump; scrolling back takes them away again
+  let fillT = 0;
   let visible = false, p = 0, lastSpeed = .35, lastHole = 42;
   new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(root);
 
@@ -584,23 +612,23 @@ function initTime(root) {
       p = progress();
       const t = now / 1000;
       // words
-      setState(lines[0], p < .03 ? 'pre' : p < .28 ? 'in' : 'out');
-      setState(lines[1], p < .3 ? 'pre' : p < .54 ? 'in' : 'out');
-      setState(lines[2], p < .56 ? 'pre' : p < .75 ? 'in' : 'out');
-      setState(lines[3], p < .78 ? 'pre' : 'in');
-      setState(notes[0], p < .08 ? 'pre' : p < .28 ? 'in' : 'out');
-      setState(notes[1], p < .4 ? 'pre' : p < .54 ? 'in' : 'out');
-      setState(notes[2], p < .6 ? 'pre' : p < .75 ? 'in' : 'out');
-      setState(notes[3], p < .83 ? 'pre' : 'in');
-      // the beats
-      const rowIn = sm(.04, .1, p), litN = Math.floor(sm(.08, .22, p) * 7.999);
-      const fold = sm(.24, .31, p);
-      const inYear = p >= .31;
-      if (inYear !== yearOn) { yearOn = inYear; rollCount(inYear); setFill(inYear ? 1 : 0, inYear ? 2.4 : .6); }
-      const k = Math.min(1, (now - fillStart) / (fillDur * 1000));
-      fillT = fillFrom + (fillTo - fillFrom) * (1 - Math.pow(1 - k, 3));
-      const shown = fold < 1 ? 0 : Math.max(1, Math.round(fillT * 365));
-      const orange = sm(.55, .66, p), blue = sm(.79, .93, p);
+      setState(lines[0], p < .03 ? 'pre' : p < .43 ? 'in' : 'out');
+      setState(lines[1], p < .45 ? 'pre' : p < .6 ? 'in' : 'out');
+      setState(lines[2], p < .62 ? 'pre' : p < .78 ? 'in' : 'out');
+      setState(lines[3], p < .8 ? 'pre' : 'in');
+      setState(notes[0], p < .08 ? 'pre' : p < .43 ? 'in' : 'out');
+      setState(notes[1], p < .5 ? 'pre' : p < .6 ? 'in' : 'out');
+      setState(notes[2], p < .65 ? 'pre' : p < .78 ? 'in' : 'out');
+      setState(notes[3], p < .85 ? 'pre' : 'in');
+      // the beats: the strip lights up, breaks into four levels, slides together, shrinks into day one; the year fills
+      const rowIn = sm(.04, .09, p), litN = Math.floor(sm(.08, .22, p) * 7.999);
+      const levels = sm(.26, .33, p), slide = sm(.33, .4, p), shrink = sm(.4, .46, p);
+      const target = sm(.46, .6, p);
+      fillT = reduce ? target : fillT + (target - fillT) * .2;
+      if (Math.abs(target - fillT) < .0005) fillT = target;
+      const shown = shrink < 1 ? 0 : Math.max(1, Math.round(fillT * 365));
+      setCount(Math.max(7, fillT * finalNum));
+      const orange = sm(.62, .7, p), blue = sm(.8, .92, p);
       const heat = orange * (1 - blue) * P.calmTo;         // how hectic it is right now (a little softer at night)
       // dither: nothing at first; with the orange it turns into restless noise, speeds up, shakes and closes in;
       // with the blue it goes back to an ordered pattern, slows down and pulls back to the edges
@@ -622,25 +650,29 @@ function initTime(root) {
         ditherHost.style.webkitMaskImage = m; ditherHost.style.maskImage = m;
       }
       // pixels
-      const { u, big, cell, rowX, rowY } = L;
+      const { u, U, dpr, big, cell, rowX, blockX, rowY } = L;
       g.clearRect(0, 0, L.W, L.H);
-      const gap = u > 2.5 ? .18 : 0;
+      const seam = U >= 3 ? 1 / dpr : 0;                // one device pixel between hours
       for (let d = 0; d < 365; d++) {
         if (d > 0 && d >= shown) continue;
+        if (d === 0 && shown === 0 && shrink >= 1) continue;
         const day = days[d], c = cell(d);
         const isO = orange > day.tOrange, isB = blue > day.tBlue;
         for (let h = 0; h < 24; h++) {
           const litIdx = day.lit.indexOf(h);
           let x, y, s;
           const hx = c.x + (h % 6) * u, hy = c.y + Math.floor(h / 6) * u;
-          if (d === 0 && fold < 1) {                     // beat 1: the hour row, folding into day one
-            const k = reduce ? (fold > .5 ? 1 : 0) : fold;
-            x = rowX(h) + (hx - rowX(h)) * k; y = rowY + (hy - rowY) * k; s = big + (u - big) * k;
+          const strip = d === 0 && shrink < 1;
+          if (strip) {                                   // beat 1: the strip of 24 → four levels → one block → day one
+            const lv = reduce ? (levels > .5 ? 1 : 0) : levels, sl = reduce ? (slide > .5 ? 1 : 0) : slide, sh = reduce ? (shrink > .5 ? 1 : 0) : shrink;
+            const seg = Math.floor(h / 6);
+            const bx = rowX(h) + (blockX(h) - rowX(h)) * sl, by = rowY + (seg - 1) * big * 1.25 * lv;
+            x = bx + (hx - bx) * sh; y = by + (hy - by) * sh; s = big + (u - big) * sh;
           } else { x = hx; y = hy; s = u; }
-          const inset = s * (d === 0 && fold < 1 ? .12 : gap);
+          const inset = strip ? s * .14 * (1 - shrink) + seam * shrink : seam;
           let fill;
-          if (litIdx === -1 || (d === 0 && fold === 0 && litIdx >= litN)) {
-            fill = rgba(P.text, d === 0 && fold < 1 ? .14 : .07);
+          if (litIdx === -1 || (strip && levels === 0 && litIdx >= litN)) {
+            fill = rgba(P.text, strip ? .14 : .1);
           } else if (isO && !isB && (day.taken.includes(h) || day.grab[litIdx] < heat * .85)) {
             // taken: blinks faster, bleeds red and jitters the more hectic it gets
             const ph = day.phase[litIdx];
@@ -655,11 +687,12 @@ function initTime(root) {
             fill = spark > .02 ? rgba(mix(P.blue, [255, 255, 255], spark * .85), 1) : rgba(P.blue, 1);
             if (spark > .02) { g.globalAlpha = spark * .55; g.fillStyle = rgba(P.blue, 1); g.fillRect(x - s, y - s, s * 3, s * 3); g.globalAlpha = 1; }
           } else {
-            fill = rgba(P.text, .72);
+            fill = rgba(P.text, .86);
           }
-          if (d === 0 && fold === 0 && rowIn < 1) g.globalAlpha = rowIn; else g.globalAlpha = 1;
+          if (strip && levels === 0 && rowIn < 1) g.globalAlpha = rowIn; else g.globalAlpha = 1;
           g.fillStyle = fill;
-          g.fillRect(x + inset / 2, y + inset / 2, s - inset, s - inset);
+          if (strip) g.fillRect(x + inset / 2, y + inset / 2, s - inset, s - inset);
+          else g.fillRect(x, y, s - inset, s - inset);   // snapped: the square, then the seam
         }
       }
       g.globalAlpha = 1;

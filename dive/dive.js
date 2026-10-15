@@ -484,7 +484,7 @@ function initTime(root) {
     countEl.style.setProperty('--time-digit', (dw / fs).toFixed(3) + 'em');
     drawCount(keep); countBox.style.width = '';
   }
-  if (countEl) { countEl.textContent = '7'; sizeCountBox(); (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { if (sentCount === '7') sizeCountBox(); }); }
+  if (countEl) { countEl.textContent = '7'; sizeCountBox(); (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { if (lastT <= 7) { sizeCountBox(); digits = null; } }); }
   notes.forEach(n => split(n, 25));
   const setState = (node, state) => {
     if (!node || node.dataset.diveState === state) return;
@@ -493,23 +493,56 @@ function initTime(root) {
     node.classList.toggle('dive-out', state === 'out');
   };
 
-  /* the number: Osmo's Number Odometer (window.dfsOdometer, set in the page code as  window.dfsOdometer = initNumberOdometer()),
-     driven by the scroll with a speed limit. The scroll sets the target (seven hours for every day that's drawn); a new
-     roll only starts once the last one has landed, so each digit rolls once, eased, right to left, and new columns open
-     up the way Osmo does it. Scroll fast and it catches up in a few calm rolls; it always ends on the exact number.
-     Without the odometer (or with reduced motion) the number just switches. */
+  /* the number: our own odometer, made for scrolling. Every digit is a column (0-9, then 0 again so 9 can roll on to 0)
+     that only moves when its own digit changes, the shortest way (at most five steps, up or down, never round the wheel),
+     at a capped speed with a soft landing. So a fast scroll through the year doesn't make it race: it keeps rolling a
+     moment after you stop and lands on the number. A column opens up (from zero
+     width) once the number reaches it, like Osmo's odometer, and the line re-centres around it. */
   const finalCount = countFinal;
-  let sentCount = '7', busyUntil = 0;
-  function setCount(n) {
+  const VMAX = 8, SETTLE = 5;                       // digits per second at most; how softly a column lands
+  let digits = null, statics = [], lastT = 7, lastNow = 0;
+  function buildCounter() {
+    const step = lineStep();
+    let place = 1; digits = []; statics = [];
+    countEl.style.width = countEl.style.overflow = '';
+    countEl.innerHTML = [...finalCount].map(ch => /\d/.test(ch)
+      ? `<span data-odometer-part="mask" style="height:${step}em;line-height:${step};transition:width .5s cubic-bezier(.33,1,.68,1),opacity .4s"><span class="time-roll" style="display:block;will-change:transform">${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map(d => `<span style="display:block;height:${step}em">${d}</span>`).join('')}</span></span>`
+      : `<span data-odometer-part="static" style="height:${step}em;line-height:${step};max-width:1em;transition:max-width .5s cubic-bezier(.33,1,.68,1),opacity .4s">${ch}</span>`).join('');
+    const parts = [...countEl.children];
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const el = parts[i];
+      if (el.dataset.odometerPart === 'mask') { digits.push({ el, roll: el.firstChild, place, pos: 0, target: 0, shown: -1, on: null }); place *= 10; }
+      else statics.push({ el, place, on: null });     // a comma shows once the column to its left does
+    }
+    lastT = -1;
+  }
+  function setCount(T) {
     if (!countEl) return;
-    const text = n.toLocaleString('en-US');
-    if (text === sentCount) return;
-    if (reduce || !window.dfsOdometer) { drawCount(text); sentCount = text; return; }
-    const now = performance.now();
-    if (now < busyUntil) return;
-    sentCount = text;
-    window.dfsOdometer(countEl, text, { duration: .6, ease: 'power3.out' });
-    busyUntil = now + 600 + text.replace(/\D/g, '').length * 40 + 120;
+    if (reduce) { const t = T.toLocaleString('en-US'); if (countEl.textContent !== t) drawCount(t); return; }
+    if (!digits) buildCounter();
+    const now = performance.now(), dt = Math.min(.05, lastNow ? (now - lastNow) / 1000 : 0); lastNow = now;
+    if (T !== lastT) {
+      lastT = T;
+      digits.forEach(d => {
+        d.target = Math.floor(T / d.place) % 10;
+        const on = d.place === 1 || T >= d.place;
+        if (on !== d.on) { d.on = on; d.el.style.width = on ? 'var(--time-digit)' : '0px'; d.el.style.opacity = on ? 1 : 0; if (!on) d.pos = 0; }
+      });
+      statics.forEach(st => { const on = T >= st.place; if (on !== st.on) { st.on = on; st.el.style.maxWidth = on ? '1em' : '0px'; st.el.style.opacity = on ? 1 : 0; } });
+    }
+    const step = lineStep();
+    digits.forEach(d => {
+      const cur = d.pos;
+      // the shortest way to its digit, up or down: at most five steps, so a column never goes round the wheel
+      const fwd = (d.target - cur + 10) % 10, dist = fwd <= 5 ? fwd : fwd - 10;
+      if (Math.abs(dist) < .002) d.pos = d.target;
+      else {
+        const move = Math.min(Math.abs(dist), VMAX * dt, Math.max(Math.abs(dist) * (1 - Math.exp(-SETTLE * dt)), .8 * dt));
+        d.pos = cur + Math.sign(dist) * move;
+        if (d.pos >= 10) d.pos -= 10; if (d.pos < 0) d.pos += 10;
+      }
+      if (Math.abs(d.pos - d.shown) > .0005) { d.shown = d.pos; d.roll.style.transform = `translate3d(0,${(-d.pos * step).toFixed(4)}em,0)`; }
+    });
   }
 
   /* the year: 365 days × 24 hours, 7 of them on a screen (seeded, so it looks the same every visit) */

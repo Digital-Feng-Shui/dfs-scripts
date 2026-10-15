@@ -460,7 +460,7 @@ function initTime(root) {
   const countFinal = countEl ? countEl.textContent.trim() : '';
   let countBox = null;
   if (countEl) {
-    // the number gets its own box, as wide as the final number, so nothing around it shifts while it rolls
+    // the number gets its own box (equal-width digit cells, see sizeCountBox)
     countBox = document.createElement('span'); countBox.className = 'time-count-box';
     countEl.replaceWith(countBox); countBox.append(countEl);
     countEl.setAttribute('data-odometer-element', '');
@@ -482,11 +482,9 @@ function initTime(root) {
     let dw = 0; for (let d = 0; d < 10; d++) { probe.textContent = d; dw = Math.max(dw, probe.getBoundingClientRect().width); }
     probe.remove();
     countEl.style.setProperty('--time-digit', (dw / fs).toFixed(3) + 'em');
-    drawCount(countFinal); countBox.style.width = '';
-    countBox.style.width = (countEl.getBoundingClientRect().width / fs + .04).toFixed(3) + 'em';
-    drawCount(keep);
+    drawCount(keep); countBox.style.width = '';
   }
-  if (countEl) { countEl.textContent = '7'; sizeCountBox(); (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { sizeCountBox(); cols = []; }); }
+  if (countEl) { countEl.textContent = '7'; sizeCountBox(); (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { if (sentCount === '7') sizeCountBox(); }); }
   notes.forEach(n => split(n, 25));
   const setState = (node, state) => {
     if (!node || node.dataset.diveState === state) return;
@@ -495,53 +493,23 @@ function initTime(root) {
     node.classList.toggle('dive-out', state === 'out');
   };
 
-  /* the number: an odometer that follows the scroll. Every digit is a column of 0-9 (and 0 again, so 9 can roll on
-     to 0); the ones roll freely, every column to the left only turns while the one to its right goes from 9 to 0, like
-     a real counter. Scroll back and it rolls back. Columns (and the comma) only show once the number reaches them. */
+  /* the number: Osmo's Number Odometer (window.dfsOdometer, set in the page code as  window.dfsOdometer = initNumberOdometer()),
+     driven by the scroll with a speed limit. The scroll sets the target (seven hours for every day that's drawn); a new
+     roll only starts once the last one has landed, so each digit rolls once, eased, right to left, and new columns open
+     up the way Osmo does it. Scroll fast and it catches up in a few calm rolls; it always ends on the exact number.
+     Without the odometer (or with reduced motion) the number just switches. */
   const finalCount = countFinal;
-  const finalNum = parseInt(finalCount.replace(/\D/g, ''), 10) || 0;
-  let cols = [], statics = [], shownCount = -1, dispCount = 7;
-  function buildRoller() {
-    if (!countEl || reduce) return;
-    const step = lineStep();
-    cols = []; statics = [];
-    let place = 1;
-    const chars = [...finalCount];
-    const html = chars.map(ch => /\d/.test(ch)
-      ? `<span data-odometer-part="mask" style="display:inline-block;overflow:hidden;vertical-align:top;height:${step}em;line-height:${step}"><span class="time-roll" style="display:block;will-change:transform">${[0,1,2,3,4,5,6,7,8,9,0].map(d => `<span style="display:block;height:${step}em">${d}</span>`).join('')}</span></span>`
-      : `<span data-odometer-part="static" style="display:inline-block;vertical-align:top;height:${step}em;line-height:${step};transition:opacity .3s">${ch}</span>`).join('');
-    countEl.style.width = countEl.style.overflow = '';
-    countEl.innerHTML = html;
-    // place values, right to left
-    const parts = [...countEl.children];
-    for (let i = parts.length - 1; i >= 0; i--) {
-      const el = parts[i];
-      if (el.dataset.odometerPart === 'mask') { cols.push({ el, roll: el.firstChild, place, pos: -1, on: null }); place *= 10; }
-      else statics.push({ el, place, on: null });   // the comma shows once the column left of it does
-    }
-    shownCount = -1;
-  }
-  function setCount(c) {
+  let sentCount = '7', busyUntil = 0;
+  function setCount(n) {
     if (!countEl) return;
-    if (reduce) { const t = c >= finalNum ? finalCount : '7'; if (countEl.textContent !== t) drawCount(t); return; }
-    if (!cols.length) buildRoller();
-    // the counter chases the whole number: it rolls while you scroll and always comes to rest on a full digit
-    const whole = Math.round(c);
-    dispCount += (whole - dispCount) * .3;
-    if (Math.abs(whole - dispCount) < .01) dispCount = whole;
-    c = dispCount;
-    if (Math.abs(c - shownCount) < .002) return;
-    shownCount = c;
-    const step = lineStep();
-    cols.forEach(col => {
-      const P = col.place, low = c % P;
-      let pos = P === 1 ? c % 10 : Math.floor(c / P) % 10 + Math.max(0, low - (P - 1));
-      if (pos >= 10) pos -= 10;
-      if (Math.abs(pos - col.pos) > .0005) { col.pos = pos; col.roll.style.transform = `translate3d(0,${(-pos * step).toFixed(4)}em,0)`; }
-      const on = P === 1 || c >= P - 1;
-      if (on !== col.on) { col.on = on; col.el.style.opacity = on ? 1 : 0; col.el.style.transition = 'opacity .3s'; }
-    });
-    statics.forEach(st => { const on = c >= st.place - 1; if (on !== st.on) { st.on = on; st.el.style.opacity = on ? 1 : 0; } });
+    const text = n.toLocaleString('en-US');
+    if (text === sentCount) return;
+    if (reduce || !window.dfsOdometer) { drawCount(text); sentCount = text; return; }
+    const now = performance.now();
+    if (now < busyUntil) return;
+    sentCount = text;
+    window.dfsOdometer(countEl, text, { duration: .6, ease: 'power3.out' });
+    busyUntil = now + 600 + text.replace(/\D/g, '').length * 40 + 120;
   }
 
   /* the year: 365 days × 24 hours, 7 of them on a screen (seeded, so it looks the same every visit) */

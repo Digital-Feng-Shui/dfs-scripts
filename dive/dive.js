@@ -221,7 +221,7 @@ function init(root) {
   const navBar = nav && nav.querySelector('[data-bottom-nav-bar]');
   const navToggle = nav && nav.querySelector('[data-bottom-nav-toggle]');
   const G = window.gsap;
-  let navShown = null, cueSize = null, cueShadow = '', first = true, stingW = 0, starRest = null;
+  let navShown = null, cueSize = null, cueShadow = '', cueBg = '', first = true, stingW = 0, starRest = null;
   if (nav) { nav.style.visibility = 'hidden'; nav.style.opacity = '0'; nav.setAttribute('inert', ''); }
   const navLogo = navBar && navBar.querySelector('.bottom-nav__logo');
   const navIcon = navLogo && navLogo.querySelector('.logo_icon');
@@ -303,8 +303,12 @@ function init(root) {
     unscramble();
     const full = !!(navLogo && navIcon && navName && navToggle);
     // the cue's soft shadow turns into the menu's thin line while it folds, so the square already looks like the menu
-    if (!cueShadow) cueShadow = getComputedStyle(c).boxShadow;
-    const line = `${getComputedStyle(navInner).borderTopColor} 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px`;
+    if (!cueShadow) { cueShadow = getComputedStyle(c).boxShadow; cueBg = getComputedStyle(c).backgroundColor; }
+    const lineColor = getComputedStyle(navInner).borderTopColor;
+    const line = `${lineColor} 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px`;
+    // on the way back the line stays while the soft shadow returns (fading one out before the other made the box vanish)
+    const drop = (cueShadow.match(/rgba?\([^)]*\)[^,]*$/) || ['rgba(0, 0, 0, 0.14) 0px 12px 32px 0px'])[0].trim();
+    const lineAndDrop = `${lineColor} 0px 0px 0px 1px inset, ${drop}`;
     const tick = (tl, at, back) => {   // one Keeper tick; back = the other way. Ends where main.js's own ticks expect it
       if (sp) {
         const r = starRest ? starRest.r : G.getProperty(sp.ring, 'rotation'), i = starRest ? starRest.i : G.getProperty(sp.inner, 'rotation');
@@ -362,7 +366,7 @@ function init(root) {
       const d = wasOpen ? .75 : 0;   // with the menu open it folds shut first
       const ir = navInner.getBoundingClientRect(), lr = navIcon ? navIcon.getBoundingClientRect() : ir;
       const W = ir.width, sq = ir.height, dx = (ir.left + ir.width / 2) - (lr.left + lr.width / 2);
-      const back = { width: cueSize ? cueSize.w : 'auto', height: cueSize ? cueSize.h : 'auto', y: 0, borderRadius: 0, boxShadow: cueShadow, duration: .6, ease: 'osmo' };
+      const back = { width: cueSize ? cueSize.w : 'auto', height: cueSize ? cueSize.h : 'auto', y: 0, borderRadius: 0, boxShadow: lineAndDrop, backgroundColor: cueBg || navGlass(), duration: .6, ease: 'osmo' };
       navTl = G.timeline();
       if (full) {
         stingW = W;

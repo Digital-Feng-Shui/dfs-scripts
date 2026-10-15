@@ -29,7 +29,8 @@
    Colours follow the site's night mode (html.dfs-night):
    night = Mist (navy + dusk blue, ends in black), day = Ink (bage + dark grey, ends in bage).
    Shader: Paper Shaders Dithering, @paper-design/shaders 0.0.81, Apache 2.0.
-   Also here: section 2, the time story ([data-time]), see initTime below.
+   Also here: section 2, the time story ([data-time]), see initTime below,
+   and section 3, what we stand for ([data-stand]), see initStand.
    ========================================================= */
 
 import { ShaderMount, ditheringFragmentShader, getShaderColorFromString as col } from 'https://cdn.jsdelivr.net/npm/@paper-design/shaders@0.0.81/+esm';
@@ -38,6 +39,8 @@ const root = document.querySelector('[data-dive]');
 if (root) init(root);
 const timeRoot = document.querySelector('[data-time]');
 if (timeRoot) initTime(timeRoot);
+const standRoot = document.querySelector('[data-stand]');
+if (standRoot) initStand(standRoot);
 
 function init(root) {
   const q = sel => root.querySelector(sel);
@@ -687,6 +690,141 @@ function initTime(root) {
   requestAnimationFrame(frame);
 }
 
+/* =========================================================
+   Section 3 — what we stand for
+   The heading and three cards come up together and lock in the screen. Each card is a small 24×12 pixel grid that
+   tells its idea, all three on one timeline, so they charge up together and spark at the same moment:
+     flow   attention scattered over the field flows into a heart, then slowly turns blue and starts to glow
+     depth  eight scattered hours a day; six fade, the two that stay close up into one beam in the middle
+     chosen a crowded feed with a few orange badges thins out to the few you chose
+   Webflow:
+     [data-stand]                section (same background as the time story)
+       [data-stand-pin]          the scroll length while it's locked (e.g. 250vh; on phones auto)
+         [data-stand-rise]       the heading, words rise in
+         [data-stand-card="flow|depth|chosen"]  a card; its h3 rises too
+           [data-stand-canvas]   the pixel grid (canvas is added here)
+   ========================================================= */
+function initStand(root) {
+  const pin = root.querySelector('[data-stand-pin]') || root;
+  const cards = [...root.querySelectorAll('[data-stand-card]')].map(el => {
+    const host = el.querySelector('[data-stand-canvas]');
+    const cv = document.createElement('canvas'); cv.setAttribute('aria-hidden', 'true'); cv.style.cssText = 'display:block;width:100%;height:100%';
+    if (host) host.append(cv);
+    return { el, cv, g: cv.getContext('2d'), kind: el.getAttribute('data-stand-card'), y: 0, k: 0, sparked: false, sparkAt: 0 };
+  });
+  if (!cards.length) return;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isNight = () => document.documentElement.classList.contains('dfs-night');
+  const PAL = { night: { ink: [241, 237, 226], blue: [29, 171, 250], orange: [240, 110, 40] }, day: { ink: [61, 58, 53], blue: [2, 151, 219], orange: [216, 67, 2] } };
+  injectCSS();
+
+  // words rise in once they're in view (the heading and the card titles)
+  const rise = [...root.querySelectorAll('[data-stand-rise], [data-stand-card] h3')];
+  // in the heading every sentence gets its own line ("Technology Should Work For You." / "Not On You."); phones let them flow
+  rise.forEach(node => {
+    const text = node.textContent.trim(), heading = node.hasAttribute('data-stand-rise');
+    const lines = heading ? text.split(/(?<=[.!?])\s+/) : [text];
+    let n = 0;
+    node.setAttribute('aria-label', text);
+    node.innerHTML = lines.map(line => `<span class="dive-txt" aria-hidden="true">${line.split(/\s+/).map(w => `<span class="dive-w"><span class="dive-wi" style="transition-delay:${reduce ? 0 : n++ * 55}ms">${w}</span></span>`).join(' ')}</span>`).join(' ');
+  });
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) e.target.classList.add('dive-in'); }), { threshold: .4 });
+  rise.forEach(n => io.observe(n));
+
+  const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const rgb = c => `rgb(${c.map(v => Math.round(v)).join(',')})`;
+  const mixc = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+  const hr = (i, s) => { const v = Math.sin(i * 12.9898 + s * 78.233) * 43758.5453; return v - Math.floor(v); };
+  // depth: per day eight scattered hours; two of them stay and close up into one focused stretch
+  const DEPTH = Array.from({ length: 12 }, (_, d) => { const set = new Set(); let i = 0; while (set.size < 8) set.add(Math.floor(hr(d * 31 + i++, 7) * 24)); return [...set].sort((a, b) => a - b); });
+  const HEART = ['.##..##.', '########', '########', '########', '########', '.######.', '..####..', '...##...']
+    .flatMap((row, y) => [...row].map((c, x) => c === '#' ? [8 + x, 2 + y] : null)).filter(Boolean);
+
+  function motif(c, W, H, k, t, spark) {
+    const g = c.g, P = PAL[isNight() ? 'night' : 'day'];
+    const cols = 24, rows = 12, u = Math.min(W / cols, H / rows), ox = (W - cols * u) / 2, oy = (H - rows * u) / 2;
+    const ink = rgb(P.ink), blue = rgb(P.blue), dim = `rgba(${P.ink.join(',')},${isNight() ? .09 : .11})`;
+    // the final moment: the blue flares up nearly white with a soft blue glow, then settles
+    const charge = sm(.5, .97, k), chargeCol = rgb(mixc(P.ink, P.blue, charge));
+    const flare = spark > 0 ? rgb(mixc(P.blue, [255, 255, 255], .75 * spark)) : null;
+    const glow = on => { g.shadowColor = blue; g.shadowBlur = on ? u * 1.6 * charge + u * 3.2 * spark : 0; };
+    const px = (x, y, col, a = 1, lit = false) => {
+      g.globalAlpha = a; g.fillStyle = lit && flare ? flare : col;
+      g.fillRect(ox + x * u + u * .1, oy + y * u + u * .1, u * .8, u * .8);
+    };
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) px(x, y, dim);
+    if (c.kind === 'flow') {
+      const back = sm(.02, .62, k);
+      HEART.forEach(([hx, hy]) => px(hx, hy, dim, .9));                    // the heart, barely there
+      HEART.forEach(([hx, hy], i) => {
+        const sx = 1 + hr(i, 11) * 22, sy = 1 + hr(i, 12) * 10;               // where your attention is: all over
+        const land = sm(hr(i, 15) * .45, .55 + hr(i, 15) * .45, back);        // it arrives bit by bit
+        const home = land > .97;
+        glow(home);
+        px(Math.round(lerp(sx, hx, land)), Math.round(lerp(sy, hy, land)), home ? chargeCol : ink, home ? .75 + .25 * charge : .5 + .3 * land, home);
+        glow(false);
+      });
+    } else if (c.kind === 'depth') {
+      const fade = sm(.04, .45, k), close = sm(.2, .62, k);
+      DEPTH.forEach((hrs, d) => hrs.forEach((h, j) => {
+        const keep = j === 2 || j === 3;
+        if (!keep) { if (fade < 1) px(h, d, ink, (1 - fade) * .8); return; }
+        const there = close > .95;
+        glow(there);
+        px(Math.round(lerp(h, j === 2 ? 11 : 12, close)), d, there ? chargeCol : ink, .8 + .2 * close, there);   // the exact middle of 24
+        glow(false);
+      }));
+    } else {
+      // chosen: a crowded feed, a few orange badges; it thins to the handful you chose
+      for (let i = 0; i < 18; i++) {
+        const x = 1 + (i % 6) * 4, y = 1 + Math.floor(i / 6) * 4, keep = i % 5 === 0;
+        const a = keep ? 1 : 1 - sm(.06 + hr(i, 5) * .35, .4 + hr(i, 5) * .35, k);
+        if (a <= .02) continue;
+        glow(keep);
+        for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) px(x + dx, y + dy, keep ? chargeCol : ink, a, keep);
+        glow(false);
+        if ((i === 3 || i === 8 || i === 13) && k < .55 && (reduce || Math.sin(t * 6 + i) > 0)) px(x + 2, y - 1 < 0 ? y : y - 1, rgb(P.orange), a);
+      }
+    }
+    g.globalAlpha = 1;
+  }
+
+  function targets() {
+    const vh = innerHeight, narrow = innerWidth < 768;
+    if (!narrow) {
+      // u: 0 when the locked stage starts to come up, 1 when it locks, and on while it stays locked
+      const u = (vh - pin.getBoundingClientRect().top) / vh;
+      return cards.map((c, i) => ({ y: reduce ? 0 : (1 - sm(.35 + i * .1, 1 + i * .1, u)) * (120 + i * 40), k: reduce ? 1 : sm(.8, 2, u) }));
+    }
+    return cards.map(c => { const p = (vh - c.el.getBoundingClientRect().top) / (vh * .9); return { y: reduce ? 0 : (1 - sm(0, .62, p)) * 60, k: reduce ? 1 : sm(.3, 1.05, p) }; });
+  }
+
+  let visible = false;
+  new IntersectionObserver(es => { visible = es[0].isIntersecting; }, { rootMargin: '20% 0px' }).observe(root);
+  function frame(now) {
+    if (visible) {
+      const tg = targets(), t = now / 1000, dpr = Math.min(devicePixelRatio || 1, 2);
+      cards.forEach((c, i) => {
+        c.y += (tg[i].y - c.y) * .14; c.k += (tg[i].k - c.k) * .1;
+        c.el.style.transform = `translate3d(0,${c.y.toFixed(1)}px,0)`;
+        const W = c.cv.clientWidth, H = c.cv.clientHeight;
+        if (!W || !H) return;
+        if (c.cv.width !== Math.round(W * dpr) || c.cv.height !== Math.round(H * dpr)) { c.cv.width = Math.round(W * dpr); c.cv.height = Math.round(H * dpr); }
+        c.g.setTransform(dpr, 0, 0, dpr, 0, 0); c.g.clearRect(0, 0, W, H);
+        // once a card's story is complete: one short spark (and again if you come back to it)
+        if (c.k > .985 && !c.sparked) { c.sparked = true; c.sparkAt = now; }
+        if (c.k < .9) c.sparked = false;
+        const se = c.sparked && !reduce ? (now - c.sparkAt) / 1000 : 9;
+        const spark = se < 1.1 ? Math.sin(Math.min(1, se / .18) * Math.PI / 2) * Math.pow(1 - se / 1.1, 2) : 0;
+        motif(c, W, H, c.k, t, spark);
+      });
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
 function injectCSS() {
   if (document.getElementById('dive-css')) return;
   const css = `
@@ -730,6 +868,9 @@ function injectCSS() {
 .time-count-box{display:inline-flex;justify-content:flex-end;vertical-align:top;white-space:nowrap}
 .time-count-box [data-odometer-part="mask"]{width:var(--time-digit,auto);text-align:center}
 [data-time-note]{opacity:.72}
+[data-stand]{background:var(--dive-end,#05070d);color:var(--dive-endtext,#f1ede2)}
+@media (max-width:767px){[data-stand-rise] .dive-txt{display:inline}}
+[data-stand-card]{background:color-mix(in srgb,currentColor 4%,transparent);border-color:color-mix(in srgb,currentColor 13%,transparent);will-change:transform}
 @media (prefers-reduced-motion: reduce){[data-dive-cue-text],[data-dive-cue-line]::after{animation:none}[data-dive-cue-line]::after{transform:scaleY(1)}.dive-wi,.dive-ra,.dive-rb{transition:none}}
 `;
   const s = document.createElement('style'); s.id = 'dive-css'; s.textContent = css; document.head.append(s);

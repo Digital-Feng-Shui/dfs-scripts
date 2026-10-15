@@ -237,6 +237,16 @@ function init(root) {
   if (nav) {
     fitNav();
     if (document.fonts) document.fonts.ready.then(() => { fitNav(); dispatchEvent(new Event('resize')); });
+    // and whenever the logo's width changes (a late font, a different browser): fit again, Osmo re-measures
+    if (window.ResizeObserver && navLogo) {
+      let last = 0, t = 0;
+      new ResizeObserver(() => {
+        const w = navLogo.getBoundingClientRect().width;
+        if (Math.abs(w - last) < .5) return;
+        last = w; clearTimeout(t);
+        t = setTimeout(() => { fitNav(); dispatchEvent(new Event('resize')); }, 60);
+      }).observe(navLogo);
+    }
   }
   /* the name scrambles in, as in the DFS logo sting: noise first, then letter by letter it settles */
   const nameNodes = [];

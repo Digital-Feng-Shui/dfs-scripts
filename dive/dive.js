@@ -30,7 +30,7 @@
    night = Mist (navy + dusk blue, ends in black), day = Ink (bage + dark grey, ends in bage).
    Shader: Paper Shaders Dithering, @paper-design/shaders 0.0.81, Apache 2.0.
    Also here: section 2, the time story ([data-time]), see initTime below,
-   and section 3, what we stand for ([data-stand]), see initStand.
+   section 3, what we stand for ([data-stand]), see initStand, and section 4, the mission ([data-mission]), see initMission.
    ========================================================= */
 
 import { ShaderMount, ditheringFragmentShader, getShaderColorFromString as col } from 'https://cdn.jsdelivr.net/npm/@paper-design/shaders@0.0.81/+esm';
@@ -41,6 +41,8 @@ const timeRoot = document.querySelector('[data-time]');
 if (timeRoot) initTime(timeRoot);
 const standRoot = document.querySelector('[data-stand]');
 if (standRoot) initStand(standRoot);
+const missionRoot = document.querySelector('[data-mission]');
+if (missionRoot) initMission(missionRoot);
 
 function init(root) {
   const q = sel => root.querySelector(sel);
@@ -581,6 +583,7 @@ function initTime(root) {
      settles on the site's dark navy. ([data-time-canvas] is no longer drawn into; it can stay or go in Webflow.) */
   const NAVY = '#0e1628';
   const standEl = document.querySelector('[data-stand]');
+  const lastEl = document.querySelector('[data-mission]') || standEl;   // the layer runs on to the end of the mission
   const bgEl = document.createElement('div'); bgEl.className = 'dive-bg'; bgEl.setAttribute('aria-hidden', 'true');
   const shaderEl = document.createElement('div'); shaderEl.className = 'dive-bg-shader'; bgEl.append(shaderEl);
   document.body.append(bgEl);
@@ -609,7 +612,7 @@ function initTime(root) {
   new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(root);
 
   function bgFrame(now) {
-    const tr = root.getBoundingClientRect(), br = standEl ? standEl.getBoundingClientRect() : tr, vh = innerHeight;
+    const tr = root.getBoundingClientRect(), sr = standEl ? standEl.getBoundingClientRect() : tr, br = lastEl ? lastEl.getBoundingClientRect() : tr, vh = innerHeight;
     const on = br.bottom > 0 && tr.top < vh;
     if (on !== bgOn) { bgOn = on; bgEl.style.visibility = on ? 'visible' : 'hidden'; if (!on && mount) { mount.setSpeed(0); lastSpeed = 0; } }
     if (on && mount) {
@@ -618,7 +621,7 @@ function initTime(root) {
       const tp = Math.min(1, Math.max(0, -tr.top / Math.max(1, tr.height - vh)));
       const back = isNight() ? hexLerp(P.back, NAVY, sm(.02, .14, tp)) : P.back;
       // 0 while the cards are still below the screen, 1 once their section reaches the top
-      const tS = standEl ? Math.min(1, Math.max(0, 1 - br.top / vh)) : 0;
+      const tS = standEl ? Math.min(1, Math.max(0, 1 - sr.top / vh)) : 0;
       let front, shape, u = {}, spd, hole;
       if (tS < .5) {
         const vis = 1 - sm(.15, .5, tS), heat = heatNow, orange = orangeNow, blue = blueNow;
@@ -867,6 +870,96 @@ function initStand(root) {
   requestAnimationFrame(frame);
 }
 
+/* =========================================================
+   Section 4 — the mission
+   A pixel world: one dot per million people (about 8,240 of them), the ones online lit, the rest dim. Five beats:
+     1 the online ones light up                 "Six Billion Of Us Live Online."
+     2 they turn orange and restless            "Over Six Hours A Day, On Average."
+     3 the restlessness pulls harder            "And Nobody Ever Taught Us How."
+     4 one dot in the middle turns blue, and a ripple from it turns every dot it passes steady blue
+                                                "We Want To Be The Guiding Voice."
+     5 the whole world calm and blue, not one dot switched off   "Working With Technology, Not Against It."
+   Figures: DataReportal, Digital 2026 (6.04 bn online, 2.2 bn offline, 6 h 38 min a day for adults 16 to 64).
+   Webflow (the time story's classes, its own attributes):
+     [data-mission]              section (height = scroll length, e.g. 520vh)
+       [data-mission-sticky]     sticky 100vh
+         [data-mission-line="1-5"]  the big lines (stacked, words rise in/out)
+         [data-mission-globe]    the world (canvas is added here; make it square)
+         [data-mission-note="1-5"]  the small line under each beat
+   ========================================================= */
+function initMission(root) {
+  const host = root.querySelector('[data-mission-globe]');
+  if (!host) return;
+  const byNum = attr => [...root.querySelectorAll(`[${attr}]`)].sort((a, b) => +a.getAttribute(attr) - +b.getAttribute(attr));
+  const lines = byNum('data-mission-line'), notes = byNum('data-mission-note');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isNight = () => document.documentElement.classList.contains('dfs-night');
+  const PAL = { night: { ink: [241, 237, 226], blue: [29, 171, 250], orange: [240, 110, 40] }, day: { ink: [61, 58, 53], blue: [2, 151, 219], orange: [216, 67, 2] } };
+  injectCSS();
+  const split = (node, step) => {
+    const text = node.textContent.trim(); node.setAttribute('aria-label', text);
+    node.innerHTML = `<span class="dive-txt" aria-hidden="true">${text.split(/\s+/).map((w, i) => `<span class="dive-w"><span class="dive-wi" style="transition-delay:${reduce ? 0 : i * step}ms">${w}</span></span>`).join(' ')}</span>`;
+  };
+  lines.forEach(l => split(l, 70)); notes.forEach(n => split(n, 25));
+  const setState = (node, state) => {
+    if (!node || node.dataset.diveState === state) return;
+    node.dataset.diveState = state;
+    node.classList.toggle('dive-in', state === 'in'); node.classList.toggle('dive-out', state === 'out');
+  };
+  const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const mixc = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+  const rgb = c => `rgb(${c.map(v => Math.round(v)).join(',')})`;
+
+  // the world: a disc of dots; about 6.04 of every 8.24 online; the one in the middle always is (the voice starts there)
+  const MD = 104, MR = 51.3, c0 = (MD - 1) / 2, world = [];
+  for (let y = 0; y < MD; y++) for (let x = 0; x < MD; x++) { const d = Math.hypot(x - c0, y - c0); if (d <= MR) world.push({ x, y, r: d / MR }); }
+  { let s2 = 11; const r2 = () => { s2 = (s2 * 16807) % 2147483647; return (s2 - 1) / 2147483646; };
+    const idx = world.map((_, i) => i).sort(() => r2() - .5), onN = Math.round(world.length * 6.04 / 8.24);
+    idx.forEach((i, n) => { const c = world[i]; c.on = n < onN || c.r < .02; c.t = r2(); c.ph = r2() * 6.28; c.sp = 2 + r2() * 5; c.o = r2(); }); }
+
+  const cv = document.createElement('canvas'); cv.setAttribute('aria-hidden', 'true'); cv.style.cssText = 'display:block;width:100%;height:100%';
+  host.append(cv);
+  const g = cv.getContext('2d');
+  let visible = false, size = 0;
+  new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(root);
+  const progress = () => { const r = root.getBoundingClientRect(); return Math.min(1, Math.max(0, -r.top / Math.max(1, r.height - innerHeight))); };
+  const win = (p, a, b) => p < a ? 'pre' : p < b ? 'in' : 'out';
+
+  function frame(now) {
+    if (visible) {
+      const p = progress(), t = now / 1000, P = PAL[isNight() ? 'night' : 'day'];
+      setState(lines[0], win(p, .02, .28)); setState(lines[1], win(p, .3, .48)); setState(lines[2], win(p, .5, .64));
+      setState(lines[3], win(p, .66, .84)); setState(lines[4], p < .86 ? 'pre' : 'in');
+      setState(notes[0], win(p, .05, .28)); setState(notes[1], win(p, .33, .48)); setState(notes[2], win(p, .53, .64));
+      setState(notes[3], win(p, .69, .84)); setState(notes[4], p < .89 ? 'pre' : 'in');
+      const W = host.clientWidth, dpr = Math.min(devicePixelRatio || 1, 2);
+      if (W && W !== size) { size = W; cv.width = cv.height = Math.round(W * dpr); }
+      g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height);
+      // whole device pixels per dot, so the rows stay even
+      const up = Math.max(2, Math.floor(cv.width / MD)), s = Math.max(1, Math.round(up * .78)), o0 = Math.floor((cv.width - up * MD) / 2);
+      const light = sm(.03, .22, p), rest = sm(.3, .42, p), pull = sm(.5, .6, p), rr = sm(.66, .86, p) * 1.12;
+      const white = [255, 255, 255], dim = `rgba(${P.ink.join(',')},${isNight() ? .09 : .11})`;
+      for (const c of world) {
+        let x = o0 + c.x * up, y = o0 + c.y * up;
+        if (!c.on || light < c.t) { g.globalAlpha = 1; g.fillStyle = dim; g.fillRect(x, y, s, s); continue; }
+        const calm = sm(0, .14, rr - c.r), front = rr > 0 && rr < 1.1 ? Math.max(0, 1 - Math.abs(c.r - rr) / .035) : 0;
+        const restless = rest * (.55 + .45 * c.o) * (1 - calm);
+        let col = mixc(P.ink, P.orange, restless), a = .85;
+        if (!reduce && restless > 0) {
+          a = .85 - restless * (.25 + pull * .4) * (.5 + .5 * Math.sin(t * c.sp + c.ph));
+          const j = pull * (1 - calm) * up * .35; x += Math.sin(t * 7 + c.ph * 3) * j; y += Math.cos(t * 6 + c.ph * 5) * j;
+        }
+        col = mixc(col, P.blue, calm); a = a + (1 - a) * calm;
+        if (front > 0) col = mixc(col, white, front * .6);
+        g.globalAlpha = a; g.fillStyle = rgb(col); g.fillRect(x, y, s, s);
+      }
+      g.globalAlpha = 1;
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
 function injectCSS() {
   if (document.getElementById('dive-css')) return;
   const css = `
@@ -917,6 +1010,10 @@ function injectCSS() {
 /* above the dither layer (a sticky element is its own stack, so it's lifted as a whole, see-through) */
 [data-time] [data-time-sticky]{z-index:1;background:transparent}
 [data-stand-pin]{position:relative;z-index:1}
+[data-mission]{background:var(--dive-end,#05070d);color:var(--dive-endtext,#f1ede2)}
+[data-mission] [data-mission-sticky]{z-index:1;background:transparent}
+[data-mission-line],[data-mission-note]{pointer-events:none}
+[data-mission-note]{opacity:.72}
 @media (max-width:767px){[data-stand-rise] .dive-txt{display:inline}}
 [data-stand-card]{background:color-mix(in srgb,currentColor 4%,transparent);border-color:color-mix(in srgb,currentColor 13%,transparent);will-change:transform}
 @media (prefers-reduced-motion: reduce){[data-dive-cue-text],[data-dive-cue-line]::after{animation:none}[data-dive-cue-line]::after{transform:scaleY(1)}.dive-wi,.dive-ra,.dive-rb{transition:none}}

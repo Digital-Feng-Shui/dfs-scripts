@@ -2334,11 +2334,20 @@
           target.addEventListener(type, fn);
           player._cleanup.push(() => target.removeEventListener(type, fn));
         }
+        // The loading spinner is an SVG animation that spins every frame, even while it's hidden, and
+        // that kept the whole page relaying out 60 times a second. It only plays while loading.
+        var spinner = player.querySelector('.bunny-player__loading svg');
+        function spin(on) {
+          if (!spinner || !spinner.pauseAnimations) return;
+          if (on) spinner.unpauseAnimations(); else spinner.pauseAnimations();
+        }
+        spin(player.getAttribute('data-player-status') === 'loading');
         // Attribute helpers
         function setStatus(s) {
           if (player.getAttribute('data-player-status') !== s) {
             player.setAttribute('data-player-status', s);
           }
+          spin(s === 'loading');
         }
 
         function setMutedState(v) {
@@ -6351,6 +6360,9 @@
       svg.style.overflow = 'visible';
       svg.innerHTML = svgMarkup();
       if (still) return;
+      // The outline morph is SVG animation: it keeps changing the shape every frame, even while he's
+      // hidden. So it only plays while he's on screen.
+      if (svg.pauseAnimations) svg.pauseAnimations();
       var k = { el: el, eyes: svg.querySelectorAll('.dfs-tinko-eye'), now: [HOME[0].slice(), HOME[1].slice()], gaze: [0, 0], tick: 0,
         nextBlink: Date.now() + 2000, nextGoof: Date.now() + 5000, nextGesture: Date.now() + 9000, seq: null, seen: false, met: false };
       all.push(k);
@@ -6359,9 +6371,10 @@
       if ('IntersectionObserver' in window) {
         new IntersectionObserver(function (entries) {
           k.seen = entries[0].isIntersecting;
+          if (svg.pauseAnimations) { if (k.seen) svg.unpauseAnimations(); else svg.pauseAnimations(); }
           if (k.seen && !k.met) { k.met = true; setTimeout(function () { bwoop(k); }, 350); }
         }, { threshold: 0.6 }).observe(el);
-      } else k.seen = true;
+      } else { k.seen = true; if (svg.unpauseAnimations) svg.unpauseAnimations(); }
     });
     if (all.length && !dfsTinkoMascot.running) {
       dfsTinkoMascot.running = true;

@@ -812,3 +812,6 @@ html:not([data-tinko="owned"]) .tinko-gate_content{filter:blur(6px);opacity:.6;u
 @media (prefers-reduced-motion:reduce){.dfs-tinko-sway{animation:none}}
 .dfs-tinko-eye{fill:var(--tinko-eye,#FBF7EE)}
 .tinko-stage{--tinko-eye:#F1EBE1}
+
+/* Lesson texts that aren't open don't animate (the welcome lesson's bouncing heart kept ticking while hidden) */
+.course_content:not(.is-active) *{animation-play-state:paused}

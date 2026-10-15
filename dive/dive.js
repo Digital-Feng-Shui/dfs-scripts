@@ -408,8 +408,8 @@ function init(root) {
    Starts in the same black/paper the dive ends in, pinned:
      1. "7+ Hours A Day."      24 hour-pixels in a row, 7 light up
      2. "2,555 Hours A Year."  the row breaks into its four sixes (up one, stay, down one, down two), they slide
-                               together into one 6×4 day tile, and the year fills in with the scroll; the digits roll
-                               with it like an odometer (scroll back and they roll back)
+                               together into one 6×4 day tile, and the year fills in with the scroll; the number rolls
+                               up once (Osmo's odometer) as soon as the line appears
      3. orange                 lit hours turn orange and blink like badges, the dither creeps in at the edges
      4. blue                   orange becomes blue, the dither calms: "Tech can make life better"
    Webflow:
@@ -417,7 +417,7 @@ function init(root) {
        [data-time-sticky]        sticky 100vh
          [data-time-canvas]      dither around the edges (Paper Shaders, warp)
          [data-time-line="1-4"]  the four big lines (stacked, words rise in/out)
-         [data-time-count]       inside line 2: the number (an odometer driven by the scroll, drawn here)
+         [data-time-count]       inside line 2: the number (rolled by Osmo's Number Odometer, window.dfsOdometer)
          [data-time-grid]        the pixel hours (canvas is added here)
          [data-time-note="1-4"]  the small mono line under each beat
    ========================================================= */
@@ -460,7 +460,7 @@ function initTime(root) {
   const countFinal = countEl ? countEl.textContent.trim() : '';
   let countBox = null;
   if (countEl) {
-    // the number gets its own box (equal-width digit cells, see sizeCountBox)
+    // the number gets its own box, as wide as the final number, so nothing around it shifts while it rolls
     countBox = document.createElement('span'); countBox.className = 'time-count-box';
     countEl.replaceWith(countBox); countBox.append(countEl);
     countEl.setAttribute('data-odometer-element', '');
@@ -482,9 +482,11 @@ function initTime(root) {
     let dw = 0; for (let d = 0; d < 10; d++) { probe.textContent = d; dw = Math.max(dw, probe.getBoundingClientRect().width); }
     probe.remove();
     countEl.style.setProperty('--time-digit', (dw / fs).toFixed(3) + 'em');
-    drawCount(keep); countBox.style.width = '';
+    drawCount(countFinal); countBox.style.width = '';
+    countBox.style.width = (countEl.getBoundingClientRect().width / fs + .04).toFixed(3) + 'em';
+    drawCount(keep);
   }
-  if (countEl) { countEl.textContent = '7'; sizeCountBox(); (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { if (lastT <= 7) { sizeCountBox(); digits = null; } }); }
+  if (countEl) { countEl.textContent = '7'; sizeCountBox(); (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { if (!countUp) sizeCountBox(); }); }
   notes.forEach(n => split(n, 25));
   const setState = (node, state) => {
     if (!node || node.dataset.diveState === state) return;
@@ -493,56 +495,33 @@ function initTime(root) {
     node.classList.toggle('dive-out', state === 'out');
   };
 
-  /* the number: our own odometer, made for scrolling. Every digit is a column (0-9, then 0 again so 9 can roll on to 0)
-     that only moves when its own digit changes, the shortest way (at most five steps, up or down, never round the wheel),
-     at a capped speed with a soft landing. So a fast scroll through the year doesn't make it race: it keeps rolling a
-     moment after you stop and lands on the number. A column opens up (from zero
-     width) once the number reaches it, like Osmo's odometer, and the line re-centres around it. */
+  /* the number: one smooth roll from 7 to the year total with Osmo's Number Odometer (window.dfsOdometer, set in the
+     page code as  window.dfsOdometer = initNumberOdometer()), new columns opening up the Osmo way. It isn't tied to the
+     scroll on purpose: the grid shows the year filling, the number just needs to be seen, so it starts the moment its
+     line appears and takes its own time, however fast you scroll (the same roll as dive-v0.3.12). Back above the line,
+     it resets to 7 once the line is gone, ready to roll again. Without the odometer (or with reduced motion) it simply
+     switches. */
   const finalCount = countFinal;
-  const VMAX = 8, SETTLE = 5;                       // digits per second at most; how softly a column lands
-  let digits = null, statics = [], lastT = 7, lastNow = 0;
-  function buildCounter() {
-    const step = lineStep();
-    let place = 1; digits = []; statics = [];
-    countEl.style.width = countEl.style.overflow = '';
-    countEl.innerHTML = [...finalCount].map(ch => /\d/.test(ch)
-      ? `<span data-odometer-part="mask" style="height:${step}em;line-height:${step};transition:width .5s cubic-bezier(.33,1,.68,1),opacity .4s"><span class="time-roll" style="display:block;will-change:transform">${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map(d => `<span style="display:block;height:${step}em">${d}</span>`).join('')}</span></span>`
-      : `<span data-odometer-part="static" style="height:${step}em;line-height:${step};max-width:1em;transition:max-width .5s cubic-bezier(.33,1,.68,1),opacity .4s">${ch}</span>`).join('');
-    const parts = [...countEl.children];
-    for (let i = parts.length - 1; i >= 0; i--) {
-      const el = parts[i];
-      if (el.dataset.odometerPart === 'mask') { digits.push({ el, roll: el.firstChild, place, pos: 0, target: 0, shown: -1, on: null }); place *= 10; }
-      else statics.push({ el, place, on: null });     // a comma shows once the column to its left does
-    }
-    lastT = -1;
-  }
-  function setCount(T) {
-    if (!countEl) return;
-    if (reduce) { const t = T.toLocaleString('en-US'); if (countEl.textContent !== t) drawCount(t); return; }
-    if (!digits) buildCounter();
-    const now = performance.now(), dt = Math.min(.05, lastNow ? (now - lastNow) / 1000 : 0); lastNow = now;
-    if (T !== lastT) {
-      lastT = T;
-      digits.forEach(d => {
-        d.target = Math.floor(T / d.place) % 10;
-        const on = d.place === 1 || T >= d.place;
-        if (on !== d.on) { d.on = on; d.el.style.width = on ? 'var(--time-digit)' : '0px'; d.el.style.opacity = on ? 1 : 0; if (!on) d.pos = 0; }
-      });
-      statics.forEach(st => { const on = T >= st.place; if (on !== st.on) { st.on = on; st.el.style.maxWidth = on ? '1em' : '0px'; st.el.style.opacity = on ? 1 : 0; } });
-    }
-    const step = lineStep();
-    digits.forEach(d => {
-      const cur = d.pos;
-      // the shortest way to its digit, up or down: at most five steps, so a column never goes round the wheel
-      const fwd = (d.target - cur + 10) % 10, dist = fwd <= 5 ? fwd : fwd - 10;
-      if (Math.abs(dist) < .002) d.pos = d.target;
-      else {
-        const move = Math.min(Math.abs(dist), VMAX * dt, Math.max(Math.abs(dist) * (1 - Math.exp(-SETTLE * dt)), .8 * dt));
-        d.pos = cur + Math.sign(dist) * move;
-        if (d.pos >= 10) d.pos -= 10; if (d.pos < 0) d.pos += 10;
-      }
-      if (Math.abs(d.pos - d.shown) > .0005) { d.shown = d.pos; d.roll.style.transform = `translate3d(0,${(-d.pos * step).toFixed(4)}em,0)`; }
-    });
+  let countTimer = 0, countUp = false;
+  function rollCount(up) {
+    if (!countEl || up === countUp) return;
+    countUp = up;
+    clearTimeout(countTimer);
+    if (!window.dfsOdometer || reduce) { drawCount(up ? finalCount : '7'); return; }
+    countTimer = setTimeout(() => {
+      // always start from a clean 7 (a roll that was cut short leaves its strips behind)
+      if (window.gsap) gsap.killTweensOf([countEl, ...countEl.querySelectorAll('*')]);
+      countEl.style.width = countEl.style.overflow = '';
+      drawCount('7');
+      if (!up) return;
+      window.dfsOdometer(countEl, finalCount, { duration: 2.2 });
+      // the box already has the final width: drop the odometer's width squeeze (it clipped the digits)
+      if (window.gsap) gsap.killTweensOf(countEl);
+      countEl.style.width = countEl.style.overflow = '';
+      // the comma waits for the thousands digit instead of floating in alone
+      const statics = countEl.querySelectorAll('[data-odometer-part="static"]');
+      if (window.gsap && statics.length) { gsap.killTweensOf(statics); gsap.fromTo(statics, { opacity: 0 }, { opacity: 1, duration: .35, delay: .3, ease: 'power2.out' }); }
+    }, up ? 380 : 700);   // up: once the words have risen; down: quietly, once the line has left
   }
 
   /* the year: 365 days × 24 hours, 7 of them on a screen (seeded, so it looks the same every visit) */
@@ -633,7 +612,7 @@ function initTime(root) {
       fillT = reduce ? target : fillT + (target - fillT) * .2;
       if (Math.abs(target - fillT) < .0005) fillT = target;
       const shown = shrink < 1 ? 0 : Math.max(1, Math.round(fillT * 365));
-      setCount(Math.max(7, shown * 7));             // seven hours for every day that's drawn: the number always matches the grid
+      rollCount(p >= .45);
       const orange = sm(.62, .7, p), blue = sm(.8, .92, p);
       const heat = orange * (1 - blue) * P.calmTo;         // how hectic it is right now (a little softer at night)
       // dither: nothing at first; with the orange it turns into restless noise, speeds up, shakes and closes in;

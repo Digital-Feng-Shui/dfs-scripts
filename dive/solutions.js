@@ -11,6 +11,7 @@
      Rhythms       [data-sol-rhythms]   around the real app window (main.js brings it to life): the menu bar clock
                                         reaches 21:30, Evenings switches on, the toast says what closed, and a browser
                                         that tries YouTube gets the calm page instead. Pauses while you use the app.
+   And the section after it, Who's behind it ([data-found]): see initFounders.
 
    Everything only runs while it's on screen. With reduced motion nothing plays by itself.
    ========================================================= */
@@ -32,6 +33,8 @@ export function initSolutions(root) {
   if (tinko) initTinko(tinko);
   const rhythms = root.querySelector('[data-sol-rhythms]');
   if (rhythms) initRhythms(rhythms);
+  const found = document.querySelector('[data-found]');
+  if (found) initFounders(found);
 }
 
 /* ---------------------------------------------------------
@@ -841,6 +844,69 @@ function initRhythms(host) {
 }
 
 /* ---------------------------------------------------------
+   Who's behind it ([data-found], the section after this one): "Made By People Who Needed It First", in three
+   versions to choose from; the two that aren't picked go.
+     A  [data-found-film]  the founder film's frame: on the way in it opens from a portrait-sized window to the
+                           full frame, the photo settling as it does. Until the film is there, play says it's coming.
+     B  the Fundamentals page's "Your Instructor" block, with a play button (main.js does the pixel reveal).
+     C  [data-found-duo]   the two ends: they come in from the sides, the line between them draws.
+   --------------------------------------------------------- */
+function initFounders(host) {
+  // A: follows the scroll, only while it's on screen
+  const film = host.querySelector('[data-found-film]');
+  if (film) {
+    const img = film.querySelector('img');
+    let on = false, raf = 0, last = -1;
+    const set = e => {
+      // from just the portrait (its blocky cut-out on the page, like B) to the whole frame, going dark around it
+      const k = 1 - e, W = film.clientWidth;
+      const t = img ? img.offsetTop * k : 0, l = img ? img.offsetLeft * k : 0, r = img ? (W - img.offsetLeft - img.offsetWidth) * k : 0;
+      film.style.clipPath = `inset(${t.toFixed(1)}px ${r.toFixed(1)}px 0px ${l.toFixed(1)}px round ${(4 * e).toFixed(1)}px)`;
+      film.style.setProperty('--open', e.toFixed(3));
+      if (img) img.style.transform = `scale(${(1.05 - .05 * e).toFixed(4)})`;
+      film.classList.toggle('is-open', e > .85);
+    };
+    addEventListener('resize', () => { last = -1; if (reduce) set(1); });
+    const frame = () => {
+      raf = 0; if (!on) return;
+      const r = film.getBoundingClientRect(), vh = innerHeight;
+      // 0 while the frame's top is at the bottom of the screen, 1 once its middle is a little above the middle
+      const p = Math.max(0, Math.min(1, (vh - r.top) / (vh * .5 + r.height * .62)));
+      const e = 1 - Math.pow(1 - p, 3);
+      if (Math.abs(e - last) > .0005) { last = e; set(e); }
+      raf = requestAnimationFrame(frame);
+    };
+    if (reduce) set(1);
+    else { set(0); watch(film, v => { on = v; if (on && !raf) raf = requestAnimationFrame(frame); }, '10% 0px'); }
+  }
+
+  // C: once, on the way in
+  const duo = host.querySelector('[data-found-duo]');
+  if (duo) {
+    if (reduce) duo.classList.add('is-in');
+    else {
+      const io = new IntersectionObserver(es => { if (es[0].isIntersecting) { duo.classList.add('is-in'); io.disconnect(); } }, { threshold: .3 });
+      io.observe(duo);
+    }
+  }
+
+  // B's circles turn like on the Fundamentals page (Webflow wouldn't take the rotate360 attribute here)
+  if (!reduce && window.gsap) host.querySelectorAll('.instructor_circle:not([rotate360])').forEach(el => gsap.to(el, { rotation: 360, repeat: -1, ease: 'none', duration: 40, transformOrigin: 'center center' }));
+
+  // there's no film yet: play says so, for a moment
+  host.querySelectorAll('[data-found-play]').forEach(b => {
+    b.setAttribute('role', 'button'); if (!b.hasAttribute('href')) b.setAttribute('tabindex', '0');
+    let t = 0;
+    const soon = e => {
+      e.preventDefault();
+      b.classList.add('is-soon'); clearTimeout(t); t = setTimeout(() => b.classList.remove('is-soon'), 2400);
+    };
+    b.addEventListener('click', soon);
+    b.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') soon(e); });
+  });
+}
+
+/* ---------------------------------------------------------
    styles
    --------------------------------------------------------- */
 function injectSolCSS() {
@@ -1119,6 +1185,56 @@ function injectSolCSS() {
 .dfs-night .rs-browser{background:#1b2236}.dfs-night .rs-bbar{background:#232b42;color:#ecebe8;border-color:rgba(255,255,255,.08)}.dfs-night .rs-btab,.dfs-night .rs-baddr{background:#2b3450}.dfs-night .rs-bcaret{background:#ecebe8}.dfs-night .rs-bstart{color:#ecebe8}.dfs-night .rs-bstart i{background:#2b3450}
 .dfs-night .rs-calm{color:#f1ede2}.dfs-night .rs-calm-chip{color:#7fd0ff;background:rgba(29,171,250,.18)}.dfs-night .rs-calm::before{background:radial-gradient(circle at 50% 50%,rgba(14,22,40,.9),rgba(14,22,40,.55) 60%)}
 @media (max-width:767px){.rs-toast{left:0;width:19em;font-size:.9em}.rs-browser{right:0;width:21em}}
+/* Who's behind it: under the solutions' side lines (they're fixed, in the section above), the same band labels */
+[data-found]{z-index:1}
+[data-found] .sol_band-in .stand_tag{margin-left:4rem}
+[data-found] .split_grid .divider_vertical{height:auto;align-self:stretch}
+@media (max-width:767px){[data-found] .sol_band-in .stand_tag{margin-left:2rem}}
+[data-found] .found_block{padding-left:4rem;padding-right:4rem}
+@media (max-width:767px){[data-found] .found_block{padding:2.5rem 0}}
+/* A: the film's frame, a title card until the film is there: the portrait (its own blocky cut-out) on the right,
+   the name on the left; --open (0 to 1, from the script) darkens the frame around him as it opens */
+[data-found] .found_film{will-change:clip-path;background-color:rgba(18,20,23,var(--open,1))}
+[data-found] .found_film::before{content:"";position:absolute;inset:0;opacity:calc(var(--open,1) * .06);background-image:linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px);background-size:32px 32px;background-position:-1px -1px;pointer-events:none}
+[data-found] .found_film-img{top:auto;bottom:0;left:auto;right:8%;width:auto;height:92%;aspect-ratio:763/936;object-fit:contain;transform-origin:50% 100%;will-change:transform}
+[data-found] .found_film .found_play{left:70.9%;top:54%}
+[data-found] .found_film-shade{opacity:var(--open,1);background:linear-gradient(180deg,rgba(14,13,12,.3),rgba(14,13,12,0) 25%,rgba(14,13,12,0) 60%,rgba(14,13,12,.55))}
+[data-found] .found_film-who{left:6%;bottom:30%}
+[data-found] .found_film-name{font-size:clamp(1.6rem,3.2vw,2.75rem)}
+@media (max-width:767px){[data-found] .found_film{aspect-ratio:4/5}[data-found] .found_film-img{right:auto;left:13.3%;height:72%}
+  [data-found] .found_film .found_play{left:50%;top:62%}[data-found] .found_film-who{left:1rem;bottom:3rem}[data-found] .found_film-name{font-size:1.4rem}}
+[data-found] .split_section .text-style-paragraph+.text-style-paragraph{margin-top:1rem}
+/* (the Fundamentals page hides its "Your Instructor" heading on smaller screens; this one keeps it) */
+@media (max-width:991px){[data-found] .heading-style-h4.is-rimbo{display:block}}
+[data-found] .found_film-tag,[data-found] .found_film-who,[data-found] .found_film-bar{opacity:0;transform:translateY(8px);transition:opacity .6s ${EASE},transform .6s ${EASE}}
+[data-found] .found_film.is-open .found_film-tag,[data-found] .found_film.is-open .found_film-who,[data-found] .found_film.is-open .found_film-bar{opacity:1;transform:none}
+[data-found] .found_film.is-open .found_film-who{transition-delay:.08s}[data-found] .found_film.is-open .found_film-bar{transition-delay:.16s}
+[data-found] .found_film-tag{-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+[data-found] .found_film-name{font-family:var(--_typography---font-styles--heading,serif)}
+/* the play button (all three) */
+[data-found] .found_play{color:#fff;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);transition:transform .5s ${EASE},background-color .3s ease,border-color .3s ease;text-decoration:none}
+[data-found] .found_play svg{margin-left:4px}
+[data-found] .found_play:hover{transform:scale(1.08);background-color:rgba(251,247,238,.32);border-color:rgba(255,255,255,.8)}
+[data-found] .found_play:focus-visible{outline:2px solid #0297db;outline-offset:3px}
+[data-found] .found_play::after{content:"Film coming soon";position:absolute;top:calc(100% + .75rem);left:50%;transform:translate(-50%,4px);white-space:nowrap;padding:.4rem .6rem;border-radius:2px;background:#16181d;color:#fbf7ee;font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;opacity:0;pointer-events:none;transition:opacity .3s ease,transform .3s ${EASE}}
+[data-found] .found_play.is-soon::after{opacity:1;transform:translate(-50%,0)}
+/* B: the co-founders, as the instructor block's own tags, in a row */
+[data-found] .found_team-row{gap:.5rem}
+[data-found] .found_team-row .instructor_tag{position:relative;inset:auto;margin:0}
+[data-found] .found_todo-tag{background:transparent;color:inherit;box-shadow:inset 0 0 0 1px var(--brand-colors--dark-bage)}
+[data-found] .found_todo{opacity:.55;border-bottom:1px dashed currentColor}
+/* C: the two ends */
+[data-found] .found_mid{justify-self:center}
+[data-found] .found_mid-line{background:var(--brand-colors--dark-bage);transform:scaleY(0);transition:transform 1s ${EASE} .35s}
+[data-found] .found_mid-line:first-child{transform-origin:top}[data-found] .found_mid-line:last-child{transform-origin:bottom}
+[data-found] .found_mid-text{opacity:0;transition:opacity .8s ease .7s}
+[data-found] .found_side{opacity:0;transition:opacity .9s ${EASE},transform 1.1s ${EASE}}
+[data-found] [data-found-side=left]{transform:translateX(-3rem)}[data-found] [data-found-side=right]{transform:translateX(3rem)}
+[data-found] .found_duo.is-in .found_side{opacity:1;transform:none}
+[data-found] .found_duo.is-in .found_mid-line{transform:none}[data-found] .found_duo.is-in .found_mid-text{opacity:1}
+[data-found] .found_photo.is-empty{box-shadow:inset 0 0 0 1px var(--brand-colors--dark-bage);background-image:linear-gradient(var(--brand-colors--dark-bage) 1px,transparent 1px),linear-gradient(90deg,var(--brand-colors--dark-bage) 1px,transparent 1px);background-size:26px 26px;background-position:-1px -1px}
+[data-found] .found_photo.is-empty .stand_tag{padding:.4rem .6rem;background:var(--brand-colors--light-bage)}
+@media (max-width:767px){[data-found] [data-found-side]{transform:translateY(1.5rem)}[data-found] .found_photo{width:15rem;height:18.5rem}}
 `;
   document.head.append(s);
 }

@@ -1018,10 +1018,19 @@ function initSol(root) {
   // scroll, so the site slides over it quickly
   const lines = root.querySelector('[data-sol-lines]');
   const behind = document.querySelector('[data-mission-sticky]');
+  // the section after this one opens on a full-width field that this one slides off ([data-found-field], see
+  // dive/solutions.js): there the lines stop at this section's bottom edge, and come back once the field has gone by
+  const field = document.querySelector('[data-found-field]');
   let last = '';
   function handover() {
-    const top = root.getBoundingClientRect().top, vh = innerHeight;
-    const clip = `inset(${Math.max(0, Math.min(vh, top)).toFixed(1)}px 0 0 0)`;
+    const r = root.getBoundingClientRect(), top = r.top, vh = innerHeight;
+    let t = Math.max(0, Math.min(vh, top)), b = 0;
+    if (field) {
+      b = Math.max(0, Math.min(vh, vh - r.bottom));
+      const fb = field.getBoundingClientRect().bottom;
+      if (fb < vh) { t = Math.max(0, fb); b = 0; }
+    }
+    const clip = `inset(${t.toFixed(1)}px 0 ${b.toFixed(1)}px 0)`;
     if (lines && clip !== last) { last = clip; lines.style.clipPath = clip; }
     if (behind && !reduce) { const d = Math.max(0, Math.min(vh, vh - top)); behind.style.transform = d > 0 && d < vh ? `translate3d(0,${(d * .7).toFixed(1)}px,0)` : ''; }
     requestAnimationFrame(handover);

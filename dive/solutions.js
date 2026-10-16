@@ -844,17 +844,15 @@ function initRhythms(host) {
 }
 
 /* ---------------------------------------------------------
-   Who's behind it ([data-found], the section after this one): "Made By People Who Needed It First", in versions to
-   choose from (the ones that aren't picked go). A is the founders film, which doesn't exist yet, in three takes:
-     A1 [data-found-bar]    lights down: a black bar right across that opens from a line as it comes up, film grain,
-                            a soft light that follows the pointer.
-     A2 [data-found-field]  the box opens: the dive's dither comes back as a field; the field holds still (sticky)
-                            while a small box, like the dive's Continue box, opens up into the player.
-     A3 [data-found-swirl]  back into the swirl: the dive's dithered swirl in a black bar; hovering play pulls it
-                            faster, play opens the player out of the button (Esc or the cross closes it).
-     B  the Fundamentals page's "Your Instructor" block, with a play button (main.js does the pixel reveal).
-     C  [data-found-duo]    the two ends: they come in from the sides, the line between them draws.
-   Until the film is there, play says it's coming.
+   Who's behind it ([data-found], the section after this one): "Made By People Who Needed It First".
+     [data-found-field]   the dive's dither comes back as a field under the page. The solutions slide off over it, the
+                          way they came in over the mission (it moves at a third of the scroll while their bottom edge
+                          crosses the screen; the side lines stop at that edge, see dive.js). Then it holds still
+                          (sticky): the heading steps aside and a small box, like the dive's Continue box, opens up
+                          into the founders film's player. Until the film is there, play says it's coming.
+     [data-found-parked]  B and C, hidden for now (Rim may go over them with Thomas):
+       B  the Fundamentals page's "Your Instructor" block, with a play button (main.js does the pixel reveal).
+       C  [data-found-duo]  the two ends: they come in from the sides, the line between them draws.
    --------------------------------------------------------- */
 const PAPER = 'https://cdn.jsdelivr.net/npm/@paper-design/shaders@0.0.81/+esm';   // the dive's Paper Shaders (already loaded)
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -880,146 +878,54 @@ async function dither(host, uniforms, speed, pal) {
   return { setSpeed: s => { speed = s; go(); } };
 }
 
-// fn(e) as el comes up the screen: e goes from 0 (its top at the bottom edge) to 1 (its middle at `at` of the screen)
-function scrub(el, fn, at = .55) {
-  if (reduce) return fn(1);
-  let on = false, raf = 0, last = -1;
-  const frame = () => {
-    raf = 0; if (!on) return;
-    const r = el.getBoundingClientRect(), vh = innerHeight;
-    const e = 1 - Math.pow(1 - Math.max(0, Math.min(1, (vh - r.top) / (vh * (1 - at) + r.height / 2))), 3);
-    if (Math.abs(e - last) > .0005) { last = e; fn(e); }
-    raf = requestAnimationFrame(frame);
-  };
-  fn(0);
-  watch(el, v => { on = v; if (on && !raf) raf = requestAnimationFrame(frame); }, '10% 0px');
-  addEventListener('resize', () => { last = -1; });
-}
-
 // the heading's words rise in (the dive's own word boxes)
 function riseWords(node) {
   const text = node.textContent.trim(); node.setAttribute('aria-label', text);
   node.innerHTML = `<span class="dive-txt" aria-hidden="true">${text.split(/\s+/).map((w, i) => `<span class="dive-w"><span class="dive-wi" style="transition-delay:${reduce ? 0 : i * 70}ms">${w}</span></span>`).join(' ')}</span>`;
 }
 
-// one tile of film grain, drawn once
-let grainURL = '';
-function grainTile() {
-  if (grainURL) return grainURL;
-  const n = 180, c = document.createElement('canvas'); c.width = c.height = n;
-  const x = c.getContext('2d'), d = x.createImageData(n, n);
-  for (let i = 0; i < d.data.length; i += 4) { d.data[i] = d.data[i + 1] = d.data[i + 2] = Math.random() * 255 | 0; d.data[i + 3] = 255; }
-  x.putImageData(d, 0, 0);
-  return (grainURL = c.toDataURL());
-}
-
-// --mx/--my on target follow the pointer over el, eased (where the light falls)
-function follow(el, target) {
-  if (reduce || !matchMedia('(hover: hover) and (pointer: fine)').matches) return;
-  let tx = 50, ty = 45, x = 50, y = 45, raf = 0;
-  const step = () => {
-    x += (tx - x) * .08; y += (ty - y) * .08;
-    target.style.setProperty('--mx', x.toFixed(2) + '%'); target.style.setProperty('--my', y.toFixed(2) + '%');
-    raf = Math.abs(tx - x) + Math.abs(ty - y) > .05 ? requestAnimationFrame(step) : 0;
-  };
-  const go = () => { if (!raf) raf = requestAnimationFrame(step); };
-  el.addEventListener('pointermove', e => { const r = el.getBoundingClientRect(); tx = (e.clientX - r.left) / r.width * 100; ty = (e.clientY - r.top) / r.height * 100; go(); });
-  el.addEventListener('pointerleave', () => { tx = 50; ty = 45; go(); });
-}
-
 function initFounders(host) {
-  // A1: the lights go down
-  const bar = host.querySelector('[data-found-bar]');
-  if (bar) {
-    const spot = document.createElement('div'); spot.className = 'found_spot';
-    const grain = document.createElement('div'); grain.className = 'found_grain'; grain.style.backgroundImage = `url(${grainTile()})`;
-    [spot, grain].forEach(n => n.setAttribute('aria-hidden', 'true'));
-    bar.prepend(spot, grain);
-    const rise = bar.querySelector('[data-found-rise]');
-    if (rise) riseWords(rise);
-    scrub(bar, e => {
-      bar.style.clipPath = e >= 1 ? '' : `inset(${(50 * (1 - e)).toFixed(2)}% 0)`;
-      bar.classList.toggle('is-open', e > .8);
-      if (rise) rise.classList.toggle('dive-in', e > .8);
-    });
-    follow(bar, spot);
-  }
-
-  // A2: the box opens
   const field = host.querySelector('[data-found-field]');
   if (field) {
+    const sticky = field.querySelector('.found_field-sticky') || field;
     const shader = field.querySelector('[data-found-shader]'), box = field.querySelector('[data-found-box]');
+    const rise = field.querySelector('[data-found-rise]'), sol = document.querySelector('[data-sol]');
     if (shader) dither(shader, { u_shape: 2, u_scale: .7 }, .35, () => isNight() ? ['#0e1628', '#46557c'] : ['#f1ede2', '#c2b9aa']);
-    if (box) {
-      // the box itself grows (so its glass edge and blur go along), from the small label to the player's size
-      let full = null;
-      const measure = () => { box.style.width = box.style.height = ''; full = [box.offsetWidth, box.offsetHeight]; };
-      const set = e => {
-        if (!full) measure();
-        const [W, H] = full, w0 = Math.min(W, 250), h0 = 52;
-        box.style.width = (w0 + (W - w0) * e).toFixed(1) + 'px';
-        box.style.height = (h0 + (H - h0) * e).toFixed(1) + 'px';
-        box.style.borderRadius = (4 + 2 * e).toFixed(1) + 'px';
-        box.style.setProperty('--open', e.toFixed(3));
-        // it turns into a screen early on, so the growing box reads as the player coming, not as grey glass
-        box.style.setProperty('--dark', smooth(.05, .45, e).toFixed(3));
-        box.classList.toggle('is-open', e > .75);
+    if (rise) riseWords(rise);
+    // the box grows (so its glass edge and blur go along), from the small label to the player's size; --open is how far
+    // it's open (the heading steps aside with it), --dark how far it's the player (early, so it reads as a screen coming)
+    let full = null;
+    const open = e => {
+      sticky.style.setProperty('--open', e.toFixed(3));
+      sticky.style.setProperty('--dark', smooth(.05, .45, e).toFixed(3));
+      if (!box) return;
+      if (!full) { box.style.width = box.style.height = ''; full = [box.offsetWidth, box.offsetHeight]; }
+      const [W, H] = full, w0 = Math.min(W, 250), h0 = 52;
+      box.style.width = (w0 + (W - w0) * e).toFixed(1) + 'px';
+      box.style.height = (h0 + (H - h0) * e).toFixed(1) + 'px';
+      box.style.borderRadius = (4 + 2 * e).toFixed(1) + 'px';
+      box.classList.toggle('is-open', e > .75);
+    };
+    if (reduce) { open(1); if (rise) rise.classList.add('dive-in'); }
+    else {
+      let on = false, raf = 0, lastE = -1, lastY = '';
+      const frame = () => {
+        raf = 0; if (!on) return;
+        const vh = innerHeight, r = field.getBoundingClientRect();
+        // the hand-over: while the solutions' bottom edge crosses the screen the field lags behind, at a third of the scroll
+        const sb = sol ? Math.max(0, Math.min(vh, sol.getBoundingClientRect().bottom)) : 0;
+        const ty = sb > 0 ? `translate3d(0,${(-.7 * sb).toFixed(1)}px,0)` : '';
+        if (ty !== lastY) { lastY = ty; sticky.style.transform = ty; }
+        if (rise) rise.classList.toggle('dive-in', sb < vh * .55);
+        // then, while it holds still: a little in, the box starts opening; at 70% through it's the player
+        const e = smooth(.08, .7, -r.top / Math.max(1, r.height - vh));
+        if (Math.abs(e - lastE) > .0005) { lastE = e; open(e); }
+        raf = requestAnimationFrame(frame);
       };
-      if (reduce) { box.style.setProperty('--open', 1); box.style.setProperty('--dark', 1); box.classList.add('is-open'); }
-      else {
-        // while the field holds still: a little in, it starts opening; at 70% through it's the player
-        let on = false, raf = 0, last = -1;
-        const frame = () => {
-          raf = 0; if (!on) return;
-          const r = field.getBoundingClientRect();
-          const e = smooth(.08, .7, -r.top / Math.max(1, r.height - innerHeight));
-          if (Math.abs(e - last) > .0005) { last = e; set(e); }
-          raf = requestAnimationFrame(frame);
-        };
-        set(0);
-        watch(field, v => { on = v; if (on && !raf) raf = requestAnimationFrame(frame); });
-        addEventListener('resize', () => { full = null; last = -1; });
-      }
-    }
-  }
-
-  // A3: back into the swirl
-  const swirl = host.querySelector('[data-found-swirl]');
-  if (swirl) {
-    const shader = swirl.querySelector('[data-found-shader]');
-    let fx = null;
-    const REST = .5, PULL = 1.8, CALM = .15;
-    if (shader) dither(shader, { u_shape: 6, u_scale: .9 }, REST, () => ['#05070d', '#34405e']).then(f => { fx = f; });
-    const rise = swirl.querySelector('[data-found-rise]');
-    if (rise) {
-      riseWords(rise);
-      const io = new IntersectionObserver(es => { if (es[0].isIntersecting) { rise.classList.add('dive-in'); io.disconnect(); } }, { threshold: .4 });
-      io.observe(rise);
-    }
-    const open = swirl.querySelector('[data-found-open]'), screen = swirl.querySelector('[data-found-screen]'), close = swirl.querySelector('[data-found-close]');
-    if (open && screen) {
-      let playing = false;
-      // the screen grows out of the play button and folds back into it
-      const fromButton = () => {
-        const s = screen.getBoundingClientRect(), b = open.getBoundingClientRect();
-        return `inset(${(b.top - s.top).toFixed(1)}px ${(s.right - b.right).toFixed(1)}px ${(s.bottom - b.bottom).toFixed(1)}px ${(b.left - s.left).toFixed(1)}px round ${(b.height / 2).toFixed(1)}px)`;
-      };
-      const show = on => {
-        playing = on;
-        if (on) { screen.style.transition = 'none'; screen.style.clipPath = fromButton(); screen.offsetWidth; screen.style.transition = ''; screen.style.clipPath = 'inset(0px round 6px)'; }
-        else screen.style.clipPath = fromButton();
-        swirl.classList.toggle('is-playing', on);
-        screen.setAttribute('aria-hidden', String(!on));
-        if (fx) fx.setSpeed(on ? CALM : REST);
-        (on ? close : open)?.focus({ preventScroll: true });
-      };
-      open.setAttribute('role', 'button');
-      open.addEventListener('click', e => { e.preventDefault(); show(true); });
-      if (close) { close.setAttribute('role', 'button'); close.addEventListener('click', e => { e.preventDefault(); show(false); }); }
-      document.addEventListener('keydown', e => { if (e.key === 'Escape' && playing) show(false); });
-      // hovering play pulls the swirl in
-      open.addEventListener('pointerenter', () => { if (fx && !playing) fx.setSpeed(PULL); });
-      open.addEventListener('pointerleave', () => { if (fx && !playing) fx.setSpeed(REST); });
+      if (sol) sticky.style.transform = `translate3d(0,${(-.7 * innerHeight).toFixed(1)}px,0)`;
+      open(0);
+      watch(field, v => { on = v; if (on && !raf) raf = requestAnimationFrame(frame); });
+      addEventListener('resize', () => { full = null; lastE = -1; lastY = ''; });
     }
   }
 
@@ -1034,7 +940,7 @@ function initFounders(host) {
   }
 
   // B's circles turn like on the Fundamentals page (Webflow wouldn't take the rotate360 attribute here)
-  if (!reduce && window.gsap) host.querySelectorAll('.instructor_circle:not([rotate360])').forEach(el => gsap.to(el, { rotation: 360, repeat: -1, ease: 'none', duration: 40, transformOrigin: 'center center' }));
+  if (!reduce && window.gsap) host.querySelectorAll('.instructor_circle:not([rotate360])').forEach(el => !el.closest('[data-found-parked]') && gsap.to(el, { rotation: 360, repeat: -1, ease: 'none', duration: 40, transformOrigin: 'center center' }));
 
   // there's no film yet: play says so, for a moment
   host.querySelectorAll('[data-found-play]').forEach(b => {
@@ -1328,10 +1234,9 @@ function injectSolCSS() {
 .dfs-night .rs-browser{background:#1b2236}.dfs-night .rs-bbar{background:#232b42;color:#ecebe8;border-color:rgba(255,255,255,.08)}.dfs-night .rs-btab,.dfs-night .rs-baddr{background:#2b3450}.dfs-night .rs-bcaret{background:#ecebe8}.dfs-night .rs-bstart{color:#ecebe8}.dfs-night .rs-bstart i{background:#2b3450}
 .dfs-night .rs-calm{color:#f1ede2}.dfs-night .rs-calm-chip{color:#7fd0ff;background:rgba(29,171,250,.18)}.dfs-night .rs-calm::before{background:radial-gradient(circle at 50% 50%,rgba(14,22,40,.9),rgba(14,22,40,.55) 60%)}
 @media (max-width:767px){.rs-toast{left:0;width:19em;font-size:.9em}.rs-browser{right:0;width:21em}}
-/* Who's behind it: the solutions' side lines (fixed, in the section above) show through where it's see-through and stop
-   under the full-width A bars; the same band labels */
-[data-found],[data-found] .divider_horizontal{background-color:transparent}
-[data-found]{z-index:3}
+/* Who's behind it: under the solutions, which slide off over it (their shadow on both edges now) */
+[data-found]{z-index:1;padding-top:0}
+[data-sol]{box-shadow:0 -40px 80px -20px rgba(5,7,13,.35),0 40px 80px -20px rgba(5,7,13,.22)}
 [data-found] .sol_band-in .stand_tag{margin-left:4rem}
 [data-found] .split_grid .divider_vertical{height:auto;align-self:stretch}
 @media (max-width:767px){[data-found] .sol_band-in .stand_tag{margin-left:2rem}}
@@ -1340,19 +1245,11 @@ function injectSolCSS() {
 [data-found] .split_section .text-style-paragraph+.text-style-paragraph{margin-top:1rem}
 /* (the Fundamentals page hides its "Your Instructor" heading on smaller screens; this one keeps it) */
 @media (max-width:991px){[data-found] .heading-style-h4.is-rimbo{display:block}}
-/* A1: lights down */
-[data-found] .found_bar{will-change:clip-path}
-[data-found] .found_spot{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at var(--mx,50%) var(--my,45%),rgba(241,237,226,.14),rgba(241,237,226,.04) 28%,transparent 55%);animation:found-flicker 4.2s infinite}
-[data-found] .found_grain{position:absolute;inset:-60%;opacity:.075;pointer-events:none;animation:found-grain .6s steps(6) infinite}
-@keyframes found-grain{0%{transform:translate(0,0)}17%{transform:translate(-6%,4%)}33%{transform:translate(5%,-7%)}50%{transform:translate(-3%,8%)}67%{transform:translate(8%,2%)}83%{transform:translate(-8%,-4%)}100%{transform:translate(0,0)}}
-@keyframes found-flicker{0%,100%{opacity:1}41%{opacity:1}42%{opacity:.82}44%{opacity:1}70%{opacity:.93}72%{opacity:1}}
-[data-found] .found_bar .found_kicker,[data-found] .found_bar .found_play{opacity:0;transform:translateY(10px);transition:opacity .7s ${EASE} .25s,transform .7s ${EASE} .25s}
-[data-found] .found_bar .found_play{transition-delay:.45s}
-[data-found] .found_bar.is-open .found_kicker{opacity:.7;transform:none}[data-found] .found_bar.is-open .found_play{opacity:1;transform:none}
-[data-found] .found_bar.is-open .found_play:hover{transform:scale(1.08);transition-delay:0s}
+/* the field: the heading above the box steps aside as the box opens; the glass of the dive's Continue box turns dark
+   into the player (--open, --dark from the script) */
+[data-found] .found_field-sticky{background:var(--brand-colors--light-bage);will-change:transform}
+[data-found] .found_field-head{opacity:calc(1 - var(--open,0) * 3.5);transform:translateY(calc(var(--open,0) * -4rem));pointer-events:none}
 [data-found] .found_bar-title{font-size:clamp(2.6rem,6vw,5rem)}
-/* A2: the box opens (the glass of the dive's Continue box; --open is how far it's open, --dark how far it's the player) */
-[data-found] .found_field-sticky{background:var(--brand-colors--light-bage)}
 [data-found] .found_box{width:min(76rem,88vw,calc(78vh * 16 / 9));-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);overflow:hidden}
 [data-found] .found_box::before,[data-found] .found_box::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none}
 [data-found] .found_box::before{background:rgba(241,237,226,.72);box-shadow:inset 0 0 0 1px rgba(61,58,53,.2),inset 0 1px 0 rgba(255,255,255,.55);opacity:calc(1 - var(--dark,0))}
@@ -1364,19 +1261,8 @@ function injectSolCSS() {
 [data-found] .found_box.is-open .found_box-player{opacity:1}
 [data-found] .found_box:not(.is-open) .found_box-player{pointer-events:none}
 @media (max-width:767px){[data-found] .found_box{aspect-ratio:4/5;width:88vw}}
-/* A3: back into the swirl */
-[data-found] .found_bar.is-swirl .found_bar-in{transition:opacity .5s ease,transform .8s ${EASE}}
-[data-found] .found_bar.is-swirl.is-playing .found_bar-in{opacity:0;transform:scale(.96);pointer-events:none}
-[data-found] .found_bar.is-swirl .found_kicker,[data-found] .found_bar.is-swirl .found_play{opacity:1;transform:none}
-[data-found] .found_bar.is-swirl .found_play:hover{transform:scale(1.08)}
-[data-found] .found_screen{width:min(64rem,88vw,calc(66vh * 16 / 9));transform:translate(-50%,-50%);visibility:hidden;clip-path:inset(50% round 50%);box-shadow:0 0 0 1px rgba(241,237,226,.12);transition:clip-path .9s ${EASE},visibility 0s .9s}
-[data-found] .found_bar.is-playing .found_screen{visibility:visible;transition:clip-path .9s ${EASE}}
-[data-found] .found_close{text-decoration:none;transition:background-color .3s ease}
-[data-found] .found_close:hover{background-color:rgba(241,237,226,.12)}
-[data-found] .found_close:focus-visible{outline:2px solid #0297db;outline-offset:3px}
-/* on a dark ground the "coming soon" note is light */
-[data-found] .found_bar .found_play::after,[data-found] .found_box .found_play::after{background:#f1ede2;color:#16181d}
-@media (prefers-reduced-motion:reduce){[data-found] .found_grain,[data-found] .found_spot{animation:none}}
+/* on the dark player the "coming soon" note is light */
+[data-found] .found_box .found_play::after{background:#f1ede2;color:#16181d}
 /* the play button (everywhere) */
 [data-found] .found_play{color:#fff;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);transition:transform .5s ${EASE},background-color .3s ease,border-color .3s ease;text-decoration:none}
 [data-found] .found_play svg{margin-left:4px}

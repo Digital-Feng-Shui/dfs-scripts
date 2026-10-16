@@ -288,6 +288,9 @@ function init(root) {
     return `rgba(${hex3(hex).join(',')},.72)`;
   }
   let navTl = null;
+  // the menu opened while the sting still plays: the sting jumps to its end first (capture, so before Osmo's own click),
+  // so the menu always opens from the settled bar (two width tweens at once made the box jump)
+  if (navToggle) navToggle.addEventListener('click', () => { if (navShown && navTl && navTl.isActive()) navTl.progress(1); }, true);
   function showNav(show) {
     if (!nav || !navInner || show === navShown) return;
     navShown = show;
@@ -337,7 +340,8 @@ function init(root) {
     // or was cut short (a forward tick already ends there)
     const settle = resetStar => {
       G.set(parts, { clearProps: 'transform,opacity' });
-      if (stingW) { G.set(navInner, { width: stingW }); stingW = 0; }
+      if (stingW && nav.getAttribute('data-bottom-nav-open') !== 'true') G.set(navInner, { width: stingW });
+      stingW = 0;
       G.set(navBar, { clearProps: 'width' });
       if (resetStar && starRest && sp) { G.set(sp.ring, { rotation: starRest.r, ...STAR_ORIGIN }); G.set(sp.inner, { rotation: starRest.i, ...STAR_ORIGIN }); }
       starRest = null;
@@ -376,10 +380,14 @@ function init(root) {
         .to({ k: 0 }, { k: 1, duration: 1.2, ease: 'none', onUpdate() { scramble(this.targets()[0].k); }, onComplete: unscramble }, 2.05)
         .to(navToggle, { opacity: 1, scale: 1, duration: .45, ease: 'back.out(1.8)' }, 2.3)
         .call(() => settle(false), null, 3.3);
+    } else if (wasOpen) {
+      // with the menu open it folds shut first (Osmo's close half, 0.75 s); the way back starts from the closed bar,
+      // measured once it's there (measured now, the open menu's height became the square and the box grew wide)
+      navTl = G.timeline().call(() => { if (navShown === false) { navShown = null; showNav(false); } }, null, .8);
     } else {
       // the same, played back: the button shrinks away, the name scrambles back into noise, the box folds into the square
       // while the star slides to the middle, the star ticks back and fades, the square grows into "Continue"
-      const d = wasOpen ? .75 : 0;   // with the menu open it folds shut first
+      const d = 0;
       const ir = navInner.getBoundingClientRect(), lr = navIcon ? navIcon.getBoundingClientRect() : ir;
       const W = ir.width, sq = ir.height, dx = (ir.left + ir.width / 2) - (lr.left + lr.width / 2);
       const back = { width: cueSize ? cueSize.w : 'auto', height: cueSize ? cueSize.h : 'auto', y: 0, borderRadius: 0, boxShadow: lineAndDrop, backgroundColor: cueBg || navGlass(), duration: .6, ease: 'osmo' };

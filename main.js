@@ -3295,8 +3295,18 @@
           open(key, true);
         });
       });
+      // The tab blocks have ids, so "#tools" also makes the browser jump past the menu: keep the page at the top
+      function toTop() {
+        window.scrollTo(0, 0);
+        if (window.lenis && typeof window.lenis.scrollTo === 'function') window.lenis.scrollTo(0, { immediate: true });
+      }
       open((location.hash || '').replace('#', ''));
-      window.addEventListener('hashchange', () => open((location.hash || '').replace('#', '')));
+      if (location.hash) {
+        toTop();
+        if (document.readyState === 'complete') setTimeout(toTop, 50);
+        else window.addEventListener('load', () => setTimeout(toTop, 0), { once: true });
+      }
+      window.addEventListener('hashchange', () => { open((location.hash || '').replace('#', '')); toTop(); });
     }
 
     // ---- NAME ----

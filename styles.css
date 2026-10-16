@@ -891,3 +891,5 @@ html:not([data-tinko="owned"]) .tinko-gate_content{filter:blur(6px);opacity:.6;u
 
 /* Dashboard: a course or tool card that's coming soon isn't a link (no hover arrow, no pointer) */
 .course_card:has(.coming_soon) .cover_course-card{pointer-events:none;cursor:default}
+/* Tool card icons share one height, so the names on the cards line up (the seahorse is tall and narrow) */
+svg.dash-tool_icon{width:auto;height:2.75rem}

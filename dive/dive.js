@@ -1057,20 +1057,12 @@ function initSol(root) {
 function injectCSS() {
   if (document.getElementById('dive-css')) return;
   const css = `
-[data-dive]{background:var(--dive-back,#0e1628)}
-[data-dive-sticky]{background:var(--dive-back,#0e1628)}
-[data-dive-canvas]{pointer-events:none}
+/* Only what the Designer can't hold lives here: the canvases and SVGs the script makes, the word and label
+   animations, keyframes, and states the script switches. Colours, backgrounds, glass and spacing of the dive,
+   time story, stand, mission and solutions sections are on their Webflow classes (dive_*, time_*, stand_*,
+   mission_section, sol_*), using the --dive-* colour variables set above. */
 [data-dive-canvas] canvas{width:100%!important;height:100%!important;display:block}
-[data-dive-fade]{background:var(--dive-end,#05070d);opacity:0;pointer-events:none}
-[data-dive-logo]{color:var(--dive-text);pointer-events:none;will-change:transform,opacity;filter:drop-shadow(0 0 18px var(--dive-back)) drop-shadow(0 0 4px var(--dive-back))}
 [data-dive-logo] svg{display:block;width:100%;height:auto}
-[data-dive-title]{color:var(--dive-text);pointer-events:none}
-[data-dive-end]{color:var(--dive-endtext);pointer-events:none}
-[data-dive-end2]{color:var(--dive-accent);pointer-events:none}
-[data-dive-cue]{color:var(--dive-text);cursor:pointer;background:var(--dive-glass);box-shadow:inset 0 1px 0 var(--dive-glass-hi),0 12px 32px rgba(0,0,0,.14);-webkit-backdrop-filter:blur(14px) saturate(1.3);backdrop-filter:blur(14px) saturate(1.3);transition:background-color .35s ease}
-[data-dive-cue]{justify-content:center}
-[data-dive-cue]:hover{background:var(--dive-glass-hover)}
-[data-dive-cue]:focus-visible{outline:1px solid var(--dive-text);outline-offset:4px}
 .dive-roll{display:inline-grid;justify-items:center}
 .dive-roll>span{grid-area:1/1;white-space:nowrap}
 .dive-ra,.dive-rb{display:inline-block;transition:transform .55s cubic-bezier(.625,.05,0,1)}
@@ -1088,40 +1080,18 @@ function injectCSS() {
 .dive-wi{display:inline-block;transform:translateY(130%);transition:transform .8s cubic-bezier(.625,.05,0,1)}
 .dive-in .dive-wi{transform:none}
 .dive-out .dive-wi{transform:translateY(-130%)}
-[data-time]{background:var(--dive-end,#05070d);color:var(--dive-endtext,#f1ede2)}
-[data-time-sticky]{background:var(--dive-end,#05070d)}
-[data-time-canvas]{pointer-events:none;-webkit-mask-image:radial-gradient(ellipse 72% 64% at 50% 50%,transparent 42%,#000 100%);mask-image:radial-gradient(ellipse 72% 64% at 50% 50%,transparent 42%,#000 100%)}
 [data-time-canvas] canvas{width:100%!important;height:100%!important;display:block}
 [data-time-grid] canvas{display:block;margin:0 auto}
-[data-time-line],[data-time-note]{pointer-events:none}
 .time-count-box{display:inline-flex;justify-content:flex-end;vertical-align:top;white-space:nowrap}
 .time-count-box [data-odometer-part="mask"]{width:var(--time-digit,auto);text-align:center}
-[data-time-note]{opacity:.72}
-[data-stand]{background:var(--dive-end,#05070d);color:var(--dive-endtext,#f1ede2)}
 .dive-bg{position:fixed;inset:0;z-index:0;pointer-events:none;visibility:hidden}
 .dive-bg-shader{position:absolute;inset:0}
 .dive-bg-shader canvas{width:100%!important;height:100%!important;display:block}
-/* above the dither layer (a sticky element is its own stack, so it's lifted as a whole, see-through) */
-[data-time] [data-time-sticky]{z-index:1;background:transparent}
-[data-stand-pin]{position:relative;z-index:1}
-[data-mission]{background:var(--dive-end,#05070d);color:var(--dive-endtext,#f1ede2)}
-[data-mission] [data-mission-sticky]{z-index:1;background:transparent}
-[data-mission-line],[data-mission-note]{pointer-events:none}
-[data-mission-note]{opacity:.72}
-[data-sol]{box-shadow:0 -40px 80px -20px rgba(5,7,13,.35)}
-/* the homepage's split grid has a fixed height; this one grows with its content, so the middle divider stretches along */
-[data-sol] .split_grid .divider_vertical{height:auto;align-self:stretch}
-/* the band labels start where the content under them starts */
-[data-sol] .sol_band-in .stand_tag{margin-left:4rem}
-/* the Rhythms block lines up with the two blocks above it */
-[data-sol] .sol_slot-wide{padding-left:4rem;padding-right:4rem}
-@media (max-width:767px){[data-sol] .sol_band-in .stand_tag{margin-left:2rem}[data-sol] .sol_slot-wide{padding-left:2rem;padding-right:2rem}
-  [data-sol-path]{flex-wrap:wrap;gap:.6rem 1.2rem}[data-sol-path] .sol_seg{display:none}}
+@media (max-width:767px){[data-sol-path]{flex-wrap:wrap;gap:.6rem 1.2rem}[data-sol-path] .sol_seg{display:none}}
 [data-sol-path] .sol_seg{background:linear-gradient(90deg,var(--brand-colors--blue) 50%,transparent 0) 0 0/6px 2px;transform-origin:left;transform:scaleX(0);transition:transform 1.1s cubic-bezier(.625,.05,0,1)}
 [data-sol-path].is-in .sol_seg{transform:none}[data-sol-path].is-in .sol_seg:nth-of-type(4){transition-delay:.5s}
 [data-sol-rhythms] .rhythms-window{box-shadow:0 0 0 1px var(--brand-colors--dark-bage)}
 @media (max-width:767px){[data-stand-rise] .dive-txt{display:inline}}
-[data-stand-card]{background:color-mix(in srgb,currentColor 4%,transparent);border-color:color-mix(in srgb,currentColor 13%,transparent);will-change:transform}
 @media (prefers-reduced-motion: reduce){[data-dive-cue-text],[data-dive-cue-line]::after{animation:none}[data-dive-cue-line]::after{transform:scaleY(1)}.dive-wi,.dive-ra,.dive-rb{transition:none}}
 `;
   const s = document.createElement('style'); s.id = 'dive-css'; s.textContent = css; document.head.append(s);

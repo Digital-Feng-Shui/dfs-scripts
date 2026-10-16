@@ -1062,22 +1062,10 @@ function injectSolCSS() {
   if (document.getElementById('dive-sol-css')) return;
   const s = document.createElement('style'); s.id = 'dive-sol-css';
   s.textContent = `
-[data-sol] .is-sol-meta .sol_top{flex-direction:row;justify-content:space-between;align-items:flex-start;gap:1rem;opacity:1}
-/* (.sol_top's small-label look, caps and a faded grey, is for the chip, not the title beside it) */
-[data-sol] .is-sol-meta .sol_top .sol_chips{opacity:.72}
-[data-sol] .is-sol-meta .sol_top .sol_card-title{text-transform:none;letter-spacing:normal}
-/* what each one does (the site's diamond list): there while you watch the demo, in the same quiet grey as the line above it */
-[data-sol] .is-sol-meta .list_offer{margin-top:2.25rem;row-gap:1.25rem;opacity:.62}
-[data-sol] .is-sol-meta .list_offer .offer_item{gap:.85rem}
-[data-sol] .is-sol-meta .list_offer .icon_diamond{color:inherit;display:flex}[data-sol] .is-sol-meta .list_offer .icon_diamond svg{width:10px;height:10px}
-[data-sol] .is-sol-meta .list_offer .context_item{color:inherit;font-size:.75rem;line-height:1.2;letter-spacing:.04em}
-[data-sol] .is-sol-meta .list_offer+.sol_link{margin-top:2.25rem}
-/* the homepage's grid (with its blue lines) behind a demo, fading out toward the edges */
-[data-sol] .is-sol-demo{position:relative;display:flex;flex-direction:column;justify-content:center}
-[data-sol] .is-sol-demo>:not(.grid-background){position:relative;z-index:1}
-[data-sol] .is-sol-demo>.grid-background{opacity:.8;-webkit-mask-image:radial-gradient(ellipse 72% 70% at 50% 50%,#000 35%,transparent 100%);mask-image:radial-gradient(ellipse 72% 70% at 50% 50%,#000 35%,transparent 100%)}
-/* stacked (tablet and phone): every product reads text first, then its demo */
-@media (max-width:991px){[data-sol] .is-flip .is-sol-meta{order:-1}[data-sol] .is-sol-row .divider_vertical{display:none}}
+/* (the look of the solutions' text columns, lists, dividers and demo cells is on their Webflow classes and combos:
+   sol_top, sol_chips, sol_card-title, sol_link, list_offer/offer_item/icon_diamond/context_item + is-quiet,
+   divider_vertical is-sol, split_section is-sol-demo / is-sol-meta is-first, grid-background is-full is-demo) */
+[data-sol] .icon_diamond.is-quiet svg{width:10px;height:10px}
 /* the course player: the course's own classes; only the layout of this little copy and the player states
    (on the course they come with its page code) are set here */
 [data-course-demo]{position:relative;width:100%;overflow:hidden;border:1px solid var(--brand-colors--dark-bage,#dfd5c9);border-radius:4px;background:var(--brand-colors--light-bage,#fbf7ee);box-shadow:rgba(61,58,53,.08) 0 0 0 1px,rgba(61,58,53,.42) 0 40px 80px -30px;transform-style:preserve-3d;will-change:transform;-webkit-user-select:none;user-select:none}
@@ -1334,98 +1322,55 @@ function injectSolCSS() {
 .dfs-night .rs-browser{background:#1b2236}.dfs-night .rs-bbar{background:#232b42;color:#ecebe8;border-color:rgba(255,255,255,.08)}.dfs-night .rs-btab,.dfs-night .rs-baddr{background:#2b3450}.dfs-night .rs-bcaret{background:#ecebe8}.dfs-night .rs-bstart{color:#ecebe8}.dfs-night .rs-bstart i{background:#2b3450}
 .dfs-night .rs-calm{color:#f1ede2}.dfs-night .rs-calm-chip{color:#7fd0ff;background:rgba(29,171,250,.18)}.dfs-night .rs-calm::before{background:radial-gradient(circle at 50% 50%,rgba(14,22,40,.9),rgba(14,22,40,.55) 60%)}
 @media (max-width:767px){.rs-toast{left:0;width:19em;font-size:.9em}.rs-browser{right:0;width:21em}}
-/* Who's behind it: under the solutions, which slide off over it (their shadow on both edges now) */
-[data-found]{z-index:1;padding-top:0}
-[data-sol]{box-shadow:0 -40px 80px -20px rgba(5,7,13,.35),0 40px 80px -20px rgba(5,7,13,.22)}
+/* Who's behind it, the journal and the close: their look is on their Webflow classes (found_*, journal_*, close_*,
+   sol_section found_section / journal_section). Here only what the Designer can't hold: what the script moves
+   (--open, --dark, --settle and the is-open / dive-in states), ::before / ::after, the night versions of those,
+   hovers that change a child, and the Webflow form's own inner parts. */
+[data-found] .found_field-head{opacity:calc(1 - var(--open,0) * 3.5);transform:translateY(calc(var(--open,0) * -4rem))}
+[data-found] .found_box::before,[data-found] .found_box::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none}
+[data-found] .found_box::before{background:rgba(241,237,226,.72);box-shadow:inset 0 0 0 1px rgba(61,58,53,.2),inset 0 1px 0 rgba(255,255,255,.55);opacity:calc(1 - var(--dark,0))}
+[data-found] .found_box::after{background:rgba(9,10,13,.86);opacity:var(--dark,0)}
+.dfs-night [data-found] .found_box::before{background:rgba(14,22,40,.62);box-shadow:inset 0 0 0 1px rgba(241,237,226,.18),inset 0 1px 0 rgba(255,255,255,.07)}
+[data-found] .found_box-small{opacity:calc(1 - var(--open,0) * 4)}
+.dfs-night [data-found] .found_box-small{color:#f1ede2}
+[data-found] .found_box-player{opacity:0;transition:opacity .5s ease}
+[data-found] .found_box.is-open .found_box-player{opacity:1}
+[data-found] .found_box:not(.is-open) .found_box-player{pointer-events:none}
+/* the "Film coming soon" note under play */
+[data-found] .found_play::after{content:"Film coming soon";position:absolute;top:calc(100% + .75rem);left:50%;transform:translate(-50%,4px);white-space:nowrap;padding:.4rem .6rem;border-radius:2px;background:#16181d;color:#fbf7ee;font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;opacity:0;pointer-events:none;transition:opacity .3s ease,transform .3s ${EASE}}
+[data-found] .found_box .found_play::after{background:#f1ede2;color:#16181d;border-radius:99px;padding:.45rem .8rem}
+[data-found] .found_play.is-soon::after{opacity:1;transform:translate(-50%,0)}
+/* the journal covers: the shader's canvas, a hairline edge, and the lift on hover */
+[data-journal] .journal_cover canvas{position:absolute;inset:0;width:100%;height:100%}
+[data-journal] .journal_cover::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 1px rgba(61,58,53,.1);pointer-events:none}
+.dfs-night [data-journal] .journal_cover::after{box-shadow:inset 0 0 0 1px rgba(241,237,226,.12)}
+[data-journal] .journal_card:hover .journal_cover{transform:translateY(-4px)}
+[data-journal] .journal_card:hover .journal_card-title{text-decoration-color:currentColor}
+/* the close: the calm behind the words, the doors and letter coming in, the arrow on hover, the form's inner parts */
+[data-close] .close_inner::before{content:"";position:absolute;left:50%;top:50%;width:140%;height:190%;transform:translate(-50%,-50%);z-index:-1;pointer-events:none;
+  background:radial-gradient(closest-side,var(--dive-back,#f1ede2) 50%,transparent);opacity:calc(.35 + var(--settle,0) * .6)}
+[data-close] .close_doors,[data-close] .close_letter{opacity:0;transform:translateY(14px);transition:opacity .7s ${EASE},transform .7s ${EASE}}
+[data-close] .close_letter{transition-delay:.15s}
+[data-close].is-open .close_doors,[data-close].is-open .close_letter{opacity:1;transform:none}
+[data-close]:not(.is-open) .close_doors,[data-close]:not(.is-open) .close_letter{pointer-events:none}
+[data-close] .close_door:hover .close_door-arrow{transform:translateX(4px)}
+[data-close] .close_form form{display:flex;justify-content:center}
+[data-close] .close_input:-webkit-autofill,[data-close] .close_input:-webkit-autofill:focus{-webkit-text-fill-color:var(--dive-text);-webkit-box-shadow:0 0 0 100px var(--dive-back) inset;caret-color:var(--dive-text)}
+[data-close] .w-form-done,[data-close] .w-form-fail{margin-top:.25rem;padding:0;background:none;color:inherit;font-size:.82rem;text-align:center}
+/* (night.css styles every Webflow field at night and loads after the Webflow classes; the close's field keeps its own) */
+.dfs-night [data-close] .close_input{color:var(--dive-text);background-color:var(--dive-glass);border-color:var(--dive-nav-line);border-right-width:0}
+.dfs-night [data-close] .close_input::placeholder{color:var(--dive-text);opacity:.5}
+.dfs-night [data-close] .close_input:focus{border-color:color-mix(in srgb,var(--dive-text) 45%,transparent)}
+.dfs-night [data-close] .close_submit{color:var(--dive-back)}
+/* parked (hidden for now, [data-found-parked]): B, the instructor block, and C, the two ends */
 [data-found] .sol_band-in .stand_tag{margin-left:4rem}
 [data-found] .split_grid .divider_vertical{height:auto;align-self:stretch}
 @media (max-width:767px){[data-found] .sol_band-in .stand_tag{margin-left:2rem}}
 [data-found] .found_block{padding-left:4rem;padding-right:4rem}
 @media (max-width:767px){[data-found] .found_block{padding:2.5rem 0}}
 [data-found] .split_section .text-style-paragraph+.text-style-paragraph{margin-top:1rem}
-/* (the Fundamentals page hides its "Your Instructor" heading on smaller screens; this one keeps it) */
 @media (max-width:991px){[data-found] .heading-style-h4.is-rimbo{display:block}}
-/* the field: the heading above the box steps aside as the box opens; the glass of the dive's Continue box turns dark
-   into the player (--open, --dark from the script) */
-[data-found] .found_field-sticky{background:var(--brand-colors--light-bage);will-change:transform}
-[data-found] .found_field-head{opacity:calc(1 - var(--open,0) * 3.5);transform:translateY(calc(var(--open,0) * -4rem));pointer-events:none}
-[data-found] .found_bar-title{margin-bottom:0;font-size:clamp(2rem,4.2vw,3.5rem)}
-[data-found] .found_box{width:min(76rem,88vw,calc(78vh * 16 / 9));-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);overflow:hidden}
-[data-found] .found_box::before,[data-found] .found_box::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none}
-[data-found] .found_box::before{background:rgba(241,237,226,.72);box-shadow:inset 0 0 0 1px rgba(61,58,53,.2),inset 0 1px 0 rgba(255,255,255,.55);opacity:calc(1 - var(--dark,0))}
-[data-found] .found_box::after{background:rgba(9,10,13,.86);opacity:var(--dark,0)}
-.dfs-night [data-found] .found_box::before{background:rgba(14,22,40,.62);box-shadow:inset 0 0 0 1px rgba(241,237,226,.18),inset 0 1px 0 rgba(255,255,255,.07)}
-[data-found] .found_box-small{gap:.6rem;color:#3d3a35;opacity:calc(1 - var(--open,0) * 4);pointer-events:none}
-.dfs-night [data-found] .found_box-small{color:#f1ede2}
-[data-found] .found_box-player{opacity:0;transition:opacity .5s ease}
-[data-found] .found_box.is-open .found_box-player{opacity:1}
-[data-found] .found_box:not(.is-open) .found_box-player{pointer-events:none}
-@media (max-width:767px){[data-found] .found_box{aspect-ratio:4/5;width:88vw}}
-/* the player: play in the very middle, the words above it, the time bar a rounded track */
-[data-found] .found_box-text{bottom:calc(50% + 2.25rem + 1.75rem)}
-[data-found] .found_box .found_film-line{border-radius:2px}
-/* play, plainly (like a video site's): a white triangle in a soft dark circle */
-[data-found] .found_box .found_play{position:absolute;left:50%;top:50%;width:4.5rem;height:4.5rem;margin:-2.25rem 0 0 -2.25rem;border:0;border-radius:50%;
-  background:rgba(0,0,0,.45);-webkit-backdrop-filter:none;backdrop-filter:none;transition:transform .5s ${EASE},background-color .3s ease}
-[data-found] .found_box .found_play svg{width:1.2rem;height:1.35rem;margin-left:4px}
-[data-found] .found_box .found_play:hover{transform:scale(1.06);background:rgba(0,0,0,.62)}
-[data-found] .found_box .found_play:active{transform:scale(.96);transition-duration:.15s}
-/* on the dark player the "coming soon" note is light, and round like the rest */
-[data-found] .found_box .found_play::after{background:#f1ede2;color:#16181d;border-radius:99px;padding:.45rem .8rem}
-@media (max-width:767px){[data-found] .found_box-text{bottom:calc(50% + 2.25rem + 1.5rem)}}
-/* the play button (everywhere) */
-[data-found] .found_play{color:#fff;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);transition:transform .5s ${EASE},background-color .3s ease,border-color .3s ease;text-decoration:none}
 [data-found] .found_play svg{margin-left:4px}
-[data-found] .found_play:hover{transform:scale(1.08);background-color:rgba(251,247,238,.32);border-color:rgba(255,255,255,.8)}
-[data-found] .found_play:focus-visible{outline:2px solid #0297db;outline-offset:3px}
-[data-found] .found_play::after{content:"Film coming soon";position:absolute;top:calc(100% + .75rem);left:50%;transform:translate(-50%,4px);white-space:nowrap;padding:.4rem .6rem;border-radius:2px;background:#16181d;color:#fbf7ee;font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;opacity:0;pointer-events:none;transition:opacity .3s ease,transform .3s ${EASE}}
-[data-found] .found_play.is-soon::after{opacity:1;transform:translate(-50%,0)}
-/* the journal: under the solutions' side lines (which come back here); square covers with the moving dither */
-[data-journal]{z-index:1;padding-top:0;padding-bottom:0}
-[data-journal] .journal_all{white-space:nowrap}
-@media (max-width:767px){[data-journal] .journal_inner{padding-left:2rem;padding-right:2rem}}
-[data-journal] .journal_cover{transition:transform .6s ${EASE}}
-[data-journal] .journal_cover{border-radius:0}
-[data-journal] .journal_cover canvas{position:absolute;inset:0;width:100%;height:100%}
-[data-journal] .journal_cover::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 1px rgba(61,58,53,.1);pointer-events:none}
-.dfs-night [data-journal] .journal_cover::after{box-shadow:inset 0 0 0 1px rgba(241,237,226,.12)}
-[data-journal] .journal_card-title{text-transform:none;letter-spacing:normal;text-decoration:underline;text-decoration-color:transparent;text-decoration-thickness:1px;text-underline-offset:.22em;transition:text-decoration-color .3s ease}
-[data-journal] .journal_card:hover .journal_cover{transform:translateY(-4px)}
-[data-journal] .journal_card:hover .journal_card-title{text-decoration-color:currentColor}
-[data-journal] .journal_card:focus-visible{outline:2px solid #0297db;outline-offset:6px}
-[data-journal]{box-shadow:0 40px 80px -20px rgba(5,7,13,.22)}
-/* the close: the dive's colours and glass (dive.js keeps the --dive-* vars on <html>, day and night) */
-[data-close]{background:var(--dive-back,#f1ede2);color:var(--dive-text,#3d3a35);font-family:var(--_typography---font-styles--mono,monospace)}
-[data-close] .close_sticky{will-change:transform}
-[data-close] .close_inner{max-width:62rem}
-[data-close] .close_inner::before{content:"";position:absolute;left:50%;top:50%;width:140%;height:190%;transform:translate(-50%,-50%);z-index:-1;pointer-events:none;
-  background:radial-gradient(closest-side,var(--dive-back,#f1ede2) 50%,transparent);opacity:calc(.35 + var(--settle,0) * .6)}
-[data-close] .close_kicker{opacity:.72}
-[data-close] .close_title{font-family:var(--_typography---font-styles--heading,serif);font-weight:400;font-size:clamp(3.2rem,9vw,7rem);color:inherit}
-[data-close] .close_doors,[data-close] .close_letter{opacity:0;transform:translateY(14px);transition:opacity .7s ${EASE},transform .7s ${EASE}}
-[data-close] .close_letter{transition-delay:.15s}
-[data-close].is-open .close_doors,[data-close].is-open .close_letter{opacity:1;transform:none}
-[data-close]:not(.is-open) .close_doors,[data-close]:not(.is-open) .close_letter{pointer-events:none}
-[data-close] .close_door{color:var(--dive-text);background:var(--dive-glass);box-shadow:inset 0 1px 0 var(--dive-glass-hi),inset 0 0 0 1px var(--dive-nav-line),0 12px 32px rgba(0,0,0,.12);
-  -webkit-backdrop-filter:blur(14px) saturate(1.3);backdrop-filter:blur(14px) saturate(1.3);transition:background-color .35s ease,transform .5s ${EASE}}
-[data-close] .close_door:hover{background:var(--dive-glass-hover)}
-[data-close] .close_door.is-main{color:#fff;background:var(--dive-accent,#0297db);box-shadow:0 12px 32px rgba(2,151,219,.28)}
-[data-close] .close_door.is-main:hover{background:color-mix(in srgb,var(--dive-accent,#0297db) 88%,#000)}
-[data-close] .close_door-arrow{transition:transform .5s ${EASE}}
-[data-close] .close_door:hover .close_door-arrow{transform:translateX(4px)}
-[data-close] .close_door:focus-visible{outline:2px solid var(--dive-accent,#0297db);outline-offset:3px}
-[data-close] .close_letter-text{opacity:.72}
-[data-close] .close_form{display:block;margin:0}
-[data-close] .close_form form{display:flex;justify-content:center}
-[data-close] .close_input{color:var(--dive-text);background:var(--dive-glass);border:1px solid var(--dive-nav-line);border-right:0;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);font-family:inherit}
-[data-close] .close_input::placeholder{color:var(--dive-text);opacity:.5}
-/* focus: quiet, only the line gets darker (no ring) */
-[data-close] .close_input:focus,[data-close] .close_input:focus-visible{outline:0;box-shadow:none;border-color:color-mix(in srgb,var(--dive-text) 45%,transparent)}
-[data-close] .close_input:-webkit-autofill,[data-close] .close_input:-webkit-autofill:focus{-webkit-text-fill-color:var(--dive-text);-webkit-box-shadow:0 0 0 100px var(--dive-back) inset;caret-color:var(--dive-text)}
-[data-close] .close_submit:focus-visible{outline:2px solid var(--dive-accent,#0297db);outline-offset:3px}
-[data-close] .close_submit{color:var(--dive-back);background:var(--dive-text);border:0;font-family:inherit;transition:opacity .3s ease}
-[data-close] .close_submit:hover{opacity:.85}
-[data-close] .w-form-done,[data-close] .w-form-fail{margin-top:.25rem;padding:0;background:none;color:inherit;font-size:.82rem;text-align:center}
 /* B: the co-founders, as the instructor block's own tags, in a row */
 [data-found] .found_team-row{gap:.5rem}
 [data-found] .found_team-row .instructor_tag{position:relative;inset:auto;margin:0}

@@ -5331,6 +5331,25 @@
     });
     // Under the list: the version and a way to tell us anything (BetaCorner)
     var listEl = $('.rhythms-app_list');
+    // The grid's zips (GridZips): a new one every 2 to 4 s, at most three, 40% strong, only while the app is in view
+    if (listEl && gs && !reduce) {
+      var zips = make('div', 'rhythms-app_zips'), zipLive = 0, zipSeen = false;
+      listEl.insertBefore(zips, listEl.firstChild);
+      if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { zipSeen = es[0].isIntersecting; }).observe(app);
+      (function zip() {
+        setTimeout(zip, 2000 + Math.random() * 2000);
+        var w = zips.clientWidth, h = zips.clientHeight;
+        if (!zipSeen || document.hidden || zipLive >= 3 || w < 60 || h < 200) return;
+        var len = 38 + Math.random() * 58, travel = 96 + Math.random() * 160;
+        var line = make('span', 'rhythms-app_zip');
+        line.style.left = (26 * (1 + Math.floor(Math.random() * Math.max(1, Math.floor(w / 26) - 1)))) + 'px';
+        line.style.top = (Math.random() * Math.max(0, h - len - travel)) + 'px';
+        line.style.height = len + 'px';
+        zips.appendChild(line); zipLive++;
+        gs.fromTo(line, { y: 0, autoAlpha: 0 }, { y: travel, duration: 1.8 + Math.random() * 1.2, ease: 'power1.inOut',
+          keyframes: { autoAlpha: [0, 0.4, 0.4, 0] }, onComplete: function () { line.remove(); zipLive--; } });
+      })();
+    }
     if (listEl) listEl.appendChild(make('div', 'rhythms-app_beta', '<span>BETA V0.75</span><span class="rhythms-app_beta-link">GIVE FEEDBACK' + ICON.heart + '</span>'));
     // Buttons with words roll their letters on hover, like the app
     var newWord = $('[data-app-new] span');

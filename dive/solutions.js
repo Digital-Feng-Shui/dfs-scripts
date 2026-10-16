@@ -322,7 +322,8 @@ const SVGI = {
   cc: '<svg viewBox="0 0 18 14" aria-hidden="true"><rect x=".75" y=".75" width="16.5" height="5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="4.2" cy="3.25" r="1.6" fill="currentColor"/><rect x=".75" y="8.25" width="16.5" height="5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="13.8" cy="10.75" r="1.6" fill="currentColor"/></svg>',
   wifi: '<svg viewBox="0 0 18 13" aria-hidden="true"><path fill="currentColor" d="M9 12.6l2.3-2.9a3.6 3.6 0 0 0-4.6 0zM9 3a10.6 10.6 0 0 1 7.6 3.2l1.2-1.5A12.6 12.6 0 0 0 9 1 12.6 12.6 0 0 0 .2 4.7l1.2 1.5A10.6 10.6 0 0 1 9 3zm0 3.7a6.9 6.9 0 0 1 4.9 2l1.2-1.5A8.9 8.9 0 0 0 9 4.7a8.9 8.9 0 0 0-6.1 2.5l1.2 1.5a6.9 6.9 0 0 1 4.9-2z"/></svg>',
   battery: '<svg viewBox="0 0 27 13" aria-hidden="true"><rect x=".6" y=".6" width="22.8" height="11.8" rx="3.4" fill="none" stroke="currentColor" stroke-opacity=".45" stroke-width="1.2"/><rect x="2.3" y="2.3" width="15.6" height="8.4" rx="1.9" fill="currentColor"/><path d="M25 4.3v4.4c.9-.3 1.5-1.2 1.5-2.2s-.6-1.9-1.5-2.2z" fill="currentColor" fill-opacity=".45"/></svg>',
-  reset: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 8a4.8 4.8 0 1 0 1.5-3.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M4.4 1.9v2.9h2.9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  // start over: the site's own pixel loop (the spinner on the login page)
+  reset: '<svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M.165.279C.083.472.055 3.642.083 7.335l.082 6.698h14.057l.083-1.682.083-1.681H7.194V7.087h3.583V3.504H21.25v3.583h3.583v3.583h3.583v10.474h-3.583v3.583H21.25v3.583H10.777v-3.583H7.194v-3.583H3.61V19.49c0-.91-.083-1.654-.193-1.681-.138 0-.91-.028-1.737-.056l-1.516-.055-.082 1.71L0 21.143h3.61v3.583h3.584v3.583h3.583v1.654c0 .91.11 1.654.276 1.654.165 0 2.397.027 4.96.027 2.592 0 4.824-.027 4.962-.027.165 0 .276-.745.276-1.654V28.31h3.583v-3.583h3.583v-3.583H32V10.67h-3.583V7.087h-3.583V3.504H21.25V1.85c0-.91-.11-1.654-.276-1.654-.138 0-2.37-.027-4.961-.027-2.563 0-4.796.027-4.961.027s-.276.744-.276 1.654v1.654H7.194v3.583H3.61V3.642c0-1.902-.083-3.446-.193-3.446C3.28.17 2.536.114 1.736.031.716-.052.248.03.166.279"/></svg>',
 };
 /* the open windows: Finder (a folder and Downloads), Preview (a screenshot) and TextEdit (a note), drawn the way
    macOS 26 draws them, small */
@@ -857,7 +858,7 @@ function injectSolCSS() {
 [data-sol] .is-sol-meta .list_offer .context_item{color:inherit;font-size:.75rem;line-height:1.2;letter-spacing:.04em}
 [data-sol] .is-sol-meta .list_offer+.sol_link{margin-top:2.25rem}
 /* the homepage's grid (with its blue lines) behind a demo, fading out toward the edges */
-[data-sol] .is-sol-demo{position:relative}
+[data-sol] .is-sol-demo{position:relative;display:flex;flex-direction:column;justify-content:center}
 [data-sol] .is-sol-demo>:not(.grid-background){position:relative;z-index:1}
 [data-sol] .is-sol-demo>.grid-background{opacity:.8;-webkit-mask-image:radial-gradient(ellipse 72% 70% at 50% 50%,#000 35%,transparent 100%);mask-image:radial-gradient(ellipse 72% 70% at 50% 50%,#000 35%,transparent 100%)}
 /* stacked (tablet and phone): every product reads text first, then its demo */
@@ -1074,7 +1075,7 @@ function injectSolCSS() {
 .tk-dia svg{display:block;width:12px;height:12px}
 .tk-dia.is-on{color:var(--brand-colors--blue,#0297db);transform:scale(1.15)}
 .tk-reset{all:unset;cursor:pointer;flex:none;width:32px;height:32px;display:grid;place-items:center;box-sizing:border-box;border:1px solid var(--brand-colors--dark-bage,#dfd5c9);border-radius:4px;background:var(--brand-colors--light-bage,#fbf7ee);color:var(--brand-colors--dark_gray,#3d3a35);transition:border-color .3s,transform .2s}
-.tk-reset svg{width:14px;height:14px;display:block;transition:transform .6s ${EASE}}
+.tk-reset svg{width:13px;height:13px;display:block;transition:transform .6s ${EASE}}
 .tk-reset:hover svg{transform:rotate(-180deg)}.tk-reset:active{transform:scale(.94)}
 .tk-reset:focus-visible{box-shadow:0 0 0 2px var(--brand-colors--blue,#0297db)}
 

@@ -743,6 +743,26 @@ input:-webkit-autofill:focus {
 .rhythms-app_icon-btn svg{display:block;transition:transform .6s cubic-bezier(.625,.05,0,1)}
 .rhythms-app_icon-btn.is-turning:hover svg{transform:rotate(90deg)}
 
+/* The window as the app draws it (BrandSurface): a dashed line under the traffic lights; the list in a column between two
+   hairlines that run over everything, on the fine grid (the app's 32 pt, here 26 px); under the header a solid band with
+   dashed edges right across. With the panel open the column sits against it and the panel's edge is the right-hand line */
+.rhythms-app_titlebar{background:linear-gradient(90deg,var(--brand-colors--dark-bage) 50%,transparent 0) 0 100%/6px 1px repeat-x}
+.rhythms-app_body{border-top-color:transparent}
+.rhythms-app_list{position:relative;padding-left:41px;padding-right:19px}
+.rhythms-app_body.is-closed .rhythms-app_list{padding-left:48px;padding-right:48px}
+.rhythms-app_list>*{position:relative;z-index:1}
+.rhythms-app_list::before,.rhythms-app_list::after{content:"";position:absolute;top:0;bottom:0;left:22px;right:0;pointer-events:none}
+.rhythms-app_body.is-closed .rhythms-app_list::before,.rhythms-app_body.is-closed .rhythms-app_list::after{right:22px}
+.rhythms-app_list::before{z-index:0;background-image:linear-gradient(90deg,color-mix(in srgb,var(--brand-colors--dark_gray) 5%,transparent) 1px,transparent 1px),linear-gradient(color-mix(in srgb,var(--brand-colors--dark_gray) 5%,transparent) 1px,transparent 1px);background-size:26px 26px}
+.rhythms-app_list::after{z-index:3;border-left:1px solid var(--brand-colors--dark-bage)}
+.rhythms-app_body.is-closed .rhythms-app_list::after{border-right:1px solid var(--brand-colors--dark-bage)}
+.rhythms-app_rule{height:11px;margin:22px -19px 22px -41px;border:0;background:linear-gradient(90deg,var(--brand-colors--dark-bage) 50%,transparent 0) 0 0/6px 1px repeat-x,linear-gradient(90deg,var(--brand-colors--dark-bage) 50%,transparent 0) 0 100%/6px 1px repeat-x,var(--brand-colors--light-bage)}
+.rhythms-app_body.is-closed .rhythms-app_rule{margin-left:-48px;margin-right:-48px}
+/* now and then a thin blue line runs a little way down a grid line (GridZips), quieter than the site's */
+.rhythms-app_zips{position:absolute;top:0;bottom:0;left:22px;right:0;z-index:0;overflow:hidden;pointer-events:none}
+.rhythms-app_body.is-closed .rhythms-app_zips{right:22px}
+.rhythms-app_zip{position:absolute;width:1px;background:linear-gradient(to bottom,rgba(2,151,219,0),var(--brand-colors--blue) 75%,rgba(2,151,219,0))}
+
 /* Rolling letters on the buttons with words (main.js roll, the app's RollingText): each letter rolls up to a copy of
    itself, one after another */
 .rhythms-roll{display:inline-flex;overflow:hidden;height:1.25em;line-height:1.25em;vertical-align:middle}

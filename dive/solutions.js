@@ -2,9 +2,9 @@
    dfs-dive — Our Solutions demos (test: /rimbo-home-test)
    Loaded by dive.js only when the page has [data-sol]. Each product shows what it does, not what it looks like:
 
-     Fundamentals  [data-course-demo]   the course player, playing real footage from the course (the same video as
-                                        /look-inside): Rim on camera, the course intro, then clearing a desktop and a
-                                        Dock. Chapters with Previous / Next, play, sound, speed, the module list.
+     Fundamentals  [data-course-demo]   the course player, playing two talking lessons from the course (0.1 and 1.1,
+                                        the footage of /look-inside), each from its own cover; the module menu opens
+                                        on the lesson that plays.
      Tinko         [data-tinko-demo]    Tinko's window on a small Mac desktop, doing the real desktop pass on its own:
                                         it counts the desk, the screenshots fly into their folder, an installer goes
                                         to the Bin, the rest goes to Documents one by one, and the desk is empty.
@@ -38,22 +38,37 @@ export function initSolutions(root) {
 
 /* ---------------------------------------------------------
    Fundamentals: the course player
+   After /courses/fundamentals: the header, the video with its controls, Previous / Next in mono capitals, and the
+   module accordion (Mondwest titles, chevron tiles; the open module lists its lessons, the one playing in light
+   blue). It plays two talking lessons from the course (the same footage as /look-inside): 0.1 Course Intro and
+   1.1 The Shift. Each starts on its own cover; when one ends its lesson is ticked off and the menu closes that
+   module and opens the next. The video is cropped above its subtitles (they're not in the course).
    --------------------------------------------------------- */
 const VIDEO = 'https://dfs-sample-media.thomas-aukema.workers.dev/look-inside-2026-10-14.mp4';
-const POSTER = 'https://dfs-sample-media.thomas-aukema.workers.dev/look-inside-poster-2026-10-14.jpg';
-// cut points in that video (the labels are the video's own)
+const COVER = 'https://cdn.prod.website-files.com/67f2341f69b4c6d58de38b9d/';
 const CHAPTERS = [
-  { from: 3.6, to: 25.0, tag: 'Lesson 0.1', title: 'Course intro', module: 0 },
-  { from: 46.6, to: 62.8, tag: 'A quick win', title: 'Clear the desktop', module: -1 },
-  { from: 63.6, to: 77.4, tag: 'A quick win', title: 'A calmer Dock', module: -1 },
+  { from: 3.6, to: 25.0, lesson: '0.1', module: 0, cover: COVER + '6a108d4ac20ca7593cd6572a_PIMG_1.avif' },
+  { from: 26.0, to: 45.8, lesson: '1.1', module: 1, cover: COVER + '6a108d4b0285e01a30db8f02_PIMG_3.avif' },
 ];
-const MODULES = [['0', 'Intro', 2], ['1', 'Why You Can’t Focus', 4], ['2', 'The Big Clean Up', 2], ['3', 'Mobile Feng Shui', 3], ['4', 'Browser Feng Shui', 5],
-  ['5', 'Essential Tools', 6], ['6', 'Shortcut Mastery', 4], ['7', 'Clarity Systems', 5], ['8', 'Flow-state by Design', 4]];
+// the course as it is (0.3, the Tinko add-on, only shows for its owners)
+const COURSE = [
+  ['0: Intro', [['0.1', 'Course Intro', '3:09'], ['0.2', 'Roadmap', '4:34']]],
+  ['1: Why You Can’t Focus', [['1.1', 'The Shift', '2:38'], ['1.2', 'The Art of DFS', '2:04'], ['1.3', 'Flow Physics', '7:52'], ['1.4', 'Masters of Flow', '4:00']]],
+  ['2: The Big Clean Up', [['2.1', 'Surface Cleanse', '9:33'], ['2.2', 'Distractions Purge', '10:05']]],
+  ['3: Mobile Feng Shui', [['3.1', 'Mobile Cleanse', '16:04'], ['3.2', 'ScreenZen Setup', '5:39'], ['3.3', 'Extra Measures', '6:52']]],
+  ['4: Browser Feng Shui', [['4.1', 'Browsing to Operating', '7:04'], ['4.2', 'Arc Browser Setup', '9:55'], ['4.3', 'Your New Workspace', '11:13'], ['4.4', 'Browser Essentials', '7:37']]],
+  ['5: Essential Tools', [['5.1', 'Distraction Blockers', '6:55'], ['5.2', 'Quality of life', '9:21'], ['5.3', 'Secure Back-up', '3:55'], ['5.4', 'Hardware Tips', '8:10']]],
+  ['6: Shortcut Mastery', [['6.1', 'Shortcut Intro', '2:10'], ['6.2', 'Raycast Intro', '14:16'], ['6.3', 'Raycast Setup', '15:53'], ['6.4', 'Shortcut Masterclass', '14:13']]],
+  ['7: Clarity Systems', [['7.1', 'The Invisible Clutter', '3:59'], ['7.2', 'Clarity Fundamentals', '9:16'], ['7.3', 'Planning', '10:17'], ['7.4', 'Vision', '2:11'], ['7.5', 'Personal OS', '7:10']]],
+  ['8: Flow-state by Design', [['8.1', 'The Final Layer', '1:44'], ['8.2', 'The Art of Doing Nothing', '5:48'], ['8.3', 'Rituals For Flow', '8:27'], ['8.4', 'Thank You', '1:33']]],
+];
 const ICON = {
   play: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5z" fill="currentColor"/></svg>',
   pause: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5h3v11H4zM9 2.5h3v11H9z" fill="currentColor"/></svg>',
   mute: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path d="M11 6l4 4M15 6l-4 4" stroke="currentColor" stroke-width="1.4" fill="none"/></svg>',
   sound: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path d="M11 5.5a3.5 3.5 0 0 1 0 5M12.6 3.6a6 6 0 0 1 0 8.8" stroke="currentColor" stroke-width="1.3" fill="none"/></svg>',
+  chevron: '<svg viewBox="0 0 36 36" aria-hidden="true"><path d="M28.5 22.5L18 12L7.5 22.5" stroke="currentColor" stroke-width="3" fill="none"/></svg>',
+  lesson: '<svg viewBox="0 0 8 8" aria-hidden="true"><path fill="currentColor" d="M2.914 4V2.396l1.336.802L5.587 4l-1.337.802-1.336.802z"/><rect width="7.75" height="7.75" x=".125" y=".125" stroke="currentColor" stroke-width=".25" rx="1.875" fill="none"/></svg>',
 };
 const mmss = s => { s = Math.max(0, Math.round(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
 
@@ -64,63 +79,86 @@ function initCourse(host) {
     <div class="cp-main">
       <div class="cp-stage">
         <div class="cp-video">
-          <video muted playsinline preload="none" poster="${POSTER}" aria-label="A lesson from the course: Rim on camera"></video>
-          <div class="cp-chap"><b></b><span></span></div>
+          <video muted playsinline preload="none" aria-label="Lessons 0.1 and 1.1 of the course"></video>
+          ${CHAPTERS.map((c, i) => `<img class="cp-cover${i ? '' : ' is-on'}" src="${c.cover}" alt="">`).join('')}
+          <span class="cp-big" aria-hidden="true">${ICON.play}</span>
           <button class="cp-sound" type="button">${ICON.sound}<span>Sound on</span></button>
           <div class="cp-ctrl">
-            <button class="cp-play" type="button" aria-label="Pause">${ICON.pause}</button>
+            <button class="cp-play" type="button" aria-label="Play">${ICON.play}</button>
             <span class="cp-time">00:00 / 00:00</span>
-            <div class="cp-scrub" role="slider" aria-label="Position in this chapter" tabindex="0"><i></i></div>
+            <div class="cp-scrub" aria-hidden="true"><i></i></div>
             <button class="cp-speed" type="button" aria-label="Speed">1.0x</button>
             <button class="cp-mute" type="button" aria-label="Sound">${ICON.mute}</button>
           </div>
         </div>
-        <div class="cp-nav"><button class="cp-prev" type="button"><span>←</span> Previous</button><button class="cp-next" type="button">Next <span>→</span></button></div>
+        <div class="cp-nav"><button class="cp-prev" type="button"><span aria-hidden="true">←</span> Previous lesson</button><button class="cp-next" type="button">Next lesson <span aria-hidden="true">→</span></button></div>
       </div>
-      <div class="cp-list">${MODULES.map(([n, t, c], i) => `<div class="cp-mod" data-m="${i}"><span>${n}: ${t}</span><small>${c} lessons</small></div>`).join('')}</div>
+      <div class="cp-list"><div class="cp-list-in">${COURSE.map(([t, ls], m) => `<div class="cp-mod" data-m="${m}">
+        <div class="cp-mhead"><span>${t}</span><i>${ICON.chevron}</i></div>
+        <div class="cp-lessons"><div>${ls.map(([n, name, d]) => `<div class="cp-les" data-l="${n}"><i class="cp-check"></i><span>${n}: ${name}</span><em>${ICON.lesson}${d}</em></div>`).join('')}</div></div>
+      </div>`).join('')}</div></div>
     </div>
   </div>`;
   const $ = s => host.querySelector(s);
-  const v = $('video'), playB = $('.cp-play'), timeEl = $('.cp-time'), scrub = $('.cp-scrub'), fill = $('.cp-scrub i'), bar = $('.cp-bar i');
-  const chapB = $('.cp-chap b'), chapT = $('.cp-chap span'), muteB = $('.cp-mute'), soundB = $('.cp-sound'), speedB = $('.cp-speed');
-  let at = 0, visible = false, userPaused = reduce, started = false, raf = 0;
+  const v = $('video'), stage = $('.cp-video'), playB = $('.cp-play'), timeEl = $('.cp-time'), fill = $('.cp-scrub i'), bar = $('.cp-bar i');
+  const muteB = $('.cp-mute'), soundB = $('.cp-sound'), speedB = $('.cp-speed'), covers = [...host.querySelectorAll('.cp-cover')];
+  let at = 0, userPaused = reduce, started = false, raf = 0, coverT = 0;
   const total = CHAPTERS.reduce((s, c) => s + (c.to - c.from), 0);
-  function show(i, seek = true) {
-    at = (i + CHAPTERS.length) % CHAPTERS.length;
+  function menu() {
     const c = CHAPTERS[at];
-    chapB.textContent = c.tag; chapT.textContent = c.title;
-    host.querySelectorAll('.cp-mod').forEach((m, n) => m.classList.toggle('is-now', n === c.module));
-    if (seek && v.readyState > 0) v.currentTime = c.from;
+    host.querySelectorAll('.cp-mod').forEach((m, n) => m.classList.toggle('is-open', n === c.module));
+    host.querySelectorAll('.cp-les').forEach(l => l.classList.toggle('is-now', l.dataset.l === c.lesson));
+  }
+  function done(i, on) { const l = host.querySelector(`.cp-les[data-l="${CHAPTERS[i].lesson}"]`); if (l) l.classList.toggle('is-done', on); }
+  // a lesson starts on its cover, then the video comes through
+  function cover(i, hold) {
+    clearTimeout(coverT);
+    // the new cover is there at once (no crossfade over the moving video); it fades out to reveal the lesson
+    covers.forEach((c, n) => { c.classList.add('is-snap'); c.classList.toggle('is-on', n === i); c.offsetWidth; c.classList.remove('is-snap'); });
+    if (!hold) coverT = setTimeout(() => covers[i].classList.remove('is-on'), reduce ? 0 : 1500);
+  }
+  function show(i, { seek = true, fromEnd = false } = {}) {
+    if (fromEnd) done(at, true);
+    at = (i + CHAPTERS.length) % CHAPTERS.length;
+    if (at === 0 && fromEnd) CHAPTERS.forEach((_, n) => done(n, false));   // round again: nothing ticked yet
+    menu();
+    cover(at, v.paused);
+    if (seek && v.readyState > 0) v.currentTime = CHAPTERS[at].from;
     tick();
   }
   function tick() {
     const c = CHAPTERS[at], t = Math.min(c.to, Math.max(c.from, v.currentTime || c.from));
-    if (v.currentTime >= c.to - .05 && !v.paused) { show(at + 1); return; }
-    const done = CHAPTERS.slice(0, at).reduce((s, k) => s + (k.to - k.from), 0) + (t - c.from);
+    if (v.currentTime >= c.to - .05 && !v.paused) { show(at + 1, { fromEnd: true }); return; }
+    const before = CHAPTERS.slice(0, at).reduce((s, k) => s + (k.to - k.from), 0);
     fill.style.width = ((t - c.from) / (c.to - c.from) * 100).toFixed(2) + '%';
-    bar.style.width = (done / total * 100).toFixed(2) + '%';
+    bar.style.width = ((before + t - c.from) / total * 100).toFixed(2) + '%';
     timeEl.textContent = `${mmss(t - c.from)} / ${mmss(c.to - c.from)}`;
   }
   function loop() { tick(); raf = requestAnimationFrame(loop); }
-  const sync = () => { $('.cp-video').classList.toggle('is-paused', v.paused); playB.innerHTML = v.paused ? ICON.play : ICON.pause; playB.setAttribute('aria-label', v.paused ? 'Play' : 'Pause'); };
+  const sync = () => {
+    stage.classList.toggle('is-paused', v.paused);
+    playB.innerHTML = v.paused ? ICON.play : ICON.pause; playB.setAttribute('aria-label', v.paused ? 'Play' : 'Pause');
+  };
   function play() {
     if (!started) { started = true; v.src = VIDEO; v.addEventListener('loadedmetadata', () => { v.currentTime = CHAPTERS[at].from; }, { once: true }); }
     const p = v.play(); if (p) p.catch(() => {});
   }
-  v.addEventListener('play', () => { sync(); cancelAnimationFrame(raf); loop(); });
+  v.addEventListener('play', () => { sync(); cover(at, false); cancelAnimationFrame(raf); loop(); });
   v.addEventListener('pause', () => { sync(); cancelAnimationFrame(raf); });
-  playB.addEventListener('click', () => { if (v.paused) { userPaused = false; play(); } else { userPaused = true; v.pause(); } });
-  v.addEventListener('click', () => playB.click());
+  const toggle = () => { if (v.paused) { userPaused = false; play(); } else { userPaused = true; v.pause(); } };
+  playB.addEventListener('click', toggle);
+  stage.addEventListener('click', e => { if (!e.target.closest('.cp-ctrl, .cp-sound')) toggle(); });
   $('.cp-prev').addEventListener('click', () => { show(at - 1); if (!userPaused) play(); });
   $('.cp-next').addEventListener('click', () => { show(at + 1); if (!userPaused) play(); });
+  host.querySelectorAll('.cp-les').forEach(l => l.addEventListener('click', () => { const i = CHAPTERS.findIndex(c => c.lesson === l.dataset.l); if (i > -1) { show(i); if (!userPaused) play(); } }));
   const sound = on => { v.muted = !on; muteB.innerHTML = on ? ICON.sound : ICON.mute; soundB.classList.add('is-gone'); if (on) { userPaused = false; play(); } };
   muteB.addEventListener('click', () => sound(v.muted));
   soundB.addEventListener('click', () => sound(true));
   const SPEEDS = [1, 1.5, 2];
   speedB.addEventListener('click', () => { const s = SPEEDS[(SPEEDS.indexOf(v.playbackRate) + 1) % SPEEDS.length]; v.playbackRate = s; speedB.textContent = s.toFixed(1) + 'x'; });
-  scrub.addEventListener('click', e => { const r = scrub.getBoundingClientRect(), c = CHAPTERS[at]; if (v.readyState > 0) v.currentTime = c.from + (e.clientX - r.left) / r.width * (c.to - c.from); tick(); });
-  watch(host, on => { visible = on; if (on && !userPaused) play(); else if (!on) v.pause(); }, '0px 0px -15% 0px');
-  show(0, false);
+  $('.cp-scrub').addEventListener('click', e => { const r = e.currentTarget.getBoundingClientRect(), c = CHAPTERS[at]; if (v.readyState > 0) v.currentTime = c.from + (e.clientX - r.left) / r.width * (c.to - c.from); tick(); });
+  watch(host, on => { if (on && !userPaused) play(); else if (!on) v.pause(); }, '0px 0px -15% 0px');
+  show(0, { seek: false });
   sync();
 }
 
@@ -441,43 +479,62 @@ function injectSolCSS() {
 [data-sol] .is-sol-meta .sol_top{flex-direction:column;align-items:flex-start;gap:.5rem}
 /* stacked (tablet and phone): every product reads text first, then its demo */
 @media (max-width:991px){[data-sol] .is-flip .is-sol-meta{order:-1}[data-sol] .is-sol-row .divider_vertical{display:none}}
-/* the course player */
-.cp{--ink:var(--brand-colors--dark_gray,#3d3a35);--line:var(--brand-colors--dark-bage,#dfd5c9);--card:var(--brand-colors--light-bage,#fbf7ee);--blue:var(--brand-colors--blue,#0297db);
+/* the course player (after /courses/fundamentals) */
+.cp{--ink:var(--brand-colors--dark_gray,#3d3a35);--line:var(--brand-colors--dark-bage,#dfd5c9);--card:var(--brand-colors--light-bage,#fbf7ee);--blue:var(--brand-colors--blue,#0297db);--tint:var(--brand-colors--light-bleu,#eff9fd);
   border:1px solid var(--line);border-radius:6px;background:var(--card);overflow:hidden;color:var(--ink);box-shadow:0 30px 60px -36px rgba(61,58,53,.45);font-family:var(--_typography---font-styles--body,monospace)}
 .cp button{all:unset;cursor:pointer;box-sizing:border-box}
-.cp-top{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.7rem 1rem;border-bottom:1px solid var(--line)}
+.cp-top{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem 1rem;border-bottom:1px solid var(--line)}
 .cp-brand{display:flex;align-items:center;gap:.5rem;font-family:var(--_typography---font-styles--heading,serif);font-size:1.3rem;line-height:1}
 .cp-brand svg{width:1.25rem;height:1.25rem}
-.cp-prog{display:flex;align-items:center;gap:.8rem;font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;opacity:.9}
+.cp-prog{display:flex;align-items:center;gap:.8rem;font-size:.58rem;letter-spacing:.14em;text-transform:uppercase}
 .cp-bar{width:7rem;height:3px;border-radius:2px;background:color-mix(in srgb,var(--ink) 12%,transparent);overflow:hidden}
 .cp-bar i{display:block;height:100%;width:0;background:radial-gradient(circle,#0297db,#3fc3ff)}
-.cp-main{display:grid;grid-template-columns:minmax(0,1fr) 13rem}
+/* the stage sets the height; the list is cut off at the bottom of Previous / Next */
+.cp-main{display:grid;grid-template-columns:minmax(0,1fr) 11.25rem}
 .cp-stage{min-width:0;border-right:1px solid var(--line)}
-.cp-video{position:relative;aspect-ratio:16/9;background:#2b2926;overflow:hidden}
-.cp-video video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;cursor:pointer}
-.cp-chap{position:absolute;left:.7rem;top:.7rem;display:flex;align-items:center;gap:.5rem;padding:.3rem .5rem;border-radius:2px;background:var(--card);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase}
-.cp-chap b{font-weight:400;color:var(--blue)}
-.cp-sound{position:absolute;right:.7rem;top:.7rem;display:flex!important;align-items:center;gap:.4rem;padding:.35rem .55rem!important;border-radius:2px;background:rgba(20,18,16,.6);color:#fff;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;transition:opacity .4s}
-.cp-sound svg{width:.9rem;height:.9rem}
+/* the footage has subtitles under the slide: show the slide only, centred */
+.cp-video{position:relative;aspect-ratio:16/9;background:#5f5c58;overflow:hidden;cursor:pointer}
+.cp-video video{position:absolute;left:-8.39%;top:-3.68%;width:116.79%;height:auto;display:block}
+.cp-cover{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .8s ease;pointer-events:none}
+.cp-cover.is-on{opacity:1}
+.cp-cover.is-snap{transition:none}
+.cp-big{position:absolute;left:50%;top:50%;width:3.6rem;height:3.6rem;margin:-1.8rem 0 0 -1.8rem;display:grid;place-items:center;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);color:#fff;opacity:0;transition:opacity .4s;pointer-events:none}
+.cp-big svg{width:1.2rem;height:1.2rem;margin-left:.15rem}
+.cp-video.is-paused .cp-big{opacity:1}
+.cp-sound{position:absolute;right:.6rem;top:.6rem;display:flex!important;align-items:center;gap:.4rem;padding:.3rem .5rem!important;border-radius:2px;background:rgba(20,18,16,.55);color:#fff;font-size:.54rem;letter-spacing:.12em;text-transform:uppercase;transition:opacity .4s}
+.cp-sound svg{width:.85rem;height:.85rem}
 .cp-sound.is-gone{opacity:0;pointer-events:none}
-.cp-ctrl{position:absolute;left:0;right:0;bottom:0;opacity:0;transition:opacity .35s;display:flex;align-items:center;gap:.8rem;padding:1.2rem .9rem .6rem;background:linear-gradient(transparent,rgba(0,0,0,.55));color:#fff;font-size:.62rem;letter-spacing:.06em}
+.cp-ctrl{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:.8rem;padding:1.4rem .9rem .65rem;background:linear-gradient(transparent,rgba(0,0,0,.5));color:#fff;font-size:.62rem;letter-spacing:.06em;opacity:0;transition:opacity .35s}
 .cp-video:hover .cp-ctrl,.cp-video.is-paused .cp-ctrl,.cp-video:focus-within .cp-ctrl{opacity:1}
 .cp-ctrl svg{width:.95rem;height:.95rem;display:block}
 .cp-time{white-space:nowrap;font-variant-numeric:tabular-nums}
 .cp-scrub{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.35);cursor:pointer;position:relative}
 .cp-scrub i{position:absolute;left:0;top:0;bottom:0;width:0;background:#fff;border-radius:2px}
-.cp-speed{font-variant-numeric:tabular-nums}
 .cp-nav{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line)}
-.cp-nav button{display:flex!important;align-items:center;justify-content:center;gap:.6rem;padding:.85rem 1rem!important;font-family:var(--_typography---font-styles--heading,serif);font-size:1rem;transition:background-color .4s}
+.cp .cp-nav button{display:flex;align-items:center;justify-content:center;gap:.6rem;padding:.8rem .8rem;font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap;transition:background-color .4s}
+.cp .cp-nav span{font-size:.8rem;letter-spacing:0}
 .cp .cp-prev:hover{background:color-mix(in srgb,var(--ink) 5%,transparent)}
 .cp .cp-next{background:var(--ink);color:var(--card)}
 .cp .cp-next:hover{background:color-mix(in srgb,var(--ink) 88%,var(--blue))}
-.cp-list{display:flex;flex-direction:column;min-height:0;overflow:hidden}
-.cp-mod{flex:1;display:flex;flex-direction:column;justify-content:center;gap:.15rem;padding:.35rem .9rem;border-bottom:1px solid var(--line);font-family:var(--_typography---font-styles--heading,serif);font-size:.92rem;line-height:1.1;transition:background-color .4s}
-.cp-mod:last-child{border-bottom:0}
-.cp-mod small{font-family:var(--_typography---font-styles--body,monospace);font-size:.52rem;letter-spacing:.12em;text-transform:uppercase;opacity:.55}
-.cp-mod.is-now{background:var(--brand-colors--light-bleu,#eff9fd)}
-.cp-mod.is-now small{color:var(--blue);opacity:1}
+.cp-list{position:relative;min-width:0}
+.cp-list-in{position:absolute;inset:0;overflow:hidden}
+.cp-mod{border-bottom:1px solid var(--line)}
+.cp-mhead{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.7rem .7rem .7rem .85rem;font-family:var(--_typography---font-styles--heading,serif);font-size:.88rem;line-height:1.1}
+.cp-mhead span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cp-mhead i{width:1.3rem;height:1.3rem;flex:none;display:grid;place-items:center;border-radius:3px;background:var(--line)}
+.cp-mhead svg{width:.7rem;height:.7rem;transform:rotate(180deg);transition:transform .5s ${EASE}}
+.cp-mod.is-open .cp-mhead svg{transform:none}
+.cp-lessons{display:grid;grid-template-rows:0fr;transition:grid-template-rows .6s ${EASE}}
+.cp-mod.is-open .cp-lessons{grid-template-rows:1fr}
+.cp-lessons>div{overflow:hidden}
+.cp-les{display:flex;align-items:center;gap:.45rem;padding:.42rem .7rem .42rem .85rem;border-top:1px dashed var(--line);font-size:.56rem;letter-spacing:.04em;cursor:default;transition:background-color .4s,color .4s}
+.cp-les span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cp-les em{display:flex;align-items:center;gap:.25rem;font-style:normal;font-size:.5rem;opacity:.8}
+.cp-les em svg{width:.42rem;height:.42rem}
+.cp-check{width:.62rem;height:.62rem;flex:none;border:1px solid currentColor;border-radius:2px;opacity:.85;transition:background-color .3s}
+.cp-les.is-done .cp-check{background:var(--blue) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.4 2.4L9.6 3.6' fill='none' stroke='white' stroke-width='1.8'/%3E%3C/svg%3E") center/90% no-repeat;border-color:var(--blue)}
+.cp-les.is-now{background:var(--tint);color:var(--blue)}
+.cp-les[data-l="0.1"],.cp-les[data-l="1.1"]{cursor:pointer}
 @media (max-width:767px){.cp-main{grid-template-columns:1fr}.cp-list{display:none}.cp-stage{border-right:0}.cp-prog span{display:none}.cp-time{display:none}}
 
 /* Tinko's desktop: a 760 x 560 scene, scaled to the column */

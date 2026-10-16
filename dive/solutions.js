@@ -264,30 +264,33 @@ const MENUS = {
   finder: ['Finder', 'File', 'Edit', 'View', 'Go', 'Window', 'Help'], preview: ['Preview', 'File', 'Edit', 'View', 'Go', 'Tools', 'Window', 'Help'],
   textedit: ['TextEdit', 'File', 'Edit', 'Format', 'View', 'Window', 'Help'], tinko: ['Tinko', 'File', 'Edit', 'View', 'Window', 'Help'],
 };
-// the desk, as in the real recording (test mode, demo files). at: [column from the right, row], where macOS puts
-// them; ph: the slot on a phone, where the scene is a tall crop with the desk in two rows under the window
+// the desk, as in the real recording (test mode, demo files); where they lie is in LAYOUT (scatter)
 const FILES = [
-  { id: 's1', kind: 'shot', img: 'shot-1', name: 'Screenshot 2026-10-12 at 09.41.22', at: [0, 0], ph: 0 },
-  { id: 's2', kind: 'shot', img: 'shot-2', name: 'Screenshot 2026-10-13 at 16.07.51', at: [0, 1], ph: 1 },
-  { id: 'dmg', kind: 'dmg', name: 'zoomusInstallerFull.dmg', at: [0, 2], ph: 2 },
-  { id: 'zip', kind: 'zip', name: 'photos-export.zip', at: [0, 3], ph: 3 },
-  { id: 's3', kind: 'shot', img: 'shot-3', name: 'Screenshot 2026-10-14 at 11.22.09', at: [1, 0], ph: 5 },
-  { id: 's4', kind: 'shot', img: 'shot-4', name: 'Screenshot 2026-10-15 at 22.51.40', at: [1, 1], ph: 6 },
-  { id: 'txt', kind: 'txt', name: 'Notes for Monday.txt', at: [1, 2], ph: 7 },
-  { id: 'old', kind: 'folder', name: 'Old stuff', at: [1, 3], ph: 8 },
+  { id: 's1', kind: 'shot', img: 'shot-1', name: 'Screenshot 2026-10-12 at 09.41.22' },
+  { id: 's2', kind: 'shot', img: 'shot-2', name: 'Screenshot 2026-10-13 at 16.07.51' },
+  { id: 'dmg', kind: 'dmg', name: 'zoomusInstallerFull.dmg' },
+  { id: 'zip', kind: 'zip', name: 'photos-export.zip' },
+  { id: 's3', kind: 'shot', img: 'shot-3', name: 'Screenshot 2026-10-14 at 11.22.09' },
+  { id: 's4', kind: 'shot', img: 'shot-4', name: 'Screenshot 2026-10-15 at 22.51.40' },
+  { id: 'txt', kind: 'txt', name: 'Notes for Monday.txt' },
+  { id: 'old', kind: 'folder', name: 'Old stuff' },
 ];
-const SHOTS = { id: 'shots', kind: 'folder', name: 'Screenshots', at: [0, 4], ph: 4 };   // the new folder, in the next free spot
+const SHOTS = { id: 'shots', kind: 'folder', name: 'Screenshots' };   // the new folder
 // mid / corner: where Tinko's window sits in the middle (the Dock part) and in the bottom left corner (the desk part,
-// 24 points from the edge and the Dock, as Desk.swift has it). wins: the open windows of the mess
+// 24 points from the edge and the Dock, as Desk.swift has it). wins: the open windows of the mess. scatter: where
+// the desk's files lie before the desk sorts itself (all over, out of the way of Tinko in his corner)
 const LAYOUT = {
   mac: {
     W: 1000, H: 650, mid: [236, 74], corner: [24, 99],
     wins: { old: [36, 44], dl: [500, 340], pv: [520, 58], te: [80, 300] },   // each peeks out from behind Tinko
+    scatter: { s1: [905, 34], old: [745, 58], s2: [612, 128], dmg: [838, 162], s3: [700, 268], zip: [925, 300], txt: [606, 408], s4: [790, 412], shots: [930, 462] },
+    // sorted: in columns from the top right, as macOS lines them up (slot i: column i / 5 from the right, row i % 5)
     spot: f => [932 - f.at[0] * 108, 38 + f.at[1] * 104], slot: i => ({ at: [Math.floor(i / 5), i % 5] }),
   },
   phone: {
     W: 660, H: 800, mid: [66, 40], corner: [66, 40],
     wins: { old: [10, 44], dl: [250, 330], pv: [200, 70], te: [20, 300] },
+    scatter: { s1: [70, 520], old: [190, 548], s2: [330, 516], dmg: [455, 540], s3: [590, 522], zip: [120, 628], s4: [270, 640], txt: [420, 622], shots: [560, 632] },
     spot: f => [66 + (f.ph % 5) * 132, 528 + Math.floor(f.ph / 5) * 100], slot: i => ({ ph: i }),
   },
 };
@@ -540,7 +543,7 @@ function initTinko(host) {
     const up = `translateY(-${(parseFloat(getComputedStyle(ms).getPropertyValue('--ds')) * .5).toFixed(1)}px)`, k = [];
     for (let i = 0; i < times; i++) k.push({ transform: 'none', easing: 'cubic-bezier(.33,1,.68,1)' }, { transform: up, easing: 'cubic-bezier(.32,0,.67,0)' });
     k.push({ transform: 'none' });
-    return d.animate(k, { duration: 520 * times, delay: 120 }).finished;
+    return d.animate(k, { duration: 450 * times, delay: 100 }).finished;
   }
   const select = id => host.querySelectorAll('.ms-file').forEach(el => el.classList.toggle('is-sel', el.dataset.id === id));
   const trash = () => $('.ms-trash'), finder = () => dockEl('finder');
@@ -555,10 +558,10 @@ function initTinko(host) {
   function dockDim() { PINS.forEach(a => { const d = dockEl(a.id); if (d) d.classList.toggle('is-going', fate[a.id] === 'unpin'); }); }
   async function dockUnpin() {
     const out = PINS.filter(a => fate[a.id] === 'unpin');
-    out.forEach((a, i) => { const d = dockEl(a.id); if (d) setTimeout(() => d.classList.add('is-out'), reduce ? 0 : i * 45); });
-    await wait(reduce ? 0 : out.length * 45 + 300);
+    out.forEach((a, i) => { const d = dockEl(a.id); if (d) setTimeout(() => d.classList.add('is-out'), reduce ? 0 : i * 35); });
+    await wait(reduce ? 0 : out.length * 35 + 250);
     dockFit();
-    await wait(reduce ? 0 : 500);
+    await wait(reduce ? 0 : 450);
   }
   function dockRestore() { PINS.forEach(a => dockEl(a.id).classList.remove('is-out', 'is-going')); dockFit(); }
   // like macOS: the icons keep their set size (44) unless the Dock would run off the screen, then they all shrink
@@ -569,15 +572,15 @@ function initTinko(host) {
   async function scan() {
     setMood('working'); select(null);
     const meter = screen.querySelector('.tkw-progress i'), count = screen.querySelector('.tkw-count');
-    const order = [...FILES].sort((a, b) => a.at[1] - b.at[1] || a.at[0] - b.at[0]);
+    const order = [...FILES].sort((a, b) => L.scatter[a.id][1] - L.scatter[b.id][1] || L.scatter[b.id][0] - L.scatter[a.id][0]);
     for (let i = 0; i < order.length; i++) {
       const el = fileEl(order[i].id); if (el) { el.classList.add('is-seen'); setTimeout(() => el.classList.remove('is-seen'), 420); }
       if (meter) meter.style.width = ((i + 1) / order.length * 100) + '%';
       if (count) count.textContent = `${i + 1} ${i ? 'THINGS' : 'THING'}`;
       scanAt = (i + 1) / order.length; progress();
-      await wait(reduce ? 0 : 220);
+      await wait(reduce ? 0 : 160);
     }
-    await wait(reduce ? 0 : 400);
+    await wait(reduce ? 0 : 300);
   }
   async function doFixes() {
     setMood('side');
@@ -586,25 +589,25 @@ function initTinko(host) {
       if (ticks === 0) { fileEl('shots').classList.add('is-in'); }
       if (ticks === 1) {
         const into = centre(fileEl('shots').querySelector('.ms-art'));
-        for (const id of ['s1', 's3', 's2', 's4']) { fly(id, into, { scale: .3, dur: 700 }); await wait(140); }
-        await wait(640); bump(fileEl('shots'));
+        for (const id of ['s1', 's3', 's2', 's4']) { fly(id, into, { scale: .3, dur: 640 }); await wait(110); }
+        await wait(560); bump(fileEl('shots'));
       }
-      if (ticks === 3) { sorted = true; arrange(); }
-      await wait(reduce ? 0 : 520);
+      if (ticks === 3) { sorted = true; arrange(); await wait(reduce ? 0 : 250); }
+      await wait(reduce ? 0 : 430);
     }
     ticks = 4; draw();
-    await wait(reduce ? 0 : 500);
+    await wait(reduce ? 0 : 400);
     // the Screenshots folder goes to Documents (into Finder)
-    await fly('shots', centre(finder()), { scale: .25, dur: 850, arc: 40 }); bump(finder());
+    await fly('shots', centre(finder()), { scale: .25, dur: 720, arc: 40 }); bump(finder());
   }
-  // where the icons sit: each in its own spot until the desk sorts itself (the last quick fix), then, like Finder's
+  // where the icons sit: wherever they were dropped until the desk sorts itself (the last quick fix), then, like Finder's
   // Sort By Date Added, the ones left close up from the top right, newest first, every time one leaves
   let sorted = false;
   function arrange(animate = true) {
     ms.classList.toggle('is-sorting', animate && !reduce);
     const all = [SHOTS, ...FILES], live = all.filter(f => !gone.has(f.id) && (f !== SHOTS || fileEl('shots').classList.contains('is-in')));
     all.forEach(f => {
-      const i = live.indexOf(f), [x, y] = L.spot(sorted && i > -1 ? L.slot(i) : f);
+      const i = live.indexOf(f), [x, y] = sorted && i > -1 ? L.spot(L.slot(i)) : L.scatter[f.id];
       Object.assign(fileEl(f.id).style, { left: x - 50 + 'px', top: y + 'px' });
     });
   }
@@ -634,24 +637,27 @@ function initTinko(host) {
   // before Tinko: the desk's files get opened one after another, then he opens and floats in the middle
   async function mess() {
     state = 'mess'; draw(); setMood('idle');
-    await wait(reduce ? 0 : 500);
+    await wait(reduce ? 0 : 350);
     for (const id of MESS) {
       const app = WINS[id].app;
-      if (EXTRA.some(([e]) => e === app) && !running(app)) { launch(app); dockFit(); await wait(reduce ? 0 : 380); }
+      if (EXTRA.some(([e]) => e === app) && !running(app)) { launch(app); dockFit(); await wait(reduce ? 0 : 300); }
       openWin(id); front(app);
-      await wait(reduce ? 0 : 520);
+      await wait(reduce ? 0 : 400);
     }
-    await wait(reduce ? 0 : 1300);
+    await wait(reduce ? 0 : 1000);
     await launch('tinko', 2);
     front('tinko'); win.classList.remove('is-off');
     if (!reduce) win.animate([{ opacity: 0, transform: `translate(${TKW * .03}px,${TKH * .03}px) scale(${TK * .94})` }, { opacity: 1, transform: `scale(${TK})` }], { duration: 300, easing: 'cubic-bezier(.33,1,.68,1)' });
+    // and tucks what's open away behind him: the desk shows, each app comes back when it's up
+    await wait(reduce ? 0 : 250);
+    MESS.slice().reverse().forEach((id, i) => setTimeout(() => hideWin(id), reduce ? 0 : i * 70));
     await wait(reduce ? 0 : 450);
   }
   // he hides the rest and glides to the bottom left corner, out of the way of the desk (Desk.toDeskCorner)
   async function toCorner() {
     MESS.forEach(id => { if (!winEl(id).classList.contains('is-shut')) hideWin(id); });
     cornered = true; placeWin(L.corner);
-    await wait(reduce ? 0 : 950);
+    await wait(reduce ? 0 : 850);
   }
   async function go(next) {
     state = next; draw();
@@ -688,7 +694,7 @@ function initTinko(host) {
           qfate[a.id] = 'quit'; draw();
           if (a.win) shutWin(a.win);
           const d = dockEl(a.id); d.classList.remove('is-run'); if (!a.pinned) { d.classList.add('is-out'); setTimeout(dockFit, 200); }
-          await wait(reduce ? 0 : 450);
+          await wait(reduce ? 0 : 350);
         }
         qAt++;
         return go(qAt < OPEN.length ? 'quit' : 'quitDone');
@@ -710,7 +716,7 @@ function initTinko(host) {
     else if (state === 'desk') { if (key === 'space') return go('fixes'); if (key === 's') return go('skipped'); }
     else if (state === 'moved') { if (key === 'space') return go('leftover'); if (key === 'undo') { sorted = false; gone.delete('shots'); fileEl('shots').classList.remove('is-in', 'is-gone'); restore(['s1', 's2', 's3', 's4']); arrange(); return go('desk'); } }
     else if (state === 'leftover') {
-      if (key === 'del') { select(null); setMood('down'); await fly('dmg', centre(trash()), { scale: .2, arc: 60, dur: 850 }); binned.add('dmg'); setTrash(true); bump(trash()); return go('binned'); }
+      if (key === 'del') { select(null); setMood('down'); await fly('dmg', centre(trash()), { scale: .2, arc: 60, dur: 720 }); binned.add('dmg'); setTrash(true); bump(trash()); return go('binned'); }
       if (key === 'space') { select(null); return startLeft(); }
     }
     else if (state === 'binned') { if (key === 'space') return startLeft(); if (key === 'undo') { restore(['dmg']); return go('leftover'); } }
@@ -718,8 +724,8 @@ function initTinko(host) {
       const f = queue[lAt];
       if (key === 'space' || key === 'del') {
         select(null);
-        if (key === 'del') { setMood('down'); await fly(f.id, centre(trash()), { scale: .2, arc: 60, dur: 800 }); binned.add(f.id); setTrash(true); bump(trash()); }
-        else { await fly(f.id, centre(finder()), { scale: .25, arc: 40, dur: 800 }); bump(finder()); }
+        if (key === 'del') { setMood('down'); await fly(f.id, centre(trash()), { scale: .2, arc: 60, dur: 680 }); binned.add(f.id); setTrash(true); bump(trash()); }
+        else { await fly(f.id, centre(finder()), { scale: .25, arc: 40, dur: 680 }); bump(finder()); }
         lAt++;
         return go(lAt < queue.length ? 'left' : 'empty');
       }
@@ -728,10 +734,17 @@ function initTinko(host) {
   });
   function startLeft() { queue = FILES.filter(f => !gone.has(f.id) && f.kind !== 'shot'); lAt = 0; return queue.length ? go('left') : go('empty'); }
   // what the autoplay presses, and after how long
+  // (the Dock pass: slow for the first two, then a quick run once it's clear what's going on; a screen with a line: as
+  // long as it takes to read; the empty desk a little longer, it's the end)
   function autoKey() {
-    if (state === 'quit') { const a = OPEN[qAt]; return [a.keep ? 'space' : 'del', a.win ? 1700 : 1000]; }
-    if (state === 'pin') { const a = PINS[pinAt]; return [a.keep ? 'space' : 'del', pinAt < 3 ? 1200 : 480]; }
-    return ({ quitAsk: ['space', 2600], quitDone: ['space', 3000], pinsAsk: ['space', 2600], pinsDone: ['space', 2800], dockDone: ['space', 2400], desk: ['space', 2400], moved: ['space', 2000], leftover: ['del', 2200], binned: ['space', 1400], left: ['space', 1400], empty: ['space', 4200], skipped: ['space', 2000] })[state];
+    if (state === 'quit') { const a = OPEN[qAt]; return [a.keep ? 'space' : 'del', a.win ? 1300 : 650]; }
+    if (state === 'pin') { const a = PINS[pinAt]; return [a.keep ? 'space' : 'del', pinAt === 0 ? 1100 : pinAt === 1 ? 750 : 320]; }
+    const key = ({ leftover: 'del', empty: 'space' })[state] || 'space';
+    if (!['quitAsk', 'quitDone', 'pinsAsk', 'pinsDone', 'dockDone', 'desk', 'moved', 'leftover', 'binned', 'left', 'empty', 'skipped'].includes(state)) return null;
+    if (state === 'empty') return [key, 3400];
+    if (state === 'left' && lAt > 0) return [key, 950];
+    const n = ((screen.querySelector('.tkw-words') || {}).textContent || '').split(/\s+/).length;
+    return [key, Math.min(2500, Math.max(1000, 800 + n * 62))];
   }
   function planAuto() {
     clearTimeout(autoT);
@@ -935,7 +948,7 @@ function injectSolCSS() {
 .ms-trash img{position:absolute;inset:0;transition:opacity .3s}.ms-trash .is-full,.ms-trash.is-full .is-empty{opacity:0}.ms-trash.is-full .is-full{opacity:1}
 /* Tinko's window (614 x 540, drawn a little smaller), floating above the other windows; it glides to the corner */
 .ms-win.is-off{opacity:0;visibility:hidden}
-.ms-win.is-glide{transition:left .9s ${EASE},top .9s ${EASE},opacity .3s}
+.ms-win.is-glide{transition:left .8s ${EASE},top .8s ${EASE},opacity .3s}
 /* the open windows of the mess (macOS 26, light and dark) */
 .ms-apps{position:absolute;inset:0;z-index:2;pointer-events:none}
 .ms-app{--w-bg:#fff;--w-chrome:#f5f4f2;--w-side:#ecebe8;--w-ink:#1d1d1f;--w-soft:#86868b;--w-line:rgba(0,0,0,.09);--w-row:#f4f4f6;position:absolute;display:flex;overflow:hidden;border-radius:14px;background:var(--w-bg);color:var(--w-ink);font-size:11px;line-height:1.3;box-shadow:0 0 0 .5px rgba(0,0,0,.24),0 18px 44px rgba(0,0,0,.2),0 4px 10px rgba(0,0,0,.08);transition:opacity .25s,transform .25s cubic-bezier(.33,1,.68,1)}
@@ -1027,7 +1040,7 @@ function injectSolCSS() {
 .tkw-file span{display:block;margin-top:6px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--c-soft)}
 /* the pins row: a window onto the Dock's apps, the current one in the middle */
 .tkw-pins{width:420px;height:44px;margin:-6px 0 22px;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent);mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent)}
-.tkw-pins-in{display:flex;gap:8px;padding-top:4px;transition:transform .45s cubic-bezier(.33,1,.68,1)}
+.tkw-pins-in{display:flex;gap:8px;padding-top:4px;transition:transform .3s cubic-bezier(.33,1,.68,1)}
 .tkw-pin{display:grid;justify-items:center;gap:4px;flex:none;width:28px;transition:opacity .35s,transform .35s cubic-bezier(.33,1,.68,1),width .35s,margin .35s}
 .tkw-pin img{width:28px;height:28px;display:block;transition:transform .35s cubic-bezier(.33,1,.68,1),opacity .35s}
 .tkw-pin i{width:4px;height:4px;border-radius:50%;background:var(--c-ink);opacity:0;transition:opacity .35s}

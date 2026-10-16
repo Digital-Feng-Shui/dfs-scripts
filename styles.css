@@ -891,3 +891,6 @@ html:not([data-tinko="owned"]) .tinko-gate_content{filter:blur(6px);opacity:.6;u
 
 /* Dashboard: a course or tool card that's coming soon isn't a link (no hover arrow, no pointer) */
 .course_card:has(.coming_soon) .cover_course-card{pointer-events:none;cursor:default}
+/* Dashboard feedback cards: on hover the arrow slides out to the right and the next one slides in */
+.dash-card:hover .dash-card_arrows,.dash-card:focus-visible .dash-card_arrows{transform:translateX(0)}
+@media (prefers-reduced-motion:reduce){.dash-card_arrows{transition:none}}

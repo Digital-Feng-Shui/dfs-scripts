@@ -2,9 +2,9 @@
    dfs-dive — Our Solutions demos (test: /rimbo-home-test)
    Loaded by dive.js only when the page has [data-sol]. Each product shows what it does, not what it looks like:
 
-     Fundamentals  [data-course-demo]   the course player, playing two talking lessons from the course (0.1 and 1.1,
-                                        the footage of /look-inside), each from its own cover; the module menu opens
-                                        on the lesson that plays.
+     Fundamentals  [data-course-demo]   the course player, built from the course's own markup and classes, with the
+                                        course's first two lessons (0.1 Course Intro, 0.2 Roadmap) from its video host;
+                                        starts on the cover with the play button. Modules open and close.
      Tinko         [data-tinko-demo]    Tinko's window on a small Mac desktop, doing the real desktop pass on its own:
                                         it counts the desk, the screenshots fly into their folder, an installer goes
                                         to the Bin, the rest goes to Documents one by one, and the desk is empty.
@@ -37,19 +37,20 @@ export function initSolutions(root) {
 }
 
 /* ---------------------------------------------------------
-   Fundamentals: the course player
-   After /courses/fundamentals: the header, the video with its controls, Previous / Next in mono capitals, and the
-   module accordion (Mondwest titles, chevron tiles; the open module lists its lessons, the one playing in light
-   blue). It plays two talking lessons from the course (the same footage as /look-inside): 0.1 Course Intro and
-   1.1 The Shift. Each starts on its own cover; when one ends its lesson is ticked off and the menu closes that
-   module and opens the next. The video is cropped above its subtitles (they're not in the course).
+   Fundamentals: the course player, built from the course's own pieces
+   The markup and classes of /courses/fundamentals (the Bunny player, the navigation bar, the course title with its
+   progress, the module accordion), so it looks and moves like the course, night mode included (night.css styles
+   them). It plays the course's own first two lessons, 0.1 Course Intro and 0.2 Roadmap, from the course's video
+   host: it starts on the lesson cover with the play button, like the course. Modules open and close.
+   Laid out at a fixed size (1000 wide, the course's own proportions) and scaled to the column, like the Rhythms window; on phones without the list.
    --------------------------------------------------------- */
-const VIDEO = 'https://dfs-sample-media.thomas-aukema.workers.dev/look-inside-2026-10-14.mp4';
+const HOST = 'https://vz-87a2c68f-2a7.b-cdn.net/';
 const COVER = 'https://cdn.prod.website-files.com/67f2341f69b4c6d58de38b9d/';
-const CHAPTERS = [
-  { from: 3.6, to: 25.0, lesson: '0.1', module: 0, cover: COVER + '6a108d4ac20ca7593cd6572a_PIMG_1.avif' },
-  { from: 26.0, to: 45.8, lesson: '1.1', module: 1, cover: COVER + '6a108d4b0285e01a30db8f02_PIMG_3.avif' },
+const LESSONS = [
+  { id: '0.1', src: HOST + 'dcf95851-4ac1-4e1a-b9a8-de42d1b05d05/playlist.m3u8', cover: COVER + '6a108d4ac20ca7593cd6572a_PIMG_1.avif', dur: '03:09' },
+  { id: '0.2', src: HOST + 'ed429fa7-b87e-495d-82bc-e43c0c311865/playlist.m3u8', cover: COVER + '6a108c903b165a99aabd81e0_PIMG_2.avif', dur: '04:34' },
 ];
+const HLS = 'https://cdn.jsdelivr.net/npm/hls.js@1.6.11';
 // the course as it is (0.3, the Tinko add-on, only shows for its owners)
 const COURSE = [
   ['0: Intro', [['0.1', 'Course Intro', '3:09'], ['0.2', 'Roadmap', '4:34']]],
@@ -62,104 +63,147 @@ const COURSE = [
   ['7: Clarity Systems', [['7.1', 'The Invisible Clutter', '3:59'], ['7.2', 'Clarity Fundamentals', '9:16'], ['7.3', 'Planning', '10:17'], ['7.4', 'Vision', '2:11'], ['7.5', 'Personal OS', '7:10']]],
   ['8: Flow-state by Design', [['8.1', 'The Final Layer', '1:44'], ['8.2', 'The Art of Doing Nothing', '5:48'], ['8.3', 'Rituals For Flow', '8:27'], ['8.4', 'Thank You', '1:33']]],
 ];
-const ICON = {
-  play: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5z" fill="currentColor"/></svg>',
-  pause: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5h3v11H4zM9 2.5h3v11H9z" fill="currentColor"/></svg>',
-  mute: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path d="M11 6l4 4M15 6l-4 4" stroke="currentColor" stroke-width="1.4" fill="none"/></svg>',
-  sound: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path d="M11 5.5a3.5 3.5 0 0 1 0 5M12.6 3.6a6 6 0 0 1 0 8.8" stroke="currentColor" stroke-width="1.3" fill="none"/></svg>',
-  chevron: '<svg viewBox="0 0 36 36" aria-hidden="true"><path d="M28.5 22.5L18 12L7.5 22.5" stroke="currentColor" stroke-width="3" fill="none"/></svg>',
-  lesson: '<svg viewBox="0 0 8 8" aria-hidden="true"><path fill="currentColor" d="M2.914 4V2.396l1.336.802L5.587 4l-1.337.802-1.336.802z"/><rect width="7.75" height="7.75" x=".125" y=".125" stroke="currentColor" stroke-width=".25" rx="1.875" fill="none"/></svg>',
+const TOTAL_LESSONS = 35;
+const SVG = {
+  pause: '<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 24 24" fill="none" class="bunny-player__pause-svg"><path d="M16 5V19" stroke="currentColor" stroke-width="3" stroke-miterlimit="10"></path><path d="M8 5V19" stroke="currentColor" stroke-width="3" stroke-miterlimit="10"></path></svg>',
+  play: '<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 24 24" fill="none" class="bunny-player__play-svg"><path d="M6 12V5.01109C6 4.05131 7.03685 3.4496 7.87017 3.92579L14 7.42855L20.1007 10.9147C20.9405 11.3945 20.9405 12.6054 20.1007 13.0853L14 16.5714L7.87017 20.0742C7.03685 20.5503 6 19.9486 6 18.9889V12Z" fill="currentColor"></path></svg>',
+  volUp: '<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 24 24" fill="none" class="bunny-player__volume-up-svg"><path d="M3 8.99998V15H7L12 20V3.99998L7 8.99998H3ZM16.5 12C16.5 10.23 15.48 8.70998 14 7.96998V16.02C15.48 15.29 16.5 13.77 16.5 12ZM14 3.22998V5.28998C16.89 6.14998 19 8.82998 19 12C19 15.17 16.89 17.85 14 18.71V20.77C18.01 19.86 21 16.28 21 12C21 7.71998 18.01 4.13998 14 3.22998Z" fill="currentColor"></path></svg>',
+  volMute: '<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 24 24" fill="none" class="bunny-player__volume-mute-svg"><path d="M16.5 12C16.5 10.23 15.48 8.71 14 7.97V10.18L16.45 12.63C16.48 12.43 16.5 12.22 16.5 12ZM19 12C19 12.94 18.8 13.82 18.46 14.64L19.97 16.15C20.63 14.91 21 13.5 21 12C21 7.72 18.01 4.14 14 3.23V5.29C16.89 6.15 19 8.83 19 12ZM4.27 3L3 4.27L7.73 9H3V15H7L12 20V13.27L16.25 17.52C15.58 18.04 14.83 18.45 14 18.7V20.76C15.38 20.45 16.63 19.81 17.69 18.95L19.73 21L21 19.73L12 10.73L4.27 3ZM12 4L9.91 6.09L12 8.18V4Z" fill="currentColor"></path></svg>',
+  full: '<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 24 24" fill="none" class="bunny-player__fullscreen-scale-svg"><rect x="3" y="14" width="2" height="7" fill="currentColor"></rect><rect x="3" y="3" width="2" height="7" fill="currentColor"></rect><rect x="19" y="3" width="2" height="7" fill="currentColor"></rect><rect x="19" y="14" width="2" height="7" fill="currentColor"></rect><rect x="3" y="19" width="7" height="2" fill="currentColor"></rect><rect x="14" y="19" width="7" height="2" fill="currentColor"></rect><rect x="3" y="3" width="7" height="2" fill="currentColor"></rect><rect x="14" y="3" width="7" height="2" fill="currentColor"></rect></svg>',
+  shrink: '<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 24 24" fill="none" class="bunny-player__fullscreen-shrink-svg"><rect x="7" y="2" width="2" height="7" fill="currentColor"></rect><rect x="15" y="2" width="2" height="7" fill="currentColor"></rect><rect x="15" y="15" width="2" height="7" fill="currentColor"></rect><rect x="8" y="15" width="2" height="7" fill="currentColor"></rect><rect x="2" y="7" width="7" height="2" fill="currentColor"></rect><rect x="3" y="15" width="7" height="2" fill="currentColor"></rect><rect x="15" y="7" width="7" height="2" fill="currentColor"></rect><rect x="15" y="15" width="7" height="2" fill="currentColor"></rect></svg>',
+  loading: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" fill="none" class="bunny-player__loading-svg"><path fill="currentColor" d="M73,50c0-12.7-10.3-23-23-23S27,37.3,27,50 M30.9,50c0-10.5,8.5-19.1,19.1-19.1S69.1,39.5,69.1,50"><animateTransform attributeName="transform" attributeType="XML" type="rotate" dur="1s" from="0 50 50" to="360 50 50" repeatCount="indefinite"></animateTransform></path></svg>',
+  chevron: '<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 36 36" fill="none" class="accordion-css__item-icon-svg"><path d="M28.5 22.5L18 12L7.5 22.5" stroke="currentColor" stroke-width="3" stroke-miterlimit="10"></path></svg>',
+  lesson: '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" fill="none" viewBox="0 0 8 8"><path fill="currentColor" stroke="currentColor" stroke-miterlimit="10" stroke-width=".5" d="M2.914 4V2.396l1.336.802L5.587 4l-1.337.802-1.336.802z"/><rect width="7.75" height="7.75" x=".125" y=".125" stroke="currentColor" stroke-width=".25" rx="1.875"/></svg>',
+  prev: '<svg viewBox="0 0 12 7" fill="currentColor" xmlns="http://www.w3.org/2000/svg" width="100%" preserveAspectRatio="xMidYMid meet"> <path d="M4.64681 6.50671L4.64681 6.01342L4.09787 6.01342L3.54894 6.01342L3.54894 5.50839L3.54894 5.00336L3 5.00336L2.45106 5.00336L2.45617 4.50537L2.46383 4.00503L7.23319 3.99799L12 3.99329L12 3.5L12 3.00671L7.23319 3.00201L2.46383 2.99497L2.45617 2.49698L2.45106 1.99664L3 1.99664L3.54894 1.99664L3.54894 1.49161L3.54894 0.986577L4.09787 0.986577L4.64681 0.986577L4.64681 0.493288L4.64681 0L4.09787 0L3.54894 0L3.54894 0.493288L3.54894 0.986577L3.00511 0.991275L2.46383 0.998321L2.45617 1.49866L2.45106 1.99664L1.91489 1.99664L1.37872 1.99664L1.37362 2.49698L1.36596 2.99497L0.681703 3.00201L0 3.00671L0 3.5L0 3.99329L0.681703 3.99799L1.36596 4.00503L1.37362 4.50537L1.37872 5.00336L1.91489 5.00336L2.45106 5.00336L2.45617 5.50369L2.46383 6.00168L3.00511 6.00873L3.54894 6.01342L3.54894 6.50671L3.54894 7L4.09787 7L4.64681 7L4.64681 6.50671Z" fill="#3D3A35"/> </svg>',
+  next: '<svg viewBox="0 0 12 7" fill="currentColor" xmlns="http://www.w3.org/2000/svg" width="100%" preserveAspectRatio="xMidYMid meet"> <path d="M7.35319 0.493288V0.986576H7.90213H8.45106V1.49161V1.99664H9H9.54894L9.54383 2.49463L9.53617 2.99497L4.76681 3.00201L0 3.00671L0 3.5L0 3.99329L4.76681 3.99799L9.53617 4.00503L9.54383 4.50302L9.54894 5.00336H9H8.45106V5.50839V6.01342H7.90213H7.35319V6.50671V7H7.90213H8.45106V6.50671V6.01342L8.99489 6.00872L9.53617 6.00168L9.54383 5.50134L9.54894 5.00336L10.0851 5.00336H10.6213L10.6264 4.50302L10.634 4.00503L11.3183 3.99799L12 3.99329V3.5V3.00671L11.3183 3.00201L10.634 2.99497L10.6264 2.49463L10.6213 1.99664H10.0851H9.54894L9.54383 1.49631L9.53617 0.998321L8.99489 0.991274L8.45106 0.986576V0.493288V0H7.90213H7.35319V0.493288Z"/> </svg>',
 };
-const mmss = s => { s = Math.max(0, Math.round(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+const mmss = s => { s = Math.max(0, Math.floor(s || 0)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+let hlsLoading = null;
+const loadHls = () => hlsLoading || (hlsLoading = new Promise((res, rej) => { if (window.Hls) return res(window.Hls); const sc = document.createElement('script'); sc.src = HLS; sc.onload = () => res(window.Hls); sc.onerror = rej; document.head.append(sc); }));
 
 function initCourse(host) {
-  host.innerHTML = `<div class="cp">
-    <div class="cp-top"><div class="cp-brand">${STAR}<span>Fundamentals</span></div>
-      <div class="cp-prog"><span>8 modules · 35 lessons</span><div class="cp-bar"><i></i></div></div></div>
-    <div class="cp-main">
-      <div class="cp-stage">
-        <div class="cp-video">
-          <video muted playsinline preload="none" aria-label="Lessons 0.1 and 1.1 of the course"></video>
-          ${CHAPTERS.map((c, i) => `<img class="cp-cover${i ? '' : ' is-on'}" src="${c.cover}" alt="">`).join('')}
-          <span class="cp-big" aria-hidden="true">${ICON.play}</span>
-          <button class="cp-sound" type="button">${ICON.sound}<span>Sound on</span></button>
-          <div class="cp-ctrl">
-            <button class="cp-play" type="button" aria-label="Play">${ICON.play}</button>
-            <span class="cp-time">00:00 / 00:00</span>
-            <div class="cp-scrub" aria-hidden="true"><i></i></div>
-            <button class="cp-speed" type="button" aria-label="Speed">1.0x</button>
-            <button class="cp-mute" type="button" aria-label="Sound">${ICON.mute}</button>
-          </div>
-        </div>
-        <div class="cp-nav"><button class="cp-prev" type="button"><span aria-hidden="true">←</span> Previous lesson</button><button class="cp-next" type="button">Next lesson <span aria-hidden="true">→</span></button></div>
+  const W = 1000;
+  host.innerHTML = `<div class="cpr">
+    <div class="cpr-left">
+      <div class="bunny-player" data-player-status="idle" data-player-activated="false" data-player-hover="idle" data-player-muted="false" data-player-fullscreen="false">
+        <div class="bunny-player__before" style="padding-top:56.25%"></div>
+        <video class="bunny-player__video" playsinline preload="none"></video>
+        <img class="bunny-player__placeholder" src="${LESSONS[0].cover}" alt="">
+        <div class="bunny-player__dark"></div>
+        <div data-player-control="playpause" class="bunny-player__playpause"><div class="bunny-player__big-btn">${SVG.pause}${SVG.play}</div></div>
+        <div class="bunny-player__interface"><div class="bunny-player__interface-fade"></div>
+          <div class="bunny-player__interface-bottom">
+            <div data-player-control="playpause" class="bunny-player__toggle-playpause">${SVG.pause}${SVG.play}</div>
+            <div class="bunny-player__time"><p data-player-time-progress class="bunny-player__text">00:00</p><p class="bunny-player__text is--transparent">/</p><p data-player-time-duration class="bunny-player__text is--transparent">${LESSONS[0].dur}</p></div>
+            <div data-player-timeline class="bunny-player__timeline"><div class="bunny-player__timeline-bar"><div class="bunny-player__timeline-bg"></div><div data-player-buffered class="bunny-player__timeline-buffered"></div><div data-player-progress class="bunny-player__timeline-progress"></div></div><div class="bunny-player__timeline-handle"></div></div>
+            <div class="bunny-player__interface-btns"><div data-player-control="speed" class="speed_controls"><div data-player-speed-label class="speed_mode">1.0x</div></div>
+              <div data-player-control="mute" class="bunny-player__toggle-mute">${SVG.volUp}${SVG.volMute}</div>
+              <div data-player-control="fullscreen" class="bunny-player__toggle-fullscreen">${SVG.full}${SVG.shrink}</div></div>
+          </div></div>
+        <div class="bunny-player__loading">${SVG.loading}</div>
       </div>
-      <div class="cp-list"><div class="cp-list-in">${COURSE.map(([t, ls], m) => `<div class="cp-mod" data-m="${m}">
-        <div class="cp-mhead"><span>${t}</span><i>${ICON.chevron}</i></div>
-        <div class="cp-lessons"><div>${ls.map(([n, name, d]) => `<div class="cp-les" data-l="${n}"><i class="cp-check"></i><span>${n}: ${name}</span><em>${ICON.lesson}${d}</em></div>`).join('')}</div></div>
-      </div>`).join('')}</div></div>
+      <div class="course_navigation_bar"><a href="#" class="cnb_option is-outline w-inline-block" data-cp="prev"><div class="svg_arrow w-embed">${SVG.prev}</div><div class="inherit_txt_cl">Previous Lesson</div></a><a href="#" class="cnb_option is-dark w-inline-block" data-cp="next"><div class="inherit_txt_cl is-right">Next Lesson</div><div class="svg_arrow w-embed">${SVG.next}</div></a></div>
+    </div>
+    <div class="cpr-right">
+      <div class="cpr-title"><div class="course_progrpess_wrap"><div class="course_prog_title"><div class="logo_icon w-embed">${STAR}</div><div class="course_h1">Fundamentals</div></div><div class="cpr-pct"><span>0</span>%</div></div><div class="progression_bar"><div class="progress_juice"></div></div></div>
+      <div class="accordion-css"><ul class="accordion-css__list">${COURSE.map(([t, ls], m) => `<li data-accordion-status="${m === 0 ? 'active' : 'not-active'}" class="accordion-css__item is-course">
+        <div data-accordion-toggle class="course_module"><h3 class="course_item_title">${t}</h3><div class="accordion-css__item-icon">${SVG.chevron}</div></div>
+        <div class="accordion-css__item-bottom"><div class="overflowhide_this">${ls.map(([n, name, d]) => `<div class="c_item${n === '0.1' ? ' is-active' : ''}" data-l="${n}"><div class="left_content"><div class="check_box"><div class="check_fill"></div></div><p class="accordion-css__item-p">${n}: ${name}</p></div><div class="lesson_duration"><div class="code-embed-4 w-embed">${SVG.lesson}</div><div class="c_time">${d}</div></div></div>`).join('')}</div></div>
+      </li>`).join('')}</ul></div>
     </div>
   </div>`;
-  const $ = s => host.querySelector(s);
-  const v = $('video'), stage = $('.cp-video'), playB = $('.cp-play'), timeEl = $('.cp-time'), fill = $('.cp-scrub i'), bar = $('.cp-bar i');
-  const muteB = $('.cp-mute'), soundB = $('.cp-sound'), speedB = $('.cp-speed'), covers = [...host.querySelectorAll('.cp-cover')];
-  let at = 0, userPaused = reduce, started = false, raf = 0, coverT = 0;
-  const total = CHAPTERS.reduce((s, c) => s + (c.to - c.from), 0);
-  function menu() {
-    const c = CHAPTERS[at];
-    host.querySelectorAll('.cp-mod').forEach((m, n) => m.classList.toggle('is-open', n === c.module));
-    host.querySelectorAll('.cp-les').forEach(l => l.classList.toggle('is-now', l.dataset.l === c.lesson));
-  }
-  function done(i, on) { const l = host.querySelector(`.cp-les[data-l="${CHAPTERS[i].lesson}"]`); if (l) l.classList.toggle('is-done', on); }
-  // a lesson starts on its cover, then the video comes through
-  function cover(i, hold) {
-    clearTimeout(coverT);
-    // the new cover is there at once (no crossfade over the moving video); it fades out to reveal the lesson
-    covers.forEach((c, n) => { c.classList.add('is-snap'); c.classList.toggle('is-on', n === i); c.offsetWidth; c.classList.remove('is-snap'); });
-    if (!hold) coverT = setTimeout(() => covers[i].classList.remove('is-on'), reduce ? 0 : 1500);
-  }
-  function show(i, { seek = true, fromEnd = false } = {}) {
-    if (fromEnd) done(at, true);
-    at = (i + CHAPTERS.length) % CHAPTERS.length;
-    if (at === 0 && fromEnd) CHAPTERS.forEach((_, n) => done(n, false));   // round again: nothing ticked yet
-    menu();
-    cover(at, v.paused);
-    if (seek && v.readyState > 0) v.currentTime = CHAPTERS[at].from;
-    tick();
-  }
-  function tick() {
-    const c = CHAPTERS[at], t = Math.min(c.to, Math.max(c.from, v.currentTime || c.from));
-    if (v.currentTime >= c.to - .05 && !v.paused) { show(at + 1, { fromEnd: true }); return; }
-    const before = CHAPTERS.slice(0, at).reduce((s, k) => s + (k.to - k.from), 0);
-    fill.style.width = ((t - c.from) / (c.to - c.from) * 100).toFixed(2) + '%';
-    bar.style.width = ((before + t - c.from) / total * 100).toFixed(2) + '%';
-    timeEl.textContent = `${mmss(t - c.from)} / ${mmss(c.to - c.from)}`;
-  }
-  function loop() { tick(); raf = requestAnimationFrame(loop); }
-  const sync = () => {
-    stage.classList.toggle('is-paused', v.paused);
-    playB.innerHTML = v.paused ? ICON.play : ICON.pause; playB.setAttribute('aria-label', v.paused ? 'Play' : 'Pause');
+  const $ = s => host.querySelector(s), $$ = s => [...host.querySelectorAll(s)];
+  const cpr = $('.cpr'), player = $('.bunny-player'), v = $('video'), cover = $('.bunny-player__placeholder');
+  const timeP = $('[data-player-time-progress]'), timeD = $('[data-player-time-duration]'), prog = $('[data-player-progress]'), buf = $('[data-player-buffered]'), speedL = $('[data-player-speed-label]');
+  const pctEl = $('.cpr-pct span'), juice = $('.progress_juice');
+  const st = (k, val) => player.setAttribute('data-player-' + k, val);
+  // fit: the course's own sizes, scaled to the column; phones get the player and its buttons only
+  const fit = () => {
+    const w = host.clientWidth, phone = w < 560, size = phone ? 690 : W;   // phones: the player and its buttons only
+    host.classList.toggle('is-phone', phone);
+    cpr.style.transform = `scale(${w / size})`;
+    host.style.height = (cpr.offsetHeight * w / size) + 'px';
   };
-  function play() {
-    if (!started) { started = true; v.src = VIDEO; v.addEventListener('loadedmetadata', () => { v.currentTime = CHAPTERS[at].from; }, { once: true }); }
-    const p = v.play(); if (p) p.catch(() => {});
+  new ResizeObserver(fit).observe(host);
+
+  let at = 0, hls = null, loaded = false, done = new Set(), hoverT = 0;
+  function progress() {
+    const t = v.currentTime || 0, d = v.duration || 0;
+    timeP.textContent = mmss(t);
+    if (d) timeD.textContent = mmss(d);
+    prog.style.transform = `translateX(${d ? (t / d * 100 - 100).toFixed(2) : -100}%)`;
+    if (d && v.buffered.length) buf.style.transform = `translateX(${(v.buffered.end(v.buffered.length - 1) / d * 100 - 100).toFixed(2)}%)`;
   }
-  v.addEventListener('play', () => { sync(); cover(at, false); cancelAnimationFrame(raf); loop(); });
-  v.addEventListener('pause', () => { sync(); cancelAnimationFrame(raf); });
-  const toggle = () => { if (v.paused) { userPaused = false; play(); } else { userPaused = true; v.pause(); } };
-  playB.addEventListener('click', toggle);
-  stage.addEventListener('click', e => { if (!e.target.closest('.cp-ctrl, .cp-sound')) toggle(); });
-  $('.cp-prev').addEventListener('click', () => { show(at - 1); if (!userPaused) play(); });
-  $('.cp-next').addEventListener('click', () => { show(at + 1); if (!userPaused) play(); });
-  host.querySelectorAll('.cp-les').forEach(l => l.addEventListener('click', () => { const i = CHAPTERS.findIndex(c => c.lesson === l.dataset.l); if (i > -1) { show(i); if (!userPaused) play(); } }));
-  const sound = on => { v.muted = !on; muteB.innerHTML = on ? ICON.sound : ICON.mute; soundB.classList.add('is-gone'); if (on) { userPaused = false; play(); } };
-  muteB.addEventListener('click', () => sound(v.muted));
-  soundB.addEventListener('click', () => sound(true));
-  const SPEEDS = [1, 1.5, 2];
-  speedB.addEventListener('click', () => { const s = SPEEDS[(SPEEDS.indexOf(v.playbackRate) + 1) % SPEEDS.length]; v.playbackRate = s; speedB.textContent = s.toFixed(1) + 'x'; });
-  $('.cp-scrub').addEventListener('click', e => { const r = e.currentTarget.getBoundingClientRect(), c = CHAPTERS[at]; if (v.readyState > 0) v.currentTime = c.from + (e.clientX - r.left) / r.width * (c.to - c.from); tick(); });
-  watch(host, on => { if (on && !userPaused) play(); else if (!on) v.pause(); }, '0px 0px -15% 0px');
-  show(0, { seek: false });
-  sync();
+  function course() {
+    const pct = Math.round(done.size / TOTAL_LESSONS * 100);
+    pctEl.textContent = pct; juice.style.width = pct + '%';
+    $$('.c_item').forEach(el => {
+      el.classList.toggle('is-active', el.dataset.l === LESSONS[at].id);
+      const f = el.querySelector('.check_fill'); if (f) f.classList.toggle('is-complete', done.has(el.dataset.l));
+    });
+  }
+  function unload() {
+    try { v.pause(); } catch (_) {}
+    if (hls) { hls.destroy(); hls = null; }
+    v.removeAttribute('src'); try { v.load(); } catch (_) {}
+    loaded = false;
+  }
+  function select(i, autoplay) {
+    unload();
+    at = (i + LESSONS.length) % LESSONS.length;
+    const L = LESSONS[at];
+    cover.src = L.cover;
+    timeP.textContent = '00:00'; timeD.textContent = L.dur; prog.style.transform = 'translateX(-100%)'; buf.style.transform = 'translateX(-100%)';
+    st('status', 'idle'); st('activated', 'false');
+    course();
+    if (autoplay) play();
+  }
+  async function play() {
+    const L = LESSONS[at];
+    st('activated', 'true');
+    if (!loaded) {
+      loaded = true; st('status', 'loading');
+      if (v.canPlayType('application/vnd.apple.mpegurl')) v.src = L.src;
+      else {
+        try { const Hls = await loadHls(); hls = new Hls({ maxBufferLength: 10 }); hls.loadSource(L.src); hls.attachMedia(v); }
+        catch (_) { st('status', 'idle'); loaded = false; return; }
+      }
+    }
+    const p = v.play(); if (p) p.catch(() => { if (v.paused) st('status', 'paused'); });
+  }
+  const toggle = () => { if (!loaded || v.paused) play(); else v.pause(); };
+  v.addEventListener('playing', () => st('status', 'playing'));
+  v.addEventListener('waiting', () => { if (!v.paused) st('status', 'loading'); });
+  v.addEventListener('pause', () => { if (loaded) st('status', 'paused'); });
+  v.addEventListener('timeupdate', progress);
+  v.addEventListener('progress', progress);
+  v.addEventListener('loadedmetadata', progress);
+  v.addEventListener('ended', () => { done.add(LESSONS[at].id); select(at + 1, true); });
+  $$('[data-player-control="playpause"]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); toggle(); }));
+  player.addEventListener('click', e => { if (!e.target.closest('.bunny-player__interface-bottom')) toggle(); });
+  $('[data-player-control="mute"]').addEventListener('click', () => { v.muted = !v.muted; st('muted', String(v.muted)); });
+  const SPEEDS = [1, 1.25, 1.5, 2];
+  $('[data-player-control="speed"]').addEventListener('click', () => { const s = SPEEDS[(SPEEDS.indexOf(v.playbackRate) + 1) % SPEEDS.length]; v.playbackRate = s; speedL.textContent = (Number.isInteger(s) ? s.toFixed(1) : s) + 'x'; });
+  $('[data-player-control="fullscreen"]').addEventListener('click', () => {
+    if (document.fullscreenElement) document.exitFullscreen(); else if (player.requestFullscreen) player.requestFullscreen(); else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+  });
+  document.addEventListener('fullscreenchange', () => st('fullscreen', String(document.fullscreenElement === player)));
+  $('[data-player-timeline]').addEventListener('click', e => { const r = e.currentTarget.getBoundingClientRect(); if (v.duration) { v.currentTime = (e.clientX - r.left) / r.width * v.duration; progress(); } });
+  // the interface shows while the pointer moves over the playing video, and goes after a moment of rest
+  player.addEventListener('pointermove', () => { st('hover', 'active'); clearTimeout(hoverT); hoverT = setTimeout(() => st('hover', 'idle'), 2200); });
+  player.addEventListener('pointerleave', () => { clearTimeout(hoverT); st('hover', 'idle'); });
+  host.querySelector('[data-cp="prev"]').addEventListener('click', e => { e.preventDefault(); select(at - 1, !v.paused && loaded); });
+  host.querySelector('[data-cp="next"]').addEventListener('click', e => { e.preventDefault(); done.add(LESSONS[at].id); select(at + 1, !v.paused && loaded); });
+  // the modules open and close (the course's own accordion styles do the motion)
+  host.querySelector('.accordion-css').addEventListener('click', e => {
+    const t = e.target.closest('[data-accordion-toggle]');
+    if (t) { const item = t.closest('[data-accordion-status]'); item.setAttribute('data-accordion-status', item.getAttribute('data-accordion-status') === 'active' ? 'not-active' : 'active'); return; }
+    const les = e.target.closest('.c_item');
+    if (les) { const i = LESSONS.findIndex(L => L.id === les.dataset.l); if (i > -1 && i !== at) select(i, loaded && !v.paused); }
+  });
+  watch(host, on => { if (!on && loaded && !v.paused) v.pause(); }, '0px');
+  select(0, false);
+  fit();
 }
 
 /* ---------------------------------------------------------
@@ -479,63 +523,53 @@ function injectSolCSS() {
 [data-sol] .is-sol-meta .sol_top{flex-direction:column;align-items:flex-start;gap:.5rem}
 /* stacked (tablet and phone): every product reads text first, then its demo */
 @media (max-width:991px){[data-sol] .is-flip .is-sol-meta{order:-1}[data-sol] .is-sol-row .divider_vertical{display:none}}
-/* the course player (after /courses/fundamentals) */
-.cp{--ink:var(--brand-colors--dark_gray,#3d3a35);--line:var(--brand-colors--dark-bage,#dfd5c9);--card:var(--brand-colors--light-bage,#fbf7ee);--blue:var(--brand-colors--blue,#0297db);--tint:var(--brand-colors--light-bleu,#eff9fd);
-  border:1px solid var(--line);border-radius:6px;background:var(--card);overflow:hidden;color:var(--ink);box-shadow:0 30px 60px -36px rgba(61,58,53,.45);font-family:var(--_typography---font-styles--body,monospace)}
-.cp button{all:unset;cursor:pointer;box-sizing:border-box}
-.cp-top{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem 1rem;border-bottom:1px solid var(--line)}
-.cp-brand{display:flex;align-items:center;gap:.5rem;font-family:var(--_typography---font-styles--heading,serif);font-size:1.3rem;line-height:1}
-.cp-brand svg{width:1.25rem;height:1.25rem}
-.cp-prog{display:flex;align-items:center;gap:.8rem;font-size:.58rem;letter-spacing:.14em;text-transform:uppercase}
-.cp-bar{width:7rem;height:3px;border-radius:2px;background:color-mix(in srgb,var(--ink) 12%,transparent);overflow:hidden}
-.cp-bar i{display:block;height:100%;width:0;background:radial-gradient(circle,#0297db,#3fc3ff)}
-/* the stage sets the height; the list is cut off at the bottom of Previous / Next */
-.cp-main{display:grid;grid-template-columns:minmax(0,1fr) 11.25rem}
-.cp-stage{min-width:0;border-right:1px solid var(--line)}
-/* the footage has subtitles under the slide: show the slide only, centred */
-.cp-video{position:relative;aspect-ratio:16/9;background:#5f5c58;overflow:hidden;cursor:pointer}
-.cp-video video{position:absolute;left:-8.39%;top:-3.68%;width:116.79%;height:auto;display:block}
-.cp-cover{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .8s ease;pointer-events:none}
-.cp-cover.is-on{opacity:1}
-.cp-cover.is-snap{transition:none}
-.cp-big{position:absolute;left:50%;top:50%;width:3.6rem;height:3.6rem;margin:-1.8rem 0 0 -1.8rem;display:grid;place-items:center;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);color:#fff;opacity:0;transition:opacity .4s;pointer-events:none}
-.cp-big svg{width:1.2rem;height:1.2rem;margin-left:.15rem}
-.cp-video.is-paused .cp-big{opacity:1}
-.cp-sound{position:absolute;right:.6rem;top:.6rem;display:flex!important;align-items:center;gap:.4rem;padding:.3rem .5rem!important;border-radius:2px;background:rgba(20,18,16,.55);color:#fff;font-size:.54rem;letter-spacing:.12em;text-transform:uppercase;transition:opacity .4s}
-.cp-sound svg{width:.85rem;height:.85rem}
-.cp-sound.is-gone{opacity:0;pointer-events:none}
-.cp-ctrl{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:.8rem;padding:1.4rem .9rem .65rem;background:linear-gradient(transparent,rgba(0,0,0,.5));color:#fff;font-size:.62rem;letter-spacing:.06em;opacity:0;transition:opacity .35s}
-.cp-video:hover .cp-ctrl,.cp-video.is-paused .cp-ctrl,.cp-video:focus-within .cp-ctrl{opacity:1}
-.cp-ctrl svg{width:.95rem;height:.95rem;display:block}
-.cp-time{white-space:nowrap;font-variant-numeric:tabular-nums}
-.cp-scrub{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.35);cursor:pointer;position:relative}
-.cp-scrub i{position:absolute;left:0;top:0;bottom:0;width:0;background:#fff;border-radius:2px}
-.cp-nav{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line)}
-.cp .cp-nav button{display:flex;align-items:center;justify-content:center;gap:.6rem;padding:.8rem .8rem;font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap;transition:background-color .4s}
-.cp .cp-nav span{font-size:.8rem;letter-spacing:0}
-.cp .cp-prev:hover{background:color-mix(in srgb,var(--ink) 5%,transparent)}
-.cp .cp-next{background:var(--ink);color:var(--card)}
-.cp .cp-next:hover{background:color-mix(in srgb,var(--ink) 88%,var(--blue))}
-.cp-list{position:relative;min-width:0}
-.cp-list-in{position:absolute;inset:0;overflow:hidden}
-.cp-mod{border-bottom:1px solid var(--line)}
-.cp-mhead{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.7rem .7rem .7rem .85rem;font-family:var(--_typography---font-styles--heading,serif);font-size:.88rem;line-height:1.1}
-.cp-mhead span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cp-mhead i{width:1.3rem;height:1.3rem;flex:none;display:grid;place-items:center;border-radius:3px;background:var(--line)}
-.cp-mhead svg{width:.7rem;height:.7rem;transform:rotate(180deg);transition:transform .5s ${EASE}}
-.cp-mod.is-open .cp-mhead svg{transform:none}
-.cp-lessons{display:grid;grid-template-rows:0fr;transition:grid-template-rows .6s ${EASE}}
-.cp-mod.is-open .cp-lessons{grid-template-rows:1fr}
-.cp-lessons>div{overflow:hidden}
-.cp-les{display:flex;align-items:center;gap:.45rem;padding:.42rem .7rem .42rem .85rem;border-top:1px dashed var(--line);font-size:.56rem;letter-spacing:.04em;cursor:default;transition:background-color .4s,color .4s}
-.cp-les span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cp-les em{display:flex;align-items:center;gap:.25rem;font-style:normal;font-size:.5rem;opacity:.8}
-.cp-les em svg{width:.42rem;height:.42rem}
-.cp-check{width:.62rem;height:.62rem;flex:none;border:1px solid currentColor;border-radius:2px;opacity:.85;transition:background-color .3s}
-.cp-les.is-done .cp-check{background:var(--blue) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.4 2.4L9.6 3.6' fill='none' stroke='white' stroke-width='1.8'/%3E%3C/svg%3E") center/90% no-repeat;border-color:var(--blue)}
-.cp-les.is-now{background:var(--tint);color:var(--blue)}
-.cp-les[data-l="0.1"],.cp-les[data-l="1.1"]{cursor:pointer}
-@media (max-width:767px){.cp-main{grid-template-columns:1fr}.cp-list{display:none}.cp-stage{border-right:0}.cp-prog span{display:none}.cp-time{display:none}}
+/* the course player: the course's own classes; only the layout of this little copy and the player states
+   (on the course they come with its page code) are set here */
+[data-course-demo]{position:relative;width:100%;overflow:hidden;border:1px solid var(--brand-colors--dark-bage,#dfd5c9);border-radius:4px;background:var(--brand-colors--light-bage,#fbf7ee);box-shadow:0 30px 60px -36px rgba(61,58,53,.4)}
+[data-course-demo] .cpr{position:absolute;left:0;top:0;width:1000px;display:grid;grid-template-columns:690px 310px;transform-origin:0 0}
+[data-course-demo] .cpr-left{min-width:0}
+[data-course-demo] .cpr-right{position:relative;min-width:0;overflow:hidden;border-left:1px dashed var(--brand-colors--dark-bage,#dfd5c9)}
+[data-course-demo] .cpr-right .accordion-css{position:absolute;left:0;right:0;top:86px;bottom:0;overflow:hidden}
+[data-course-demo] .cpr-right .accordion-css__item{border-left:0}
+[data-course-demo] .cpr-title{height:86px;padding:18px 18px 0;box-sizing:border-box}
+[data-course-demo] .cpr-title .course_progrpess_wrap{width:100%}
+[data-course-demo] .cpr-title .course_prog_title{justify-content:flex-start}
+[data-course-demo] .cpr-title .logo_icon{width:28px;height:28px;flex:none}
+[data-course-demo] .cpr-title .logo_icon svg{width:100%;height:100%;display:block}
+[data-course-demo] .cpr-title .course_h1{font-family:var(--_typography---font-styles--heading,serif);font-size:28px;line-height:28px;font-weight:400;margin:0}
+[data-course-demo] .cpr-pct{font-family:var(--_typography---font-styles--heading,serif);font-size:28px;line-height:28px}
+[data-course-demo] .cpr-title .progression_bar{width:100%;overflow:hidden}
+[data-course-demo] .progress_juice{width:0;height:100%;border-radius:4px;background:radial-gradient(circle farthest-corner at 50% 50%,#0297db,#3fc3ff);transition:width .8s ${EASE}}
+[data-course-demo] .c_item:not([data-l="0.1"]):not([data-l="0.2"]){cursor:default}
+[data-course-demo] .c_item[data-l="0.1"],[data-course-demo] .c_item[data-l="0.2"]{cursor:pointer}
+[data-course-demo] .course_module{cursor:pointer}
+[data-course-demo] .course_navigation_bar .cnb_option{border:0;cursor:pointer}
+[data-course-demo].is-phone .cpr{width:690px;grid-template-columns:690px}
+[data-course-demo].is-phone .cpr-right{display:none}
+/* the real lessons sit as a slide on a mountain backdrop: show the slide, like a screen */
+[data-course-demo] .bunny-player{overflow:hidden;cursor:pointer}
+[data-course-demo] .bunny-player__video{position:absolute;left:-8.26%;top:-8.21%;width:116.65%;height:auto}
+[data-course-demo] .bunny-player__placeholder{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+[data-course-demo] :is(.bunny-player__placeholder,.bunny-player__dark,.bunny-player__playpause,.bunny-player__loading){transition:opacity .3s linear,visibility .3s linear}
+[data-course-demo] [data-player-activated="true"] .bunny-player__placeholder{opacity:0;visibility:hidden}
+[data-course-demo] .bunny-player__dark{opacity:0}
+[data-course-demo] [data-player-status="paused"] .bunny-player__dark,[data-course-demo] [data-player-status="playing"][data-player-hover="active"] .bunny-player__dark{opacity:.3}
+[data-course-demo] [data-player-status="playing"] .bunny-player__playpause,[data-course-demo] [data-player-status="loading"] .bunny-player__playpause{opacity:0}
+[data-course-demo] [data-player-status="playing"][data-player-hover="active"] .bunny-player__playpause{opacity:1}
+[data-course-demo] .bunny-player__pause-svg{display:none}
+[data-course-demo] :is([data-player-status="playing"],[data-player-status="loading"]) .bunny-player__play-svg{display:none}
+[data-course-demo] :is([data-player-status="playing"],[data-player-status="loading"]) .bunny-player__pause-svg{display:block}
+[data-course-demo] .bunny-player__loading{opacity:0;visibility:hidden}
+[data-course-demo] [data-player-status="loading"] .bunny-player__loading{opacity:1;visibility:visible}
+[data-course-demo] .bunny-player__interface{transition:all .6s ${EASE}}
+[data-course-demo] :is([data-player-status="playing"],[data-player-status="loading"]) .bunny-player__interface{opacity:0;transform:translateY(1em) rotate(.001deg)}
+[data-course-demo] :is([data-player-status="playing"],[data-player-status="loading"])[data-player-hover="active"] .bunny-player__interface{opacity:1;transform:none}
+[data-course-demo] .bunny-player__timeline-progress,[data-course-demo] .bunny-player__timeline-buffered{transform:translateX(-100%)}
+[data-course-demo] .bunny-player__volume-mute-svg,[data-course-demo] .bunny-player__fullscreen-shrink-svg{display:none}
+[data-course-demo] [data-player-muted="true"] .bunny-player__volume-mute-svg,[data-course-demo] [data-player-fullscreen="true"] .bunny-player__fullscreen-shrink-svg{display:block}
+[data-course-demo] [data-player-muted="true"] .bunny-player__volume-up-svg,[data-course-demo] [data-player-fullscreen="true"] .bunny-player__fullscreen-scale-svg{display:none}
+[data-course-demo] [data-player-fullscreen="true"] .bunny-player__video{left:0;top:0;width:100%;height:100%;object-fit:contain}
+.dfs-night [data-course-demo]{background:var(--brand-colors--light-bage);border-color:var(--brand-colors--dark-bage)}
 
 /* Tinko's desktop: a 760 x 560 scene, scaled to the column */
 [data-tinko-demo]{position:relative;width:100%;aspect-ratio:760/560;outline:none;border-radius:8px}

@@ -3178,7 +3178,8 @@
             const courseData = courses[courseName];
             if (!courseData.lessons) return;
 
-            const lessons = courseData.lessons;
+            // Add-on lessons (lesson 0.3, Tinko) don't count, same as the progress bar in the course
+            const lessons = courseData.lessons.filter(l => l.id !== 'lesson-0.3');
             const completed = lessons.filter(l => l.complete).length;
             const total = lessons.length;
             const percent = Math.round((completed / total) * 100);

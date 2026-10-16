@@ -967,16 +967,14 @@ function initMission(root) {
    Section 5 — our solutions (what we teach, what we build)
    Here the experience hands over to the normal site: the section is the site's own background and slides up over the
    dark mission, which moves on at about a third of the speed behind it (parallax); the site's side lines start at its top edge.
-     Fundamentals  a few slides (Webflow images; data-module + data-title make the caption), one every few seconds
-     Tinko         his "What's pinned" Dock pass, drawn after the app (Space keeps, the delete key unpins, ⌘Z undoes)
-     Rhythms       the real app: the "Rhythms App Window" component, brought to life by main.js (dfsRhythmsApp)
+     Fundamentals, Tinko and Rhythms each show what they do: see dive/solutions.js (loaded only on this page).
+     Rhythms is the real app, the "Rhythms App Window" component, brought to life by main.js (dfsRhythmsApp).
    Webflow:
      [data-sol]                  the section (z-index above the mission, site background)
        [data-sol-lines]          .page_side-lines (fixed); clipped here so the lines start where the section starts
        [data-sol-rise]           the heading, words rise in
        [data-sol-path]           01 Learn it — 02 Set it up — 03 Protect it (.sol_seg lines draw in)
-       [data-sol-slides] > img   the course slides
-       [data-tinko-demo]         Tinko's window is built here
+       [data-course-demo], [data-tinko-demo], [data-sol-rhythms]   the three demos (dive/solutions.js)
    ========================================================= */
 function initSol(root) {
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1032,109 +1030,8 @@ function initSol(root) {
   const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) e.target.classList.add(e.target === path ? 'is-in' : 'dive-in'); }), { threshold: .5 });
   [rise, path].filter(Boolean).forEach(n => io.observe(n));
 
-  // Fundamentals: a few slides, one every few seconds; a click moves on
-  const slidesEl = root.querySelector('[data-sol-slides]');
-  if (slidesEl) {
-    const slides = [...slidesEl.querySelectorAll('img')];
-    slides.forEach((img, i) => {
-      const fig = document.createElement('div'); fig.className = 'sol-slide' + (i ? '' : ' is-on');
-      img.replaceWith(fig); fig.append(img);
-      if (img.dataset.title) fig.insertAdjacentHTML('beforeend', `<div class="sol-cap"><small>Module ${img.dataset.module || ''}</small><span>${img.dataset.title}</span></div>`);
-    });
-    const figs = [...slidesEl.querySelectorAll('.sol-slide')];
-    slidesEl.insertAdjacentHTML('beforeend', `<div class="sol-dots">${figs.map((_, i) => `<i class="${i ? '' : 'is-on'}"></i>`).join('')}</div>`);
-    const dots = [...slidesEl.querySelectorAll('.sol-dots i')];
-    let at = 0, timer = 0;
-    const show = i => { at = (i + figs.length) % figs.length; figs.forEach((f, n) => f.classList.toggle('is-on', n === at)); dots.forEach((d, n) => d.classList.toggle('is-on', n === at)); };
-    const run = () => { clearInterval(timer); if (!reduce && figs.length > 1) timer = setInterval(() => show(at + 1), 3400); };
-    slidesEl.addEventListener('click', () => { show(at + 1); run(); });
-    run();
-  }
-
-  // Tinko
-  const host = root.querySelector('[data-tinko-demo]');
-  if (host) {
-    if (!document.querySelector('link[href*="Space+Mono"]')) {
-      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Space+Mono&display=swap'; document.head.append(l);
-    }
-    host.tabIndex = 0;
-    host.setAttribute('aria-label', "Try Tinko's Dock step: Space keeps an app, Delete unpins it");
-    host.innerHTML = `<div class="tkw"> <div class="tkw-lights" aria-hidden="true"><i></i><i></i><i></i></div> <div class="tkw-dash" style="top:28px"></div><div class="tkw-dash" style="bottom:28px"></div> <div class="tkw-col"> <div class="tkw-tools" aria-hidden="true"><svg viewBox="0 0 9 9" shape-rendering="crispEdges"><rect x="0" y="1" width="9" height="1"/><rect x="0" y="4" width="9" height="1"/><rect x="0" y="7" width="9" height="1"/></svg><svg viewBox="0 0 9 9" shape-rendering="crispEdges"><rect x="3" y="0" width="4" height="1"/><rect x="1" y="1" width="3" height="1"/><rect x="0" y="2" width="3" height="5"/><rect x="1" y="7" width="3" height="1"/><rect x="3" y="8" width="4" height="1"/><rect x="5" y="6" width="3" height="1"/><rect x="7" y="7" width="1" height="1"/><rect x="6" y="7" width="1" height="1"/><rect x="4" y="7" width="3" height="1"/></svg></div> <div class="tkw-stage"> <div class="tkw-tinko" aria-hidden="true"><div class="tkw-sway"><svg class="tkw-body" viewBox="0 0 14 11" shape-rendering="crispEdges"></svg><div class="tkw-eye is-l"></div><div class="tkw-eye is-r"></div></div></div> <div class="tkw-screen" aria-live="polite"></div> </div> </div> </div>`;
-    // tinko: his "What's pinned" pass, drawn after the app (DockViews.swift, PinPass.swift, Tinko.swift, Theme.swift).
-    // Space keeps (always the safe choice), the delete key unpins, ⌘Z puts it back.
-    const tkf = host, tkw = host.querySelector('.tkw'), tkScreen = host.querySelector('.tkw-screen');
-    new ResizeObserver(() => { tkw.style.transform = `scale(${tkf.clientWidth / 614})`; }).observe(tkf);
-    const TK_BITMAP = ['....######....', '..##########..', '.############.', '.#############', '##############', '##############', '##############', '.############.', '.############.', '..##########..', '....#####.....'];
-    host.querySelector('.tkw-body').innerHTML = TK_BITMAP.map((r, y) => [...r].map((c, x) => c === '#' ? `<rect x="${x}" y="${y}" width="1.02" height="1.02"/>` : '').join('')).join('');
-    const eyeL = host.querySelector('.tkw-eye.is-l'), eyeR = host.querySelector('.tkw-eye.is-r'), CELL = 6;
-    let eyes = [{ x: -1.5, y: -.5, w: 1, h: 2 }, { x: 1.5, y: -.5, w: 1, h: 2 }];
-    const placeEye = (el, e, dur) => { el.style.transitionDuration = dur + 's'; Object.assign(el.style, { left: (7 + e.x - e.w / 2) * CELL + 'px', top: (5.5 + e.y - e.h / 2) * CELL + 'px', width: e.w * CELL + 'px', height: e.h * CELL + 'px' }); };
-    const setEyes = (l, r, dur = .6) => { eyes = [l, r]; placeEye(eyeL, l, dur); placeEye(eyeR, r, dur); };
-    setEyes(...eyes, 0);
-    // looking down at the Dock: the eyes low and a little squashed, sliding along it
-    const DOWN = [[-1.5, 1.6, 1, 1.5, 1.5, 1.6, 1, 1.5], [-2.7, 1.7, 1, 1.4, .3, 1.7, 1, 1.4], [-.3, 1.7, 1, 1.4, 2.7, 1.7, 1, 1.4], [-1.5, 1.9, 1.2, 1, 1.5, 1.9, 1.2, 1], [-3.3, 1.6, 1, 1.5, -.3, 1.6, 1, 1.5], [.3, 1.6, 1, 1.5, 3.3, 1.6, 1, 1.5]]
-      .map(a => [{ x: a[0], y: a[1], w: a[2], h: a[3] }, { x: a[4], y: a[5], w: a[6], h: a[7] }]);
-    let downAt = 0, blinking = false;
-    if (!reduce) {
-      setInterval(() => { if (blinking) return; let n = (Math.random() * DOWN.length) | 0; if (n === downAt) n = (n + 1) % DOWN.length; downAt = n; setEyes(...DOWN[n]); }, 1600);
-      const blink = () => {
-        const [l, r] = eyes; blinking = true;
-        setEyes({ ...l, y: l.y + .8, h: .25 }, { ...r, y: r.y + .8, h: .25 }, .07);
-        setTimeout(() => { setEyes(l, r, .16); blinking = false; }, 130);
-        setTimeout(blink, 2500 + Math.random() * 3500);
-      };
-      setTimeout(blink, 2000);
-    }
-    setEyes(...DOWN[0], 0);
-    const PINS = [
-      { name: 'Slack', note: 'Open right now. Unpin it and it leaves the Dock once you quit it.' },
-      { name: 'Messages', note: 'Last opened today.' },
-      { name: 'WhatsApp', note: 'Last opened 3 days ago.' },
-      { name: 'Discord', note: 'Last opened 2 months ago.' },
-      { name: 'Twitch', note: 'Last opened 5 months ago.' },
-    ];
-    const iconOf = n => (ICONS.find(i => i[0] === n) || [])[1] || '';
-    const DEL = '<svg viewBox="0 0 22 18" aria-hidden="true"><path d="M7 2h13v14H7L1 9z"/><path d="M11 6l6 6M17 6l-6 6"/></svg>';
-    const roll = t => `<span class="tkw-roll">${[...t.toUpperCase()].map(c => `<b>${c === ' ' ? '&nbsp;' : c}</b>`).join('')}</span>`;
-    const btn = (act, title, key, light) => `<button class="tkw-btn${light ? ' is-light' : ''}" data-tk="${act}"><span class="tkw-key${key === 'del' ? ' is-del' : ''}">${key === 'del' ? DEL : key}</span>${roll(title)}</button>`;
-    const list = n => n.length > 1 ? n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1] : (n[0] || 'nothing');
-    let tkStep = 'ask', tkAt = 0, fate = [];
-    function tkRender() {
-      let tag = 'What’s pinned', words, row = '', btns, undo = false;
-      if (tkStep === 'ask') { words = 'Now what stays in your Dock for good. Keep your daily drivers, unpin the rest. They’re still one ⌘Space away.'; btns = btn('start', 'Start', 'SPACE'); }
-      else if (tkStep === 'pin') {
-        const p = PINS[tkAt]; words = `${p.name}. ${p.note} Daily driver?`;
-        row = PINS.map((q, i) => `<div class="tkw-pin ${fate[i] === 'unpin' ? 'is-gone' : i === tkAt ? 'is-now' : fate[i] === 'kept' ? 'is-kept' : 'is-wait'}" title="${q.name}"><img src="${iconOf(q.name)}" alt=""><i></i></div>`).join('');
-        btns = btn('keep', 'Keep', 'SPACE') + btn('unpin', 'Unpin', 'del', true);
-      } else if (tkStep === 'done') {
-        const gone = fate.filter(f => f === 'unpin').length, stay = PINS.filter((_, i) => fate[i] !== 'unpin').map(p => p.name);
-        words = gone ? `${gone} unpinned. Your Dock keeps ${list(stay)}. That’s the lot.` : 'Everything stays pinned. Your daily drivers, your call.';
-        btns = btn('next', 'Next', 'SPACE'); undo = gone > 0;
-      } else { tag = 'Your Dock'; words = 'Dock done. Lighter already. I’ll stay in it myself until the course is through. Now the desktop.'; btns = btn('again', 'On to the desktop', 'SPACE'); }
-      const swap = tkScreen.dataset.key !== tkStep; tkScreen.dataset.key = tkStep;
-      tkScreen.innerHTML = `<div class="tkw-tag"><span>${tag}</span></div><div class="tkw-words">${words}</div>${row ? `<div class="tkw-row">${row}</div>` : ''}<div class="tkw-btns">${btns}</div>${undo ? '<button class="tkw-undo" data-tk="undo">⌘Z  UNDO</button>' : ''}`;
-      if (swap && !reduce) { tkScreen.classList.add('is-swap'); requestAnimationFrame(() => requestAnimationFrame(() => tkScreen.classList.remove('is-swap'))); }
-    }
-    function tkDo(a) {
-      if (a === 'start') { tkStep = 'pin'; tkAt = 0; fate = PINS.map(() => 'wait'); }
-      else if (a === 'keep' || a === 'unpin') {
-        if (tkStep !== 'pin') return;
-        fate[tkAt] = a === 'keep' ? 'kept' : 'unpin'; tkAt++;
-        if (tkAt >= PINS.length) tkStep = 'done';
-      }
-      else if (a === 'undo') { tkStep = 'ask'; }
-      else if (a === 'next') { tkStep = 'dock'; }
-      else if (a === 'again') { tkStep = 'ask'; }
-      tkRender();
-    }
-    const tkSpace = () => ({ ask: 'start', pin: 'keep', done: 'next', dock: 'again' })[tkStep];
-    tkScreen.addEventListener('click', e => { const b = e.target.closest('[data-tk]'); if (b) { tkDo(b.dataset.tk); tkf.focus({ preventScroll: true }); } });
-    tkf.addEventListener('keydown', e => {
-      const a = e.key === ' ' ? tkSpace() : (e.key === 'Backspace' || e.key === 'Delete') ? 'unpin' : (e.key === 'z' && (e.metaKey || e.ctrlKey) && tkStep === 'done') ? 'undo' : null;
-      if (a) { e.preventDefault(); tkDo(a); }
-    });
-    tkRender();
-  }
+  // the three products show what they do (dive/solutions.js, loaded only here)
+  import('./solutions.js').then(m => m.initSolutions(root)).catch(e => console.warn('[sol] demos did not load', e));
 }
 
 function injectCSS() {
@@ -1202,18 +1099,7 @@ function injectCSS() {
   [data-sol-path]{flex-wrap:wrap;gap:.6rem 1.2rem}[data-sol-path] .sol_seg{display:none}}
 [data-sol-path] .sol_seg{background:linear-gradient(90deg,var(--brand-colors--blue) 50%,transparent 0) 0 0/6px 2px;transform-origin:left;transform:scaleX(0);transition:transform 1.1s cubic-bezier(.625,.05,0,1)}
 [data-sol-path].is-in .sol_seg{transform:none}[data-sol-path].is-in .sol_seg:nth-of-type(4){transition-delay:.5s}
-[data-sol-slides] .sol-slide{position:absolute;inset:0;opacity:0;transition:opacity .9s ease}
-[data-sol-slides] .sol-slide.is-on{opacity:1}
-[data-sol-slides] .sol-slide img{transform:scale(1.04);transition:transform 4s ease-out}
-[data-sol-slides] .sol-slide.is-on img{transform:none}
-.sol-cap{position:absolute;left:.7rem;bottom:.7rem;display:grid;gap:.15rem;max-width:80%;padding:.45rem .6rem;border-radius:2px;background:var(--brand-colors--light-bage)}
-.sol-cap small{font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--brand-colors--blue)}
-.sol-cap span{font-family:var(--_typography---font-styles--heading,Georgia,serif);font-size:1.15rem;line-height:1.05}
-.sol-dots{position:absolute;right:.7rem;bottom:.85rem;display:flex;gap:.3rem}
-.sol-dots i{width:.42rem;height:.42rem;border-radius:1px;background:var(--brand-colors--light-bage);opacity:.55;transition:opacity .3s}
-.sol-dots i.is-on{opacity:1;background:var(--brand-colors--blue)}
 [data-sol-rhythms] .rhythms-window{box-shadow:0 0 0 1px var(--brand-colors--dark-bage)}
-[data-tinko-demo]{width:100%;aspect-ratio:614/540;position:relative;overflow:hidden;border-radius:10px;box-shadow:0 0 0 1px var(--line);outline:none} [data-tinko-demo]:focus-visible{box-shadow:0 0 0 1px var(--blue)} .tkw{--c-card:#fbf7ef;--c-ink:#3d3a36;--c-soft:#7d776f;--c-line:#dfd5ca;--c-calm:#1a97d7;--c-calmsoft:#edf5f9; position:absolute;left:0;top:0;width:614px;height:540px;transform-origin:0 0;background:var(--c-card);color:var(--c-ink);font-family:"Space Mono",monospace;font-size:12px;-webkit-font-smoothing:antialiased} .dfs-night .tkw{--c-card:#292724;--c-ink:#fbf7ef;--c-soft:#b3aca2;--c-line:#3d3a36;--c-calm:#1dabfa;--c-calmsoft:#173241} .tkw-lights{position:absolute;left:12px;top:9px;display:flex;gap:8px} .tkw-lights i{width:12px;height:12px;border-radius:50%;background:#ed6a5e}.tkw-lights i:nth-child(2){background:#f5bf4f}.tkw-lights i:nth-child(3){background:#61c554} .tkw-dash{position:absolute;left:0;right:0;height:1px;background:linear-gradient(90deg,var(--c-line) 50%,transparent 0) 0 0/6px 1px} .tkw-col{position:absolute;left:28px;width:558px;top:28px;bottom:28px;border-inline:1px solid var(--c-line); background-image:linear-gradient(color-mix(in srgb,var(--c-ink) 5%,transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in srgb,var(--c-ink) 5%,transparent) 1px,transparent 1px);background-size:32px 32px;background-position:-.5px -.5px} .tkw-tools{position:absolute;right:16px;top:14px;display:flex;gap:8px} .tkw-tools svg{width:13.5px;height:13.5px;display:block;fill:var(--c-ink)} .tkw-stage{position:absolute;inset:0;display:grid;justify-items:center;align-content:center;gap:22px} .tkw-tinko{width:96px;height:78px;position:relative} .tkw-sway{position:absolute;left:6px;top:6px;width:84px;height:66px;transform-origin:50% 60%;animation:tkSway 1.85s ease-in-out infinite alternate} @keyframes tkSway{from{transform:rotate(-1.2deg)}to{transform:rotate(1.2deg)}} .tkw-body{position:absolute;inset:0;fill:var(--c-ink);animation:tkBreathe 5.5s ease-in-out infinite alternate;transform-origin:50% 60%} @keyframes tkBreathe{from{transform:scale(1,1)}to{transform:scale(1.03,.975)}} .tkw-eye{position:absolute;background:var(--c-card);transition:all .5s cubic-bezier(.37,0,.63,1)} .tkw-screen{display:grid;justify-items:center;text-align:center;width:100%;transition:opacity .35s cubic-bezier(.33,1,.68,1),transform .35s cubic-bezier(.33,1,.68,1)} .tkw-screen.is-swap{opacity:0;transform:translateY(6px);transition:none} .tkw-tag{height:20px;margin-bottom:12px;display:flex;align-items:center} .tkw-tag span{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--c-calm);background:var(--c-calmsoft);border-radius:2px;padding:3px 7px;line-height:1.2} .tkw-words{font-size:13px;line-height:23px;max-width:380px;margin-bottom:24px} .tkw-row{display:flex;gap:8px;align-items:flex-start;justify-content:center;margin-bottom:24px;min-height:40px} .tkw-pin{display:grid;justify-items:center;gap:4px;transition:opacity .35s cubic-bezier(.33,1,.68,1),transform .35s cubic-bezier(.33,1,.68,1),width .35s,margin .35s;width:28px} .tkw-pin img{width:28px;height:28px;display:block;border-radius:6px;transition:transform .35s cubic-bezier(.33,1,.68,1),opacity .35s} .tkw-pin i{width:4px;height:4px;border-radius:50%;background:var(--c-ink);opacity:0;transition:opacity .35s} .tkw-pin.is-now img{transform:scale(1.15)}.tkw-pin.is-now i{opacity:1} .tkw-pin.is-kept img{opacity:.3}.tkw-pin.is-wait img{opacity:.6} .tkw-pin.is-gone{transform:scale(.2);opacity:0;width:0;margin-inline:-4px} .tkw-btns{display:flex;gap:10px;justify-content:center} .tkw-btn{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;min-height:38px;box-sizing:border-box;padding:10px 16px;border-radius:4px;font-size:12px;letter-spacing:.6px;text-transform:uppercase;background:var(--c-ink);color:var(--c-card);transition:background .6s cubic-bezier(.625,.05,0,1)} .tkw-btn.is-light{background:var(--c-card);color:var(--c-ink);box-shadow:inset 0 0 0 1px var(--c-line)} .tkw-btn.is-light:hover{box-shadow:inset 0 0 0 2px var(--c-line)} .tkw-key{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;box-sizing:border-box;border-radius:3px;box-shadow:inset 0 0 0 1px color-mix(in srgb,currentColor 50%,transparent);font-size:10px;letter-spacing:0} .tkw-key.is-del{padding:0} .tkw-key svg{width:11px;height:9px;fill:none;stroke:currentColor;stroke-width:1.3} .tkw-roll{display:inline-flex;overflow:hidden;height:16px;line-height:16px} .tkw-roll b{font-weight:400;display:inline-block;transition:transform .6s cubic-bezier(.625,.05,0,1);text-shadow:0 16px 0 currentColor} .tkw-btn:hover .tkw-roll b{transform:translateY(-16px)} .tkw-undo{all:unset;cursor:pointer;margin-top:18px;font-size:10px;letter-spacing:1px;color:var(--c-soft);white-space:pre} 
 @media (max-width:767px){[data-stand-rise] .dive-txt{display:inline}}
 [data-stand-card]{background:color-mix(in srgb,currentColor 4%,transparent);border-color:color-mix(in srgb,currentColor 13%,transparent);will-change:transform}
 @media (prefers-reduced-motion: reduce){[data-dive-cue-text],[data-dive-cue-line]::after{animation:none}[data-dive-cue-line]::after{transform:scaleY(1)}.dive-wi,.dive-ra,.dive-rb{transition:none}}

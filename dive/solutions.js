@@ -845,7 +845,10 @@ function injectSolCSS() {
   if (document.getElementById('dive-sol-css')) return;
   const s = document.createElement('style'); s.id = 'dive-sol-css';
   s.textContent = `
-[data-sol] .is-sol-meta .sol_top{flex-direction:row;justify-content:space-between;align-items:flex-start;gap:1rem}
+[data-sol] .is-sol-meta .sol_top{flex-direction:row;justify-content:space-between;align-items:flex-start;gap:1rem;opacity:1}
+/* (.sol_top's small-label look, caps and a faded grey, is for the chip, not the title beside it) */
+[data-sol] .is-sol-meta .sol_top .sol_chips{opacity:.72}
+[data-sol] .is-sol-meta .sol_top .sol_card-title{text-transform:none;letter-spacing:normal}
 /* what Tinko does: there while you watch him, in the same quiet grey as the line above it */
 [data-sol] [data-tinko-list]{margin-top:2.25rem;row-gap:1.25rem;opacity:.62}
 [data-sol] [data-tinko-list] .offer_item{gap:.85rem}

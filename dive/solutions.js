@@ -844,40 +844,183 @@ function initRhythms(host) {
 }
 
 /* ---------------------------------------------------------
-   Who's behind it ([data-found], the section after this one): "Made By People Who Needed It First", in three
-   versions to choose from; the two that aren't picked go.
-     A  [data-found-film]  the founder film's frame: on the way in it opens from a portrait-sized window to the
-                           full frame, the photo settling as it does. Until the film is there, play says it's coming.
+   Who's behind it ([data-found], the section after this one): "Made By People Who Needed It First", in versions to
+   choose from (the ones that aren't picked go). A is the founders film, which doesn't exist yet, in three takes:
+     A1 [data-found-bar]    lights down: a black bar right across that opens from a line as it comes up, film grain,
+                            a soft light that follows the pointer.
+     A2 [data-found-field]  the box opens: the dive's dither comes back as a field; the field holds still (sticky)
+                            while a small box, like the dive's Continue box, opens up into the player.
+     A3 [data-found-swirl]  back into the swirl: the dive's dithered swirl in a black bar; hovering play pulls it
+                            faster, play opens the player out of the button (Esc or the cross closes it).
      B  the Fundamentals page's "Your Instructor" block, with a play button (main.js does the pixel reveal).
-     C  [data-found-duo]   the two ends: they come in from the sides, the line between them draws.
+     C  [data-found-duo]    the two ends: they come in from the sides, the line between them draws.
+   Until the film is there, play says it's coming.
    --------------------------------------------------------- */
+const PAPER = 'https://cdn.jsdelivr.net/npm/@paper-design/shaders@0.0.81/+esm';   // the dive's Paper Shaders (already loaded)
+const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
+// a dither field mounted in host, paused while it's off screen; pal() gives [back, front], read again when night flips
+async function dither(host, uniforms, speed, pal) {
+  let lib;
+  try { lib = await import(PAPER); } catch (e) { console.warn('[found] shader did not load', e); return null; }
+  const { ShaderMount, ditheringFragmentShader, getShaderColorFromString: col } = lib;
+  const [back, front] = pal();
+  let mount;
+  try {
+    mount = new ShaderMount(host, ditheringFragmentShader, {
+      u_fit: 0, u_scale: 1, u_rotation: 0, u_offsetX: 0, u_offsetY: 0, u_originX: .5, u_originY: .5, u_worldWidth: 0, u_worldHeight: 0,
+      u_colorBack: col(back), u_colorFront: col(front), u_type: 3, u_pxSize: 2, ...uniforms,
+    }, undefined, 0, 0);
+  } catch (e) { console.warn('[found] shader did not start', e); return null; }
+  let seen = false;
+  const go = () => mount.setSpeed(seen && !reduce ? speed : 0);
+  watch(host, v => { seen = v; go(); }, '10% 0px');
+  new MutationObserver(() => { const [b, f] = pal(); mount.setUniforms({ u_colorBack: col(b), u_colorFront: col(f) }); })
+    .observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  return { setSpeed: s => { speed = s; go(); } };
+}
+
+// fn(e) as el comes up the screen: e goes from 0 (its top at the bottom edge) to 1 (its middle at `at` of the screen)
+function scrub(el, fn, at = .55) {
+  if (reduce) return fn(1);
+  let on = false, raf = 0, last = -1;
+  const frame = () => {
+    raf = 0; if (!on) return;
+    const r = el.getBoundingClientRect(), vh = innerHeight;
+    const e = 1 - Math.pow(1 - Math.max(0, Math.min(1, (vh - r.top) / (vh * (1 - at) + r.height / 2))), 3);
+    if (Math.abs(e - last) > .0005) { last = e; fn(e); }
+    raf = requestAnimationFrame(frame);
+  };
+  fn(0);
+  watch(el, v => { on = v; if (on && !raf) raf = requestAnimationFrame(frame); }, '10% 0px');
+  addEventListener('resize', () => { last = -1; });
+}
+
+// the heading's words rise in (the dive's own word boxes)
+function riseWords(node) {
+  const text = node.textContent.trim(); node.setAttribute('aria-label', text);
+  node.innerHTML = `<span class="dive-txt" aria-hidden="true">${text.split(/\s+/).map((w, i) => `<span class="dive-w"><span class="dive-wi" style="transition-delay:${reduce ? 0 : i * 70}ms">${w}</span></span>`).join(' ')}</span>`;
+}
+
+// one tile of film grain, drawn once
+let grainURL = '';
+function grainTile() {
+  if (grainURL) return grainURL;
+  const n = 180, c = document.createElement('canvas'); c.width = c.height = n;
+  const x = c.getContext('2d'), d = x.createImageData(n, n);
+  for (let i = 0; i < d.data.length; i += 4) { d.data[i] = d.data[i + 1] = d.data[i + 2] = Math.random() * 255 | 0; d.data[i + 3] = 255; }
+  x.putImageData(d, 0, 0);
+  return (grainURL = c.toDataURL());
+}
+
+// --mx/--my on target follow the pointer over el, eased (where the light falls)
+function follow(el, target) {
+  if (reduce || !matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+  let tx = 50, ty = 45, x = 50, y = 45, raf = 0;
+  const step = () => {
+    x += (tx - x) * .08; y += (ty - y) * .08;
+    target.style.setProperty('--mx', x.toFixed(2) + '%'); target.style.setProperty('--my', y.toFixed(2) + '%');
+    raf = Math.abs(tx - x) + Math.abs(ty - y) > .05 ? requestAnimationFrame(step) : 0;
+  };
+  const go = () => { if (!raf) raf = requestAnimationFrame(step); };
+  el.addEventListener('pointermove', e => { const r = el.getBoundingClientRect(); tx = (e.clientX - r.left) / r.width * 100; ty = (e.clientY - r.top) / r.height * 100; go(); });
+  el.addEventListener('pointerleave', () => { tx = 50; ty = 45; go(); });
+}
+
 function initFounders(host) {
-  // A: follows the scroll, only while it's on screen
-  const film = host.querySelector('[data-found-film]');
-  if (film) {
-    const img = film.querySelector('img');
-    let on = false, raf = 0, last = -1;
-    const set = e => {
-      // from just the portrait (its blocky cut-out on the page, like B) to the whole frame, going dark around it
-      const k = 1 - e, W = film.clientWidth;
-      const t = img ? img.offsetTop * k : 0, l = img ? img.offsetLeft * k : 0, r = img ? (W - img.offsetLeft - img.offsetWidth) * k : 0;
-      film.style.clipPath = `inset(${t.toFixed(1)}px ${r.toFixed(1)}px 0px ${l.toFixed(1)}px round ${(4 * e).toFixed(1)}px)`;
-      film.style.setProperty('--open', e.toFixed(3));
-      if (img) img.style.transform = `scale(${(1.05 - .05 * e).toFixed(4)})`;
-      film.classList.toggle('is-open', e > .85);
-    };
-    addEventListener('resize', () => { last = -1; if (reduce) set(1); });
-    const frame = () => {
-      raf = 0; if (!on) return;
-      const r = film.getBoundingClientRect(), vh = innerHeight;
-      // 0 while the frame's top is at the bottom of the screen, 1 once its middle is a little above the middle
-      const p = Math.max(0, Math.min(1, (vh - r.top) / (vh * .5 + r.height * .62)));
-      const e = 1 - Math.pow(1 - p, 3);
-      if (Math.abs(e - last) > .0005) { last = e; set(e); }
-      raf = requestAnimationFrame(frame);
-    };
-    if (reduce) set(1);
-    else { set(0); watch(film, v => { on = v; if (on && !raf) raf = requestAnimationFrame(frame); }, '10% 0px'); }
+  // A1: the lights go down
+  const bar = host.querySelector('[data-found-bar]');
+  if (bar) {
+    const spot = document.createElement('div'); spot.className = 'found_spot';
+    const grain = document.createElement('div'); grain.className = 'found_grain'; grain.style.backgroundImage = `url(${grainTile()})`;
+    [spot, grain].forEach(n => n.setAttribute('aria-hidden', 'true'));
+    bar.prepend(spot, grain);
+    const rise = bar.querySelector('[data-found-rise]');
+    if (rise) riseWords(rise);
+    scrub(bar, e => {
+      bar.style.clipPath = e >= 1 ? '' : `inset(${(50 * (1 - e)).toFixed(2)}% 0)`;
+      bar.classList.toggle('is-open', e > .8);
+      if (rise) rise.classList.toggle('dive-in', e > .8);
+    });
+    follow(bar, spot);
+  }
+
+  // A2: the box opens
+  const field = host.querySelector('[data-found-field]');
+  if (field) {
+    const shader = field.querySelector('[data-found-shader]'), box = field.querySelector('[data-found-box]');
+    if (shader) dither(shader, { u_shape: 2, u_scale: .7 }, .35, () => isNight() ? ['#0e1628', '#46557c'] : ['#f1ede2', '#c2b9aa']);
+    if (box) {
+      // the box itself grows (so its glass edge and blur go along), from the small label to the player's size
+      let full = null;
+      const measure = () => { box.style.width = box.style.height = ''; full = [box.offsetWidth, box.offsetHeight]; };
+      const set = e => {
+        if (!full) measure();
+        const [W, H] = full, w0 = Math.min(W, 250), h0 = 52;
+        box.style.width = (w0 + (W - w0) * e).toFixed(1) + 'px';
+        box.style.height = (h0 + (H - h0) * e).toFixed(1) + 'px';
+        box.style.borderRadius = (4 + 2 * e).toFixed(1) + 'px';
+        box.style.setProperty('--open', e.toFixed(3));
+        // it turns into a screen early on, so the growing box reads as the player coming, not as grey glass
+        box.style.setProperty('--dark', smooth(.05, .45, e).toFixed(3));
+        box.classList.toggle('is-open', e > .75);
+      };
+      if (reduce) { box.style.setProperty('--open', 1); box.style.setProperty('--dark', 1); box.classList.add('is-open'); }
+      else {
+        // while the field holds still: a little in, it starts opening; at 70% through it's the player
+        let on = false, raf = 0, last = -1;
+        const frame = () => {
+          raf = 0; if (!on) return;
+          const r = field.getBoundingClientRect();
+          const e = smooth(.08, .7, -r.top / Math.max(1, r.height - innerHeight));
+          if (Math.abs(e - last) > .0005) { last = e; set(e); }
+          raf = requestAnimationFrame(frame);
+        };
+        set(0);
+        watch(field, v => { on = v; if (on && !raf) raf = requestAnimationFrame(frame); });
+        addEventListener('resize', () => { full = null; last = -1; });
+      }
+    }
+  }
+
+  // A3: back into the swirl
+  const swirl = host.querySelector('[data-found-swirl]');
+  if (swirl) {
+    const shader = swirl.querySelector('[data-found-shader]');
+    let fx = null;
+    const REST = .5, PULL = 1.8, CALM = .15;
+    if (shader) dither(shader, { u_shape: 6, u_scale: .9 }, REST, () => ['#05070d', '#34405e']).then(f => { fx = f; });
+    const rise = swirl.querySelector('[data-found-rise]');
+    if (rise) {
+      riseWords(rise);
+      const io = new IntersectionObserver(es => { if (es[0].isIntersecting) { rise.classList.add('dive-in'); io.disconnect(); } }, { threshold: .4 });
+      io.observe(rise);
+    }
+    const open = swirl.querySelector('[data-found-open]'), screen = swirl.querySelector('[data-found-screen]'), close = swirl.querySelector('[data-found-close]');
+    if (open && screen) {
+      let playing = false;
+      // the screen grows out of the play button and folds back into it
+      const fromButton = () => {
+        const s = screen.getBoundingClientRect(), b = open.getBoundingClientRect();
+        return `inset(${(b.top - s.top).toFixed(1)}px ${(s.right - b.right).toFixed(1)}px ${(s.bottom - b.bottom).toFixed(1)}px ${(b.left - s.left).toFixed(1)}px round ${(b.height / 2).toFixed(1)}px)`;
+      };
+      const show = on => {
+        playing = on;
+        if (on) { screen.style.transition = 'none'; screen.style.clipPath = fromButton(); screen.offsetWidth; screen.style.transition = ''; screen.style.clipPath = 'inset(0px round 6px)'; }
+        else screen.style.clipPath = fromButton();
+        swirl.classList.toggle('is-playing', on);
+        screen.setAttribute('aria-hidden', String(!on));
+        if (fx) fx.setSpeed(on ? CALM : REST);
+        (on ? close : open)?.focus({ preventScroll: true });
+      };
+      open.setAttribute('role', 'button');
+      open.addEventListener('click', e => { e.preventDefault(); show(true); });
+      if (close) { close.setAttribute('role', 'button'); close.addEventListener('click', e => { e.preventDefault(); show(false); }); }
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && playing) show(false); });
+      // hovering play pulls the swirl in
+      open.addEventListener('pointerenter', () => { if (fx && !playing) fx.setSpeed(PULL); });
+      open.addEventListener('pointerleave', () => { if (fx && !playing) fx.setSpeed(REST); });
+    }
   }
 
   // C: once, on the way in
@@ -1185,33 +1328,56 @@ function injectSolCSS() {
 .dfs-night .rs-browser{background:#1b2236}.dfs-night .rs-bbar{background:#232b42;color:#ecebe8;border-color:rgba(255,255,255,.08)}.dfs-night .rs-btab,.dfs-night .rs-baddr{background:#2b3450}.dfs-night .rs-bcaret{background:#ecebe8}.dfs-night .rs-bstart{color:#ecebe8}.dfs-night .rs-bstart i{background:#2b3450}
 .dfs-night .rs-calm{color:#f1ede2}.dfs-night .rs-calm-chip{color:#7fd0ff;background:rgba(29,171,250,.18)}.dfs-night .rs-calm::before{background:radial-gradient(circle at 50% 50%,rgba(14,22,40,.9),rgba(14,22,40,.55) 60%)}
 @media (max-width:767px){.rs-toast{left:0;width:19em;font-size:.9em}.rs-browser{right:0;width:21em}}
-/* Who's behind it: under the solutions' side lines (they're fixed, in the section above), the same band labels */
-[data-found]{z-index:1}
+/* Who's behind it: the solutions' side lines (fixed, in the section above) show through where it's see-through and stop
+   under the full-width A bars; the same band labels */
+[data-found],[data-found] .divider_horizontal{background-color:transparent}
+[data-found]{z-index:3}
 [data-found] .sol_band-in .stand_tag{margin-left:4rem}
 [data-found] .split_grid .divider_vertical{height:auto;align-self:stretch}
 @media (max-width:767px){[data-found] .sol_band-in .stand_tag{margin-left:2rem}}
 [data-found] .found_block{padding-left:4rem;padding-right:4rem}
 @media (max-width:767px){[data-found] .found_block{padding:2.5rem 0}}
-/* A: the film's frame, a title card until the film is there: the portrait (its own blocky cut-out) on the right,
-   the name on the left; --open (0 to 1, from the script) darkens the frame around him as it opens */
-[data-found] .found_film{will-change:clip-path;background-color:rgba(18,20,23,var(--open,1))}
-[data-found] .found_film::before{content:"";position:absolute;inset:0;opacity:calc(var(--open,1) * .06);background-image:linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px);background-size:32px 32px;background-position:-1px -1px;pointer-events:none}
-[data-found] .found_film-img{top:auto;bottom:0;left:auto;right:8%;width:auto;height:92%;aspect-ratio:763/936;object-fit:contain;transform-origin:50% 100%;will-change:transform}
-[data-found] .found_film .found_play{left:70.9%;top:54%}
-[data-found] .found_film-shade{opacity:var(--open,1);background:linear-gradient(180deg,rgba(14,13,12,.3),rgba(14,13,12,0) 25%,rgba(14,13,12,0) 60%,rgba(14,13,12,.55))}
-[data-found] .found_film-who{left:6%;bottom:30%}
-[data-found] .found_film-name{font-size:clamp(1.6rem,3.2vw,2.75rem)}
-@media (max-width:767px){[data-found] .found_film{aspect-ratio:4/5}[data-found] .found_film-img{right:auto;left:13.3%;height:72%}
-  [data-found] .found_film .found_play{left:50%;top:62%}[data-found] .found_film-who{left:1rem;bottom:3rem}[data-found] .found_film-name{font-size:1.4rem}}
 [data-found] .split_section .text-style-paragraph+.text-style-paragraph{margin-top:1rem}
 /* (the Fundamentals page hides its "Your Instructor" heading on smaller screens; this one keeps it) */
 @media (max-width:991px){[data-found] .heading-style-h4.is-rimbo{display:block}}
-[data-found] .found_film-tag,[data-found] .found_film-who,[data-found] .found_film-bar{opacity:0;transform:translateY(8px);transition:opacity .6s ${EASE},transform .6s ${EASE}}
-[data-found] .found_film.is-open .found_film-tag,[data-found] .found_film.is-open .found_film-who,[data-found] .found_film.is-open .found_film-bar{opacity:1;transform:none}
-[data-found] .found_film.is-open .found_film-who{transition-delay:.08s}[data-found] .found_film.is-open .found_film-bar{transition-delay:.16s}
-[data-found] .found_film-tag{-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
-[data-found] .found_film-name{font-family:var(--_typography---font-styles--heading,serif)}
-/* the play button (all three) */
+/* A1: lights down */
+[data-found] .found_bar{will-change:clip-path}
+[data-found] .found_spot{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at var(--mx,50%) var(--my,45%),rgba(241,237,226,.14),rgba(241,237,226,.04) 28%,transparent 55%);animation:found-flicker 4.2s infinite}
+[data-found] .found_grain{position:absolute;inset:-60%;opacity:.075;pointer-events:none;animation:found-grain .6s steps(6) infinite}
+@keyframes found-grain{0%{transform:translate(0,0)}17%{transform:translate(-6%,4%)}33%{transform:translate(5%,-7%)}50%{transform:translate(-3%,8%)}67%{transform:translate(8%,2%)}83%{transform:translate(-8%,-4%)}100%{transform:translate(0,0)}}
+@keyframes found-flicker{0%,100%{opacity:1}41%{opacity:1}42%{opacity:.82}44%{opacity:1}70%{opacity:.93}72%{opacity:1}}
+[data-found] .found_bar .found_kicker,[data-found] .found_bar .found_play{opacity:0;transform:translateY(10px);transition:opacity .7s ${EASE} .25s,transform .7s ${EASE} .25s}
+[data-found] .found_bar .found_play{transition-delay:.45s}
+[data-found] .found_bar.is-open .found_kicker{opacity:.7;transform:none}[data-found] .found_bar.is-open .found_play{opacity:1;transform:none}
+[data-found] .found_bar.is-open .found_play:hover{transform:scale(1.08);transition-delay:0s}
+[data-found] .found_bar-title{font-size:clamp(2.6rem,6vw,5rem)}
+/* A2: the box opens (the glass of the dive's Continue box; --open is how far it's open, --dark how far it's the player) */
+[data-found] .found_field-sticky{background:var(--brand-colors--light-bage)}
+[data-found] .found_box{width:min(76rem,88vw,calc(78vh * 16 / 9));-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);overflow:hidden}
+[data-found] .found_box::before,[data-found] .found_box::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none}
+[data-found] .found_box::before{background:rgba(241,237,226,.72);box-shadow:inset 0 0 0 1px rgba(61,58,53,.2),inset 0 1px 0 rgba(255,255,255,.55);opacity:calc(1 - var(--dark,0))}
+[data-found] .found_box::after{background:rgba(9,10,13,.86);opacity:var(--dark,0)}
+.dfs-night [data-found] .found_box::before{background:rgba(14,22,40,.62);box-shadow:inset 0 0 0 1px rgba(241,237,226,.18),inset 0 1px 0 rgba(255,255,255,.07)}
+[data-found] .found_box-small{gap:.6rem;color:#3d3a35;opacity:calc(1 - var(--open,0) * 4)}
+.dfs-night [data-found] .found_box-small{color:#f1ede2}
+[data-found] .found_box-player{opacity:0;transition:opacity .5s ease}
+[data-found] .found_box.is-open .found_box-player{opacity:1}
+[data-found] .found_box:not(.is-open) .found_box-player{pointer-events:none}
+@media (max-width:767px){[data-found] .found_box{aspect-ratio:4/5;width:88vw}}
+/* A3: back into the swirl */
+[data-found] .found_bar.is-swirl .found_bar-in{transition:opacity .5s ease,transform .8s ${EASE}}
+[data-found] .found_bar.is-swirl.is-playing .found_bar-in{opacity:0;transform:scale(.96);pointer-events:none}
+[data-found] .found_bar.is-swirl .found_kicker,[data-found] .found_bar.is-swirl .found_play{opacity:1;transform:none}
+[data-found] .found_bar.is-swirl .found_play:hover{transform:scale(1.08)}
+[data-found] .found_screen{width:min(64rem,88vw,calc(66vh * 16 / 9));transform:translate(-50%,-50%);visibility:hidden;clip-path:inset(50% round 50%);box-shadow:0 0 0 1px rgba(241,237,226,.12);transition:clip-path .9s ${EASE},visibility 0s .9s}
+[data-found] .found_bar.is-playing .found_screen{visibility:visible;transition:clip-path .9s ${EASE}}
+[data-found] .found_close{text-decoration:none;transition:background-color .3s ease}
+[data-found] .found_close:hover{background-color:rgba(241,237,226,.12)}
+[data-found] .found_close:focus-visible{outline:2px solid #0297db;outline-offset:3px}
+/* on a dark ground the "coming soon" note is light */
+[data-found] .found_bar .found_play::after,[data-found] .found_box .found_play::after{background:#f1ede2;color:#16181d}
+@media (prefers-reduced-motion:reduce){[data-found] .found_grain,[data-found] .found_spot{animation:none}}
+/* the play button (everywhere) */
 [data-found] .found_play{color:#fff;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);transition:transform .5s ${EASE},background-color .3s ease,border-color .3s ease;text-decoration:none}
 [data-found] .found_play svg{margin-left:4px}
 [data-found] .found_play:hover{transform:scale(1.08);background-color:rgba(251,247,238,.32);border-color:rgba(255,255,255,.8)}

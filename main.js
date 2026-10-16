@@ -4476,8 +4476,26 @@
       moon: pixels([[3, 0, 4, 1], [1, 1, 4, 1], [1, 2, 3, 1], [0, 3, 3, 3], [1, 6, 3, 1], [1, 7, 4, 1], [3, 8, 4, 1]]),
       sun: pixels([[4, 0, 1, 1], [1, 1, 1, 1], [7, 1, 1, 1], [3, 2, 3, 1], [2, 3, 5, 3], [0, 4, 1, 1], [8, 4, 1, 1],
         [3, 6, 3, 1], [1, 7, 1, 1], [7, 7, 1, 1], [4, 8, 1, 1]]),
-      chat: svg(12, '<path d="M4 4.5h10a2 2 0 0 1 2 2V12a2 2 0 0 1-2 2H9l-3.5 3v-3H4a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z"/><path d="M19 9h1a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-1.5v3L15 18h-3a2 2 0 0 1-2-1.6"/>')
+      chat: svg(12, '<path d="M4 4.5h10a2 2 0 0 1 2 2V12a2 2 0 0 1-2 2H9l-3.5 3v-3H4a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z"/><path d="M19 9h1a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-1.5v3L15 18h-3a2 2 0 0 1-2-1.6"/>'),
+      // The two kinds, after the app's calendar and hourglass symbols
+      calendar: svg(13, '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M8 13h.01M12 13h.01M16 13h.01M8 16.5h.01M12 16.5h.01M16 16.5h.01" stroke-width="2.2"/>'),
+      hourglass: svg(13, '<path d="M6.5 3h11M6.5 21h11M7.5 3v2.5a4.5 4.5 0 0 0 2 3.7L12 11l2.5-1.8a4.5 4.5 0 0 0 2-3.7V3M7.5 21v-2.5a4.5 4.5 0 0 1 2-3.7L12 13l2.5 1.8a4.5 4.5 0 0 1 2 3.7V21"/><path d="M9.5 18.5h5" stroke-width="2"/>'),
+      minus: svg(12, '<path d="M6 12h12"/>'),
+      add: svg(12, '<path d="M12 6v12M6 12h12"/>'),
+      // Rim's pixel heart (BetaCorner), 7 × 6
+      heart: '<svg viewBox="0 0 7 6" width="10.5" height="9" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true">' +
+        '<path d="M1 0h2v1H1zM4 0h2v1H4zM0 1h7v2H0zM1 3h5v1H1zM2 4h3v1H2zM3 5h1v1H3z"/></svg>'
     };
+    // Button words whose letters roll up one by one on hover, like the app's RollingText (and the site's buttons)
+    function roll(el, text) {
+      if (el.getAttribute('data-roll') === text) return;
+      el.setAttribute('data-roll', text);
+      el.classList.add('has-roll');
+      el.innerHTML = '<span class="rhythms-roll" aria-hidden="true">' + text.split('').map(function (c, i) {
+        return '<b style="transition-delay:' + (i / 100).toFixed(2) + 's">' + (c === ' ' ? '&nbsp;' : c) + '</b>';
+      }).join('') + '</span>';
+      el.setAttribute('aria-label', text);
+    }
 
     // ---------- what can be closed ----------
     var ICONS = {};
@@ -4532,7 +4550,16 @@
       peace: { name: 'Peace of mind', on: true, always: true, windows: blankTimes(),
         sites: [], adult: true, lock: 'type', effort: 'hard' }
     };
-    var order = ['deep', 'evenings', 'sundays', 'peace'];
+    // An Hourglass: open until its time a day is used, then it rests until midnight (Hourglass.swift)
+    saved.shows = { name: 'Shows', on: true, always: false, windows: blankTimes(), limit: 45, days: EVERY.slice(), left: 32 * 60 + 10,
+      sites: ['Netflix'], adult: false, lock: 'none', effort: 'medium' };
+    var order = ['deep', 'evenings', 'sundays', 'peace', 'shows'];
+    var isLimit = function (r) { return r.limit != null; };
+    // "45m", "1h", "1h 30m" (Format.duration); a countdown "32:10"
+    function duration(m) { var h = Math.floor(m / 60), r = m % 60; return !h ? r + 'm' : r ? h + 'h ' + r + 'm' : h + 'h'; }
+    function countdown(sec) { sec = Math.max(0, Math.ceil(sec)); var h = Math.floor(sec / 3600), m = Math.floor(sec / 60) % 60, r = sec % 60;
+      return h ? h + ':' + pad(m) + ':' + pad(r) : m + ':' + pad(r); }
+    var QUICK = [15, 30, 45, 60, 90, 120];
 
     var LOCK = {
       none: { title: 'No lock', note: 'Change it whenever you like.',
@@ -4607,7 +4634,7 @@
 
     var allDay = function (w) { return w.from === w.to; };
     var isAlways = function (r) { return r.always || r.windows.some(function (w) { return allDay(w) && w.days.every(Boolean); }); };
-    var schedule = function (r) { return r.always ? [{ id: 'always', days: EVERY, from: 0, to: 0 }] : r.windows; };
+    var schedule = function (r) { return isLimit(r) ? [] : r.always ? [{ id: 'always', days: EVERY, from: 0, to: 0 }] : r.windows; };
     var closes = function (r) { return r.sites.length > 0 || r.adult; };
     var asksForText = function (r) { return r.lock === 'type' || (r.lock === 'sealed' && r.effort !== 'none'); };
 
@@ -4721,6 +4748,30 @@
     closeBtn.setAttribute('aria-label', 'Close');
     edit.appendChild(closeBtn);
 
+    // Kind (a new rhythm only): Set hours or Hourglass, as tiles like the lock tiles
+    var infoSvg = ($('.rhythms-app_label > svg', sec.when) || {}).outerHTML || '';
+    var kindSec = make('div', 'rhythms-app_sec rhythms-app_kind-sec',
+      '<div class="rhythms-app_label">KIND</div><div class="rhythms-app_kinds">' +
+      [['hours', ICON.calendar, 'Set hours', 'Closed at the times you choose'],
+        ['limit', ICON.hourglass, 'Hourglass', 'Open until your time is used, then rests until midnight']].map(function (k) {
+        return '<div class="rhythms-app_lock rhythms-app_kind" data-kind="' + k[0] + '" role="button"><div class="rhythms-app_lock-icon">' + k[1] + '</div>' +
+          '<div><div class="rhythms-app_kind-title">' + k[2] + '</div><div class="rhythms-app_kind-detail">' + k[3] + '</div></div></div>';
+      }).join('') + '</div>');
+    scroll.insertBefore(kindSec, sec.when);
+    // Hourglass: how much a day (five-minute steps, 5 minutes to 8 hours), a few quick picks, and the days
+    var limitSec = make('div', 'rhythms-app_sec rhythms-app_limit-sec',
+      '<div class="rhythms-app_label" title="Time counts while one of these apps is in front, or one of these sites is the tab you’re looking at. Away from the Mac, it doesn’t count.">HOURGLASS' + infoSvg + '</div>' +
+      '<div class="rhythms-app_box rhythms-app_limit"><div class="rhythms-app_limit-top"><div><div class="rhythms-app_limit-time"></div>' +
+      '<div class="rhythms-app_limit-sub">A DAY</div></div><div class="rhythms-app_tools">' +
+      '<div class="rhythms-app_icon-btn" data-limit-step="-5" role="button" aria-label="5 minutes less" title="5 minutes less">' + ICON.minus + '</div>' +
+      '<div class="rhythms-app_icon-btn" data-limit-step="5" role="button" aria-label="5 minutes more" title="5 minutes more">' + ICON.add + '</div></div></div>' +
+      '<div class="rhythms-app_days">' + QUICK.map(function (q) { return '<div class="rhythms-app_day" data-limit-quick="' + q + '">' + duration(q) + '</div>'; }).join('') + '</div>' +
+      '<div class="rhythms-app_days">' + ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(function (d, i) { return '<div class="rhythms-app_day" data-limit-day="' + i + '">' + d + '</div>'; }).join('') + '</div></div>');
+    scroll.insertBefore(limitSec, sec.when);
+    [kindSec, limitSec].forEach(function (el) { $('.rhythms-app_label', el).appendChild(make('span', 'rhythms-app_sec-lock', ICON.sealed)); });
+    var whatLabel = $('.rhythms-app_label', sec.what);
+    var locksEl = $('.rhythms-app_locks');
+
     // When: the switch, then the times folded underneath it
     var alldayRow = $('.rhythms-app_allday');
     var alldayToggle = $('[data-app-allday]');
@@ -4789,7 +4840,7 @@
     // quarter on hover, like the panel's ✕
     var nightBtn = $('[data-app-night]');
     var settingsBtn = $$('.rhythms-app_icon-btn', $('.rhythms-app_tools'))[1];
-    if (settingsBtn) { settingsBtn.innerHTML = ICON.gear; settingsBtn.setAttribute('aria-label', 'Settings'); settingsBtn.classList.add('is-turning'); }
+    if (settingsBtn) { settingsBtn.innerHTML = ICON.gear; settingsBtn.setAttribute('aria-label', 'Settings'); settingsBtn.setAttribute('role', 'button'); settingsBtn.classList.add('is-turning'); }
     closeBtn.classList.add('is-turning');
     function paintNight() { if (nightBtn) nightBtn.innerHTML = document.documentElement.classList.contains('dfs-night') ? ICON.sun : ICON.moon; }
     paintNight();
@@ -4809,6 +4860,7 @@
     var fresh = [];           // chips that should pop in
     var newCount = 0;
     var ready = false;        // the first panel shows without sliding in
+    var inSettings = false;   // Settings is open in the panel
 
     var original = function () { return open && open !== 'new' ? saved[open] : null; };
     function modes() {
@@ -4820,6 +4872,10 @@
     }
     // True if the change only makes the rhythm stricter (Rhythm.allowsWithoutUnlock)
     function stricter(o, c) {
+      // An Hourglass is stricter with less time, the same days or more, and nothing taken out
+      if (isLimit(o)) return o.sites.every(function (n) { return c.sites.indexOf(n) > -1; }) && c.limit <= o.limit &&
+        o.days.every(function (d, i) { return !d || c.days[i]; }) && c.lock === o.lock &&
+        RANK.indexOf(c.effort) >= RANK.indexOf(o.effort) && (c.on || !o.on);
       var same = function (a, b) { return a.from === b.from && a.to === b.to && a.days.join() === b.days.join(); };
       return o.sites.every(function (n) { return c.sites.indexOf(n) > -1; }) &&
         (isAlways(c) || (!isAlways(o) && o.windows.every(function (w) {
@@ -4829,6 +4885,7 @@
         (c.on || !o.on) && (c.adult || !o.adult);
     }
     function canSave(m) {
+      if (isLimit(draft)) return !m.lockedView && !!draft.name.trim() && draft.sites.length > 0 && draft.days.some(Boolean) && (!m.restricted || stricter(m.s, draft));
       var valid = draft.name.trim() && closes(draft) &&
         (draft.always || (draft.windows.length && draft.windows.every(function (w) { return w.days.some(Boolean); })));
       return !m.lockedView && !!valid && (!m.restricted || stricter(m.s, draft));
@@ -4842,6 +4899,11 @@
 
     // ---------- the list ----------
     function meta(r) {
+      if (isLimit(r)) {
+        var d = duration(r.limit).toUpperCase();
+        return r.days.every(Boolean) ? '<i>' + d + ', EVERY DAY</i>'
+          : 'MTWTFSS'.split('').map(function (l, i) { return r.days[i] ? '<b>' + l + '</b>' : l; }).join('') + '&nbsp;&nbsp;<i>' + d + ' A DAY</i>';
+      }
       if (isAlways(r)) return '<i>ALL DAY, EVERY DAY</i>';
       var w = r.windows[0];
       return 'MTWTFSS'.split('').map(function (l, i) { return w.days[i] ? '<b>' + l + '</b>' : l; }).join('') +
@@ -4864,6 +4926,16 @@
       $('.rhythms-app_card-name', card).textContent = r.name;
       $('[data-app-meta]', card).innerHTML = meta(r);
       $('.rhythms-app_card-stack', card).textContent = stack(r);
+      // An Hourglass: the time left today (TimeLeft), "–" on a day it doesn't count
+      var left = $('.rhythms-app_left', card);
+      if (isLimit(r) && !left) { left = make('div', 'rhythms-app_left', '<b></b><span></span>'); card.insertBefore(left, $('[data-app-toggle]', card)); }
+      if (!isLimit(r) && left) left.remove();
+      if (left) {
+        var counts = r.on && !!r.days[dayOf(NOW) % 7], spent = counts && r.left <= 0;
+        $('b', left).textContent = counts ? countdown(r.left) : '–';
+        $('span', left).textContent = spent ? 'RESTING' : counts ? 'LEFT TODAY' : r.on ? 'NOT TODAY' : 'PAUSED';
+        left.classList.toggle('is-quiet', !counts || spent);
+      }
       var toggle = $('[data-app-toggle]', card);
       toggle.classList.toggle('is-off', !r.on);
       toggle.classList.toggle('is-frozen', frozen(r));
@@ -4888,8 +4960,20 @@
       });
       if (next) line('Up next: ' + saved[next.k].name + ' ' + at(next.t));
     }
+    // With both kinds on the list they sit apart, Set hours first, each under a small blue heading
+    var kindLabels = { hours: make('div', 'rhythms-app_kind-label', 'SET HOURS'), limit: make('div', 'rhythms-app_kind-label is-limit', 'HOURGLASS') };
+    function paintGroups() {
+      var both = order.some(function (k) { return isLimit(saved[k]); }) && order.some(function (k) { return !isLimit(saved[k]); });
+      [false, true].forEach(function (limits) {
+        var keys = order.filter(function (k) { return isLimit(saved[k]) === limits; });
+        var label = kindLabels[limits ? 'limit' : 'hours'];
+        if (both && keys.length) cardsEl.appendChild(label); else if (label.parentNode) label.remove();
+        keys.forEach(function (k) { var c = cardFor(k); if (c) cardsEl.appendChild(c); });
+      });
+    }
     function paintList() {
       order.forEach(paintCard);
+      paintGroups();
       paintMenu();
     }
 
@@ -5058,7 +5142,26 @@
       var title = unlocking && unlocking.mode === 'switch' ? 'Switch off ' + draft.name : draft.name;
       if (nameEl.textContent !== title) nameEl.textContent = title;
       nameEl.contentEditable = m.lockedView || unlocking ? 'false' : 'true';
-      statusEl.textContent = m.isNew ? 'NEW RHYTHM' : '';
+      var lim = isLimit(draft);
+      statusEl.textContent = m.isNew ? (lim ? 'NEW HOURGLASS' : 'NEW RHYTHM') : '';
+      kindSec.style.display = m.isNew && !unlocking ? '' : 'none';
+      $$('[data-kind]', kindSec).forEach(function (t) { t.classList.toggle('is-on', (t.getAttribute('data-kind') === 'limit') === lim); });
+      limitSec.style.display = lim ? '' : 'none';
+      sec.when.style.display = lim ? 'none' : '';
+      limitSec.classList.toggle('is-locked', m.lockedView);
+      if (lim) {
+        $('.rhythms-app_limit-time', limitSec).textContent = duration(draft.limit);
+        $$('[data-limit-quick]', limitSec).forEach(function (q) { q.classList.toggle('is-on', +q.getAttribute('data-limit-quick') === draft.limit); });
+        $$('[data-limit-day]', limitSec).forEach(function (d) { d.classList.toggle('is-on', !!draft.days[+d.getAttribute('data-limit-day')]); });
+        $('[data-limit-step="-5"]', limitSec).classList.toggle('is-disabled', draft.limit <= 5);
+        $('[data-limit-step="5"]', limitSec).classList.toggle('is-disabled', draft.limit >= 480);
+      }
+      // An Hourglass counts its sites down instead of closing them; adult sites aren't something to ration
+      whatLabel.firstChild.nodeValue = lim ? 'WHAT COUNTS' : 'WHAT CLOSES';
+      adultBox.style.display = lim ? 'none' : '';
+      // Sealed needs hours to run in; an Hourglass has none
+      sealedTile.style.display = lim ? 'none' : '';
+      locksEl.classList.toggle('is-two', lim);
       statusEl.classList.toggle('is-hidden', !m.isNew);
       paintUnlock();
 
@@ -5074,7 +5177,9 @@
       }
       $('.rhythms-app_banner-actions', banner).style.display = m.isFrozen ? 'none' : '';
       $('[data-banner="add"]', banner).style.display = addOnly ? 'none' : '';
-      $('[data-banner="unlock"]', banner).className = addOnly ? 'rhythms-app_add-time' : 'rhythms-app_save';
+      var unlockBtn = $('[data-banner="unlock"]', banner);
+      unlockBtn.classList.toggle('rhythms-app_add-time', addOnly);
+      unlockBtn.classList.toggle('rhythms-app_save', !addOnly);
 
       sec.when.classList.toggle('is-locked', m.lockedView);
       sec.what.classList.toggle('is-locked', m.lockedView);
@@ -5105,16 +5210,18 @@
       var del = $('[data-app-delete]'), save = $('[data-app-save]');
       del.style.visibility = m.isNew ? 'hidden' : '';
       del.classList.toggle('is-disabled', m.lockedView || m.restricted);
-      save.textContent = m.isNew ? 'ADD RHYTHM' : 'SAVE';
+      roll(save, m.isNew ? 'ADD RHYTHM' : 'SAVE');
       save.classList.toggle('is-disabled', !canSave(m));
     }
 
     // ---------- opening and closing the panel ----------
     function show(key) {
-      var fromClosed = open === null;
+      var fromClosed = open === null && !inSettings;
+      inSettings = false;
+      edit.classList.remove('is-settings');
       open = key;
       draft = key === 'new'
-        ? { name: '', on: true, always: false, windows: blankTimes(), sites: [], adult: false, lock: 'none', effort: 'medium' }
+        ? { name: '', on: true, always: false, windows: blankTimes(), limit: null, days: EVERY.slice(), left: 0, sites: [], adult: false, lock: 'none', effort: 'medium' }
         : copy(saved[key]);
       addOnly = false; unlocked = false; unlocking = null; history = []; query = ''; input.value = ''; fresh = [];
       body.classList.remove('is-closed');
@@ -5130,10 +5237,65 @@
     }
     function close() {
       open = null; draft = null; unlocking = null;
+      inSettings = false;
+      edit.classList.remove('is-settings');
       if (document.activeElement === area) area.blur();
       body.classList.add('is-closed');
       paintList();
     }
+
+    // ---------- Settings (SettingsView): the menu bar and Light, website blocking, updates, about ----------
+    var settingsEl = make('div', 'rhythms-app_settings');
+    settingsEl.setAttribute('data-lenis-prevent', '');
+    var setRow = function (title, detail, control, cls) {
+      return '<div class="rhythms-app_set-row"><div><div class="rhythms-app_set-title">' + title + '</div>' +
+        (detail ? '<div class="rhythms-app_set-detail' + (cls ? ' ' + cls : '') + '">' + detail + '</div>' : '') + '</div>' + (control || '') + '</div>';
+    };
+    var setToggle = function (key, on) { return '<div class="rhythms-app_toggle' + (on ? '' : ' is-off') + '" data-set-toggle="' + key + '" role="switch"><div class="rhythms-app_toggle-knob"></div></div>'; };
+    var setButton = function (key, text) { return '<div class="rhythms-app_add-time" data-set="' + key + '" role="button">' + text + '</div>'; };
+    var rule = '<div class="rhythms-app_set-rule"></div>';
+    var group = function (title, rows, info) {
+      return '<div class="rhythms-app_label"' + (info ? ' title="' + info + '"' : '') + '>' + title + (info ? infoSvg : '') + '</div><div class="rhythms-app_box rhythms-app_set-group">' + rows.join(rule) + '</div>';
+    };
+    settingsEl.innerHTML = '<div class="rhythms-app_edit-name rhythms-app_set-name">Settings</div>' +
+      group('MENU BAR', [setRow('Tidy menu bar', '', setButton('arrange', 'ARRANGE')),
+        setRow('Light', 'Warms your screen as the day goes', setToggle('light', false))]) +
+      group('WEBSITES', [setRow('Website blocking', 'On, in all your browsers', '', 'is-good')],
+        'A small helper blocks sites in every browser, without extensions. macOS asks for your password once to set it up.') +
+      group('UPDATES', [setRow('Rhythms 0.75', 'Up to date, checked ' + clock(NOW), setButton('check', 'CHECK FOR UPDATES'), 'is-good'),
+        setRow('Check automatically', 'Once a day', setToggle('auto', true)),
+        setRow('Download updates by itself', 'You still choose when it installs', setToggle('download', true))]) +
+      group('ABOUT', [setRow('Rhythms', 'By Digital Feng Shui', '<a class="rhythms-app_set-link" href="/">Website</a>'),
+        setRow('Feedback', 'Ideas, bugs, anything', setButton('send', 'SEND'))]);
+    edit.appendChild(settingsEl);
+    $$('[data-set]', settingsEl).forEach(function (b) { roll(b, b.textContent); });
+    function openSettings() {
+      var fromClosed = open === null && !inSettings;
+      if (document.activeElement === area) area.blur();
+      open = null; draft = null; unlocking = null; inSettings = true;
+      body.classList.remove('is-closed');
+      edit.classList.add('is-settings');
+      paintList();
+      settingsEl.scrollTop = 0;
+      if (gs && !reduce && fromClosed) gs.fromTo(edit, { autoAlpha: 0, x: 24 }, { autoAlpha: 1, x: 0, duration: 0.5, ease: 'expo.out', clearProps: 'transform,opacity,visibility' });
+    }
+    if (settingsBtn) settingsBtn.addEventListener('click', openSettings);
+    settingsEl.addEventListener('click', function (e) {
+      var t = e.target.closest('[data-set-toggle]'), b = e.target.closest('[data-set]');
+      if (t) {
+        if (t.classList.contains('is-disabled')) { shake(t); return; }
+        t.classList.toggle('is-off');
+        // Downloading by itself only makes sense while it checks by itself
+        if (t.getAttribute('data-set-toggle') === 'auto') $('[data-set-toggle="download"]', settingsEl).classList.toggle('is-disabled', t.classList.contains('is-off'));
+        return;
+      }
+      if (b && b.getAttribute('data-set') === 'check') {
+        var detail = b.parentNode.querySelector('.rhythms-app_set-detail');
+        detail.textContent = 'Looking for updates…';
+        detail.classList.remove('is-good');
+        setTimeout(function () { detail.textContent = 'Up to date, checked ' + clock(NOW); detail.classList.add('is-good'); }, 1100);
+      }
+    });
 
     // ---------- the list: open a card, or switch it ----------
     function bindCard(card) {
@@ -5158,6 +5320,24 @@
       });
     }
     $$('[data-app-card]').forEach(bindCard);
+    order.forEach(function (k) {
+      if (cardFor(k)) return;
+      var c = cardTpl.cloneNode(true);
+      c.setAttribute('data-app-card', k);
+      c.classList.remove('is-selected');
+      addStack(c);
+      cardsEl.appendChild(c);
+      bindCard(c);
+    });
+    // Under the list: the version and a way to tell us anything (BetaCorner)
+    var listEl = $('.rhythms-app_list');
+    if (listEl) listEl.appendChild(make('div', 'rhythms-app_beta', '<span>BETA V0.75</span><span class="rhythms-app_beta-link">GIVE FEEDBACK' + ICON.heart + '</span>'));
+    // Buttons with words roll their letters on hover, like the app
+    var newWord = $('[data-app-new] span');
+    if (newWord) roll(newWord, newWord.textContent.trim().toUpperCase());
+    var addWord = $('span', addTime);
+    if (addWord) roll(addWord, addWord.textContent.trim().toUpperCase());
+    [$('[data-app-delete]')].concat($$('[data-banner]', banner), $$('[data-unlock]', unlockFoot)).forEach(function (b) { if (b) roll(b, b.textContent.trim()); });
 
     // ---------- the panel's controls ----------
     closeBtn.addEventListener('click', close);
@@ -5244,6 +5424,27 @@
       else tryUnlock();
     });
 
+    kindSec.addEventListener('click', function (e) {
+      var t = e.target.closest('[data-kind]');
+      if (!t) return;
+      var lim = t.getAttribute('data-kind') === 'limit';
+      if (lim === isLimit(draft)) return;
+      change(function () {
+        draft.always = false;
+        if (lim) {
+          draft.limit = 60; draft.days = EVERY.slice(); draft.adult = false;
+          if (draft.lock === 'sealed') { draft.lock = 'type'; draft.effort = LOCK.type.effort; }
+        } else { draft.limit = null; draft.windows = blankTimes(); }
+      });
+    });
+    limitSec.addEventListener('click', function (e) {
+      var step = e.target.closest('[data-limit-step]'), quick = e.target.closest('[data-limit-quick]'), day = e.target.closest('[data-limit-day]');
+      if (step) {
+        if (step.classList.contains('is-disabled')) return;
+        change(function () { draft.limit = Math.min(480, Math.max(5, draft.limit + +step.getAttribute('data-limit-step'))); });
+      } else if (quick) change(function () { draft.limit = +quick.getAttribute('data-limit-quick'); });
+      else if (day) change(function () { var i = +day.getAttribute('data-limit-day'); draft.days[i] = draft.days[i] ? 0 : 1; });
+    });
     alldayRow.addEventListener('click', function () {
       var m = modes();
       if (m.lockedView || alldayRow.classList.contains('is-disabled')) { shake(alldayToggle); return; }
@@ -5365,6 +5566,7 @@
         order.push(key);
       }
       var kept = copy(draft);
+      if (isLimit(kept)) kept.left = m.isNew ? kept.limit * 60 : Math.max(0, saved[key].left + (kept.limit - saved[key].limit) * 60);
       if (kept.always) kept.windows = blankTimes();
       saved[key] = kept;
       close();
@@ -5402,6 +5604,7 @@
     }
 
     window.dfsRhythms = {
+      close: close, show: show, settings: openSettings,
       sitesOf: function (name) {
         var k = order.filter(function (k) { return saved[k].name === name; })[0];
         return k && saved[k].on ? saved[k].sites.slice() : [];
@@ -5410,6 +5613,7 @@
     // Opens on Slow Sundays: no lock, so everything can be tried straight away
     show(saved.sundays ? 'sundays' : order[0]);
     ready = true;
+    window.dispatchEvent(new Event('dfs-rhythms-ready'));
   }
 
   // =========================================================

@@ -790,9 +790,6 @@ function initRhythms(host) {
   const layer = document.createElement('div');
   layer.className = 'rs-layer'; layer.setAttribute('aria-hidden', 'true');
   layer.innerHTML = `
-    <div class="rs-menu">
-      <div class="rs-menubar"><span class="rs-mstar">${STAR}</span><span class="rs-clock">Wed 21:29</span></div>
-    </div>
     <div class="rs-toast"><span class="rs-tstar">${STAR}</span><div><div class="rs-ttag">Closed by Evenings</div><div class="rs-tmsg">YouTube is resting until tomorrow 07:00.</div></div><span class="rs-tx">✕</span><i class="rs-tbar"></i></div>
     <div class="rs-browser">
       <div class="rs-bbar"><span class="rs-bdots"><i></i><i></i><i></i></span><span class="rs-btab"><span class="rs-bfav">${STAR}</span><span class="rs-btitle">New Tab</span></span><span class="rs-baddr"><span class="rs-btyped"></span><i class="rs-bcaret"></i></span></div>
@@ -805,7 +802,7 @@ function initRhythms(host) {
   host.append(layer);
   const $ = s => layer.querySelector(s);
   new ResizeObserver(() => { layer.style.fontSize = (host.clientWidth / 740 * 16).toFixed(2) + 'px'; }).observe(host);
-  const clock = $('.rs-clock'), typed = $('.rs-btyped'), title = $('.rs-btitle');
+  const typed = $('.rs-btyped'), title = $('.rs-btitle');
   let run = 0, visible = false, hovered = false;
   const set = (cls, on) => layer.classList.toggle(cls, on);
   const ping = () => {
@@ -813,13 +810,13 @@ function initRhythms(host) {
     if (card && !reduce) card.animate([{ boxShadow: '0 0 0 0 rgba(2,151,219,.0)' }, { boxShadow: '0 0 0 3px rgba(2,151,219,.55)' }, { boxShadow: '0 0 0 0 rgba(2,151,219,0)' }], { duration: 1400, easing: 'ease-out' });
   };
   function rest() {
-    clock.textContent = 'Wed 21:29'; typed.textContent = ''; title.textContent = 'New Tab';
+    typed.textContent = ''; title.textContent = 'New Tab';
     ['is-on', 'is-toast', 'is-browser', 'is-loading', 'is-calm', 'is-typing'].forEach(c => set(c, false));
   }
   async function cycle() {
     const me = ++run, alive = () => me === run && visible && !hovered;
     rest(); await wait(1600); if (!alive()) return;
-    clock.textContent = 'Wed 21:30'; set('is-on', true); ping(); await wait(900); if (!alive()) return;
+    set('is-on', true); ping(); await wait(900); if (!alive()) return;
     set('is-toast', true); await wait(1100); if (!alive()) return;
     set('is-browser', true); await wait(700); set('is-typing', true);
     for (const ch of 'youtube.com') { if (!alive()) return; typed.textContent += ch; await wait(85); }
@@ -835,7 +832,11 @@ function initRhythms(host) {
   host.addEventListener('pointerenter', () => { hovered = true; kick(); });
   host.addEventListener('pointerleave', () => { hovered = false; setTimeout(() => { if (!hovered) kick(); }, 1200); });
   watch(host, on => { visible = on; kick(); }, '0px 0px -20% 0px');
-  if (reduce) { set('is-on', true); clock.textContent = 'Wed 21:30'; set('is-toast', true); }
+  // the app's main screen: the list on its own (Settings and the editor open beside it on a click)
+  const listOnly = () => { if (window.dfsRhythms && window.dfsRhythms.close) window.dfsRhythms.close(); };
+  if (window.dfsRhythms && window.dfsRhythms.close) listOnly(); else window.addEventListener('dfs-rhythms-ready', listOnly, { once: true });
+  tilt(host, 2.5, () => visible);
+  if (reduce) { set('is-on', true); set('is-toast', true); }
 }
 
 /* ---------------------------------------------------------
@@ -1080,13 +1081,6 @@ function injectSolCSS() {
 /* Rhythms: the moment it keeps your hours */
 [data-sol-rhythms]{position:relative}
 .rs-layer{position:absolute;inset:0;pointer-events:none;z-index:3;font-size:16px}
-.rs-menu{position:absolute;right:-.6em;top:-1.6em;width:16em;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;color:#2b2926}
-.rs-menubar{width:fit-content;margin-left:auto;display:flex;align-items:center;justify-content:flex-end;gap:.6em;height:1.6em;padding:0 .5em 0 .4em;border-radius:.5em;background:rgba(251,247,238,.82);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:0 0 0 1px rgba(61,58,53,.1),0 10px 24px -12px rgba(61,58,53,.35);font-size:.8em}
-.rs-mstar{width:1.5em;height:1.25em;display:grid;place-items:center;border-radius:.3em;background:rgba(61,58,53,.08);transition:background .4s,color .4s}
-.rs-mstar svg{width:.95em;height:.95em}
-.rs-layer.is-on .rs-mstar{background:#0297db;color:#fff}
-.rs-clock{font-variant-numeric:tabular-nums}
-.dfs-night .rs-menu{color:#ecebe8}.dfs-night .rs-menubar{background:rgba(30,40,64,.85)}
 .rs-toast{position:absolute;left:-1em;bottom:2.4em;width:25.5em;display:flex;align-items:center;gap:.8em;padding:.8em .9em .8em 1em;border-radius:.25em;background:var(--brand-colors--light-bage,#fbf7ee);color:var(--brand-colors--dark_gray,#3d3a35);box-shadow:0 0 0 1px var(--brand-colors--dark-bage,#dfd5c9),0 24px 48px -20px rgba(61,58,53,.45);font-family:var(--_typography---font-styles--body,monospace);overflow:hidden;opacity:0;transform:translateY(.8em);transition:opacity .45s,transform .6s ${EASE}}
 .rs-layer.is-toast .rs-toast{opacity:1;transform:none}
 .rs-tstar{width:1.25em;height:1.25em;flex:none}.rs-tstar svg{width:100%;height:100%}
@@ -1123,7 +1117,7 @@ function injectSolCSS() {
 .rs-calm-chip{margin-top:.3em;padding:.35em .6em;font-size:.48em;letter-spacing:.12em;text-transform:uppercase;color:#0297db;background:rgba(2,151,219,.1)}
 .dfs-night .rs-browser{background:#1b2236}.dfs-night .rs-bbar{background:#232b42;color:#ecebe8;border-color:rgba(255,255,255,.08)}.dfs-night .rs-btab,.dfs-night .rs-baddr{background:#2b3450}.dfs-night .rs-bcaret{background:#ecebe8}.dfs-night .rs-bstart{color:#ecebe8}.dfs-night .rs-bstart i{background:#2b3450}
 .dfs-night .rs-calm{color:#f1ede2}.dfs-night .rs-calm-chip{color:#7fd0ff;background:rgba(29,171,250,.18)}.dfs-night .rs-calm::before{background:radial-gradient(circle at 50% 50%,rgba(14,22,40,.9),rgba(14,22,40,.55) 60%)}
-@media (max-width:767px){.rs-menu{right:0;top:-1.2em}.rs-toast{left:0;width:19em;font-size:.9em}.rs-browser{right:0;width:21em}}
+@media (max-width:767px){.rs-toast{left:0;width:19em;font-size:.9em}.rs-browser{right:0;width:21em}}
 `;
   document.head.append(s);
 }

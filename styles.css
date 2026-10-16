@@ -619,14 +619,16 @@ input:-webkit-autofill:focus {
 
 /* Rhythms app demo (main.js dfsRhythmsApp): states and hovers */
 .rhythms-app_card,.rhythms-app_icon-btn,.rhythms-app_new,.rhythms-app_day,.rhythms-app_group,.rhythms-app_add-time,.rhythms-app_save,.rhythms-app_chip,.rhythms-app_suggest-item{transition:background-color .2s,border-color .2s,color .2s,opacity .2s,transform .2s,box-shadow .2s}
-.rhythms-app_card:hover{border-color:var(--brand-colors--ll-gray);transform:translateY(-1px)}
+.rhythms-app_card:hover{border-color:var(--brand-colors--ll-gray)}
 .rhythms-app_card.is-selected{border-color:var(--brand-colors--blue);box-shadow:0 0 0 1px var(--brand-colors--blue)}
 .rhythms-app_toggle{transition:background-color .25s}
 .rhythms-app_toggle-knob{transition:left .25s cubic-bezier(.3,.7,.2,1)}
 .rhythms-app_toggle.is-off{background-color:var(--brand-colors--dark-bage)}
 .rhythms-app_toggle.is-off .rhythms-app_toggle-knob{left:3px}
-.rhythms-app_day:hover,.rhythms-app_group:hover,.rhythms-app_add-time:hover{border-color:var(--brand-colors--ll-gray)}
-.rhythms-app_new:hover,.rhythms-app_save:hover{background-color:var(--brand-colors--blue)}
+.rhythms-app_day:hover,.rhythms-app_group:hover{border-color:rgba(26,151,215,.5);background-color:var(--brand-colors--light-bleu)}
+.rhythms-app_day.is-on:hover{background-color:var(--brand-colors--blue);filter:brightness(1.05)}
+.rhythms-app_add-time{transition:box-shadow .6s cubic-bezier(.625,.05,0,1),border-color .2s,opacity .2s}
+.rhythms-app_add-time:hover{box-shadow:inset 0 0 0 1px var(--brand-colors--dark-bage)}
 .rhythms-app_day.is-on{background-color:var(--brand-colors--blue);border-color:var(--brand-colors--blue);color:var(--brand-colors--light-bage)}
 .rhythms-app_chart-seg{transition:left .35s ease,width .35s ease}
 .rhythms-app_box.is-dim{opacity:.4;pointer-events:none}
@@ -728,7 +730,9 @@ input:-webkit-autofill:focus {
 .rhythms-app_effort.is-on{background-color:var(--brand-colors--blue);border-color:var(--brand-colors--blue);color:var(--brand-colors--light-bage)}
 .rhythms-app_effort.is-on .rhythms-app_effort-time{color:inherit;opacity:.8}
 .rhythms-app_efforts.is-hidden{display:none}
-.rhythms-app_delete:hover{color:var(--ux--red,#ea5337)}
+.rhythms-app_delete{margin-right:auto;padding:10px 16px;border-radius:4px;color:#b5503f;background-color:#f6e2df;transition:box-shadow .6s cubic-bezier(.625,.05,0,1),opacity .2s}
+.rhythms-app_delete:hover{box-shadow:inset 0 0 0 2px rgba(181,80,63,.45)}
+.dfs-night .rhythms-app_delete{color:#e08a7a;background-color:#3a2522}
 .rhythms-app_edit-status.is-warning{color:var(--ux--red,#ea5337)}
 .rhythms-app_search-input{width:100%;border:0;outline:0;background:transparent;font:inherit;font-size:9.5px;color:var(--brand-colors--dark_gray);padding:0;margin:0}
 .rhythms-app_search-input::placeholder{color:var(--brand-colors--ll-gray)}
@@ -738,6 +742,55 @@ input:-webkit-autofill:focus {
 .rhythms-app_icon-btn:hover{border-color:var(--brand-colors--dark-bage);box-shadow:inset 0 0 0 2px var(--brand-colors--dark-bage)}
 .rhythms-app_icon-btn svg{display:block;transition:transform .6s cubic-bezier(.625,.05,0,1)}
 .rhythms-app_icon-btn.is-turning:hover svg{transform:rotate(90deg)}
+
+/* Rolling letters on the buttons with words (main.js roll, the app's RollingText): each letter rolls up to a copy of
+   itself, one after another */
+.rhythms-roll{display:inline-flex;overflow:hidden;height:1.25em;line-height:1.25em;vertical-align:middle}
+.rhythms-roll b{font-weight:inherit;display:inline-block;text-shadow:0 1.25em 0 currentColor;transition:transform .6s cubic-bezier(.625,.05,0,1)}
+.has-roll:hover .rhythms-roll b,.rhythms-app_new:hover .rhythms-roll b,.rhythms-app_add-time:hover>.has-roll .rhythms-roll b{transform:translateY(-1.25em)}
+
+/* The two kinds on the list, apart under a small heading (RhythmsView), and an Hourglass's time left (TimeLeft) */
+.rhythms-app_kind-label{font-size:9px;letter-spacing:.14em;color:var(--brand-colors--blue);margin-bottom:-1px}
+.rhythms-app_kind-label.is-limit{margin-top:6px}
+.rhythms-app_left{flex:none;min-width:58px;margin-right:4px;text-align:right}
+.rhythms-app_left b{display:block;font-weight:400;font-size:12px;line-height:1;font-variant-numeric:tabular-nums;color:var(--brand-colors--dark_gray)}
+.rhythms-app_left span{display:block;margin-top:3px;font-size:7.5px;letter-spacing:.1em;color:var(--brand-colors--light-gray)}
+.rhythms-app_left.is-quiet b{color:var(--brand-colors--light-gray)}
+/* Under the list: the version and the feedback link (BetaCorner) */
+.rhythms-app_list{min-height:0}
+.rhythms-app_beta{display:flex;gap:19px;margin-top:auto;padding-top:14px;font-size:8.5px;letter-spacing:.14em;color:var(--brand-colors--light-gray)}
+.rhythms-app_beta-link{display:inline-flex;align-items:center;gap:5px;cursor:pointer;transition:color .25s}
+.rhythms-app_beta-link svg{width:8px;height:7px}
+.rhythms-app_beta-link:hover{color:var(--brand-colors--dark_gray)}
+/* Kind (a new rhythm): Set hours or Hourglass, tiles like the lock tiles */
+.rhythms-app_kinds{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.rhythms-app_kind{gap:10px}
+.rhythms-app_kind .rhythms-app_lock-icon svg{display:block}
+.rhythms-app_kind-title{font-size:10px;color:var(--brand-colors--dark_gray)}
+.rhythms-app_kind-detail{margin-top:4px;font-size:9px;line-height:1.45;color:var(--brand-colors--light-gray)}
+.rhythms-app_locks.is-two{grid-template-columns:1fr 1fr}
+/* Hourglass: how much a day, quick picks, the days (HourglassBox) */
+.rhythms-app_limit{display:flex;flex-direction:column;gap:10px}
+.rhythms-app_limit-top{display:flex;align-items:center;justify-content:space-between}
+.rhythms-app_limit-time{font-family:var(--_typography---font-styles--heading);font-size:29px;line-height:1;color:var(--brand-colors--dark_gray)}
+.rhythms-app_limit-sub{margin-top:3px;font-size:8px;letter-spacing:.12em;color:var(--brand-colors--light-gray)}
+.rhythms-app_icon-btn.is-disabled{opacity:.4;pointer-events:none}
+/* Settings in the panel (SettingsView) */
+.rhythms-app_settings{display:none}
+.rhythms-app_edit.is-settings>:not(.rhythms-app_settings):not(.rhythms-app_close){display:none}
+.rhythms-app_edit.is-settings .rhythms-app_settings{display:block;flex:1;min-height:0;padding:28px 26px 22px;overflow-y:auto;scrollbar-width:thin}
+.rhythms-app_set-name{margin-bottom:4px}
+.rhythms-app_set-group{display:flex;flex-direction:column;gap:11px;margin-bottom:0;padding:13px}
+.rhythms-app_set-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.rhythms-app_set-row .rhythms-app_add-time{margin-top:0;flex:none}
+.rhythms-app_set-title{font-size:10.5px;color:var(--brand-colors--dark_gray)}
+.rhythms-app_set-detail{margin-top:2px;font-size:9.5px;color:var(--brand-colors--light-gray)}
+.rhythms-app_set-detail.is-good{color:#5c8a5a}
+.dfs-night .rhythms-app_set-detail.is-good{color:#8dbb8a}
+.rhythms-app_set-rule{height:1px;background-color:var(--brand-colors--dark-bage)}
+.rhythms-app_set-link{font-size:10px;color:var(--brand-colors--blue);text-decoration:none}
+.rhythms-app_set-link:hover{text-decoration:underline}
+.rhythms-app_toggle.is-disabled{opacity:.45}
 
 /* Typing to unlock inside the demo (the app's UnlockView, UnlockTags and UnlockFooter) */
 .rhythms-app_tags{display:flex;gap:5px;margin-top:8px}

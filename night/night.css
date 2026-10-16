@@ -294,6 +294,8 @@ html.dfs-night{--brand-colors--light-bage:#0e1628;--brand-colors--bage:#141e34;-
 :where(html.dfs-night) .rhythms-app_chip-icon.is-letter{background-color:#11233d}
 :where(html.dfs-night) .rhythms-app_result:hover{background-color:#11233d}
 :where(html.dfs-night) .rhythms-app_check{color:#172138}
+:where(html.dfs-night) .rhythms-app_delete{background-color:#131d33}
+:where(html.dfs-night) .dfs-night .rhythms-app_delete{background-color:#e2ddd2}
 :where(html.dfs-night) .rhythms-app_unlock-area::placeholder{color:rgba(153,156,166,0.7)}
 :where(html.dfs-night) .dfs-tinko-eye{fill:var(--tinko-eye,#0e1628)}
 
@@ -557,3 +559,5 @@ html.dfs-night .tinko-stage_link { color: rgba(221, 216, 204, .7); }
 html.dfs-night .tinko-stage { background-image: linear-gradient(rgba(221, 216, 204, .05) 1px, transparent 1px), linear-gradient(90deg, rgba(221, 216, 204, .05) 1px, transparent 1px); }
 /* Tinko's eyes take the night stage colour. */
 html.dfs-night .tinko-stage { --tinko-eye: #141e34; }
+/* Dashboard tool cards: Tinko's eyes stay dark on the moonlit card cover. */
+html.dfs-night .cover_course-card { --tinko-eye: #1d2843; }

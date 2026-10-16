@@ -3265,59 +3265,59 @@
     });
 
     // ---- TAB SWITCHING ----
+    // A menu item says which tab it opens with data-dash-tab="courses|tools|account|orders"; without it,
+    // its visible text is used (the old way, which broke when a tab was renamed). Each tab has its own
+    // #hash, so /dashboard#tools opens Tools straight away (links from emails, the course, Tinko).
     function initDashboardTabs() {
-      // Define your tabs
-      const tabs = {
-        'Courses': 'courses',
-        'my account': 'accountd',
-        'Orders': 'orders',
-        'tools': 'tools'
-      };
-      // Set initial state - show courses, hide everything else
-      // (a missing tab section is skipped instead of breaking the whole menu)
-      Object.values(tabs).forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = id === 'courses' ? 'flex' : 'none';
-      });
+      const tabs = { courses: 'courses', tools: 'tools', account: 'accountd', orders: 'orders' };
+      const byText = { 'courses': 'courses', 'my account': 'account', 'account': 'account', 'orders': 'orders', 'tools': 'tools' };
+      const menuItems = [].slice.call(document.querySelectorAll('.menu_item'));
+      const keyOf = item => item.getAttribute('data-dash-tab') ||
+        byText[(item.querySelector('.menu_txt')?.textContent || '').trim().toLowerCase()];
 
-      // Get all menu items
-      const menuItems = document.querySelectorAll('.menu_item');
+      function open(key, fromClick) {
+        if (!tabs[key]) key = 'courses';
+        Object.keys(tabs).forEach(k => {
+          const el = document.getElementById(tabs[k]);
+          if (el) el.style.display = k === key ? 'flex' : 'none';
+        });
+        // On phones "Orders" lives inside "My account": its menu item is hidden there
+        menuItems.forEach(mi => mi.classList.toggle('is-active', keyOf(mi) === key));
+        if (key === 'courses') loadDashboardProgress();
+        if (fromClick && history.replaceState) history.replaceState(null, '', key === 'courses' ? location.pathname : '#' + key);
+      }
 
       menuItems.forEach(item => {
         item.addEventListener('click', function (e) {
+          const key = keyOf(this);
+          if (!tabs[key]) return;
           e.preventDefault();
-
-          const tabName = (this.querySelector('.menu_txt')?.textContent || '').trim();
-          const targetId = tabs[tabName];
-
-          // If this tab isn't set up yet, ignore
-          if (!targetId) return;
-
-          // Remove is-active from all menu items
-          menuItems.forEach(mi => mi.classList.remove('is-active'));
-
-          // Add is-active to clicked item
-          this.classList.add('is-active');
-
-          // Hide all tab content
-          Object.values(tabs).forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = 'none';
-          });
-
-          // Show the target tab
-          const targetEl = document.getElementById(targetId);
-          if (targetEl) {
-            targetEl.style.display = 'flex';
-
-            // Re-run animations if switching to courses
-            if (targetId === 'courses') {
-              loadDashboardProgress();
-            }
-          }
+          open(key, true);
         });
       });
+      open((location.hash || '').replace('#', ''));
+      window.addEventListener('hashchange', () => open((location.hash || '').replace('#', '')));
     }
+
+    // ---- NAME ----
+    // Buyers get their first name from Stripe (Make), but not everyone has one. Without a name the
+    // greeting reads "Welcome back" instead of showing the placeholder, and the account row says so.
+    function showName() {
+      whenMemberstackReady(function () {
+        window.$memberstackDom.getCurrentMember().then(function (res) {
+          const f = (res && res.data && res.data.customFields) || {};
+          const name = f['first-name'] ? String(f['first-name']).trim() : '';
+          document.querySelectorAll('[data-ms-member="first-name"]').forEach(function (el) {
+            if (name) { el.textContent = name; return; }
+            if (el.closest('.toop_dash')) el.style.display = 'none';
+            else el.textContent = 'Not set';
+          });
+          if (!name) document.querySelectorAll('.toop_dash .welcome_txt').forEach(function (el) { el.textContent = 'Welcome back'; });
+        }).catch(function () {});
+      });
+    }
+    showName();
+    setTimeout(showName, 1500); // Memberstack fills these fields itself too, sometimes after us
 
     // Initialize tabs when DOM is ready
     initDashboardTabs();
@@ -5805,9 +5805,11 @@
       var to = (link.getAttribute('href') || '').replace(/^mailto:/i, '').split('?')[0] || 'info@digital-fengshui.com';
       function build() {
         var field = document.querySelector('[data-ms-member="email"]') || document.querySelector('input[type="email"]');
-        var email = field ? field.value.trim() : '';
-        var body = 'Hi Digital Feng Shui,\n\nI\'m having trouble logging in.\n\nMy account email: ' + email +
-          '\nWhat happens: \n\nThanks!';
+        var email = field ? (field.value !== undefined ? field.value : field.textContent).trim() : '';
+        var body = link.getAttribute('data-help-body') === 'account'
+          ? 'Hi Digital Feng Shui,\n\nMy account email: ' + email + '\nMy question: \n\nThanks!'
+          : 'Hi Digital Feng Shui,\n\nI\'m having trouble logging in.\n\nMy account email: ' + email +
+            '\nWhat happens: \n\nThanks!';
         link.setAttribute('href', 'mailto:' + to + '?subject=' + encodeURIComponent(link.getAttribute('data-help-mail') || 'Trouble logging in') +
           '&body=' + encodeURIComponent(body));
       }
@@ -6773,6 +6775,7 @@
     if (document.querySelector('[data-helper-connect]')) dfsHelper();   // lesson 0.3: Tinko
   } else if (path === '/dashboard') {
     dfsDashboard();
+    if (document.querySelector('[data-helper-connect]')) dfsHelper();   // Tools: Tinko install + connect
   } else if (path === '/feedback' || path.indexOf('/feedback/') === 0) {
     // /feedback/fundamentals (course), /feedback/rythems (the Rhythms app), ...
     dfsFeedback();
@@ -6811,7 +6814,7 @@
     if (document.querySelector('.form-field-icon')) dfsSquareFieldIcons();
     if (document.querySelector('[data-rhythms-app]')) dfsRhythmsApp();
     if (document.querySelector('[data-rhythms-marquee]')) dfsRhythmsMarquee();
-    if (document.querySelector('[data-tinko-gate], [data-lesson-stage]')) dfsTinko();
+    if (document.querySelector('[data-tinko-gate], [data-lesson-stage], [data-tinko-show]')) dfsTinko();
     if (document.querySelector('[data-tinko-mascot]')) dfsTinkoMascot();
     if (document.querySelector('[data-helper-copy]')) dfsHelperCopy();
     if (path === '/'|| path === '/course' || path === '/test-zone') dfsHome();

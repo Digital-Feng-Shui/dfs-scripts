@@ -257,3 +257,5 @@ html.dfs-night .tinko-stage_link { color: rgba(221, 216, 204, .7); }
 html.dfs-night .tinko-stage { background-image: linear-gradient(rgba(221, 216, 204, .05) 1px, transparent 1px), linear-gradient(90deg, rgba(221, 216, 204, .05) 1px, transparent 1px); }
 /* Tinko's eyes take the night stage colour. */
 html.dfs-night .tinko-stage { --tinko-eye: #141e34; }
+/* Dashboard tool cards: Tinko's eyes stay dark on the moonlit card cover. */
+html.dfs-night .cover_course-card { --tinko-eye: #1d2843; }

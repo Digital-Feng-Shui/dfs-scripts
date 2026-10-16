@@ -888,3 +888,6 @@ html:not([data-tinko="owned"]) .tinko-gate_content{filter:blur(6px);opacity:.6;u
 
 /* Lesson texts that aren't open don't animate (the welcome lesson's bouncing heart kept ticking while hidden) */
 .course_content:not(.is-active) *{animation-play-state:paused}
+
+/* Dashboard: a course or tool card that's coming soon isn't a link (no hover arrow, no pointer) */
+.course_card:has(.coming_soon) .cover_course-card{pointer-events:none;cursor:default}

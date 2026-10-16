@@ -966,7 +966,7 @@ function initMission(root) {
 /* =========================================================
    Section 5 — our solutions (what we teach, what we build)
    Here the experience hands over to the normal site: the section is the site's own background and slides up over the
-   dark mission, which moves on more slowly behind it (parallax); the site's side lines start at its top edge.
+   dark mission, which moves on at about a third of the speed behind it (parallax); the site's side lines start at its top edge.
      Fundamentals  a few slides (Webflow images; data-module + data-title make the caption), one every few seconds
      Tinko         his "What's pinned" Dock pass, drawn after the app (Space keeps, the delete key unpins, ⌘Z undoes)
      Rhythms       the real app: the "Rhythms App Window" component, brought to life by main.js (dfsRhythmsApp)
@@ -1008,7 +1008,8 @@ function initSol(root) {
     root.append(src);
   }
 
-  // the hand-over: side lines from the section's top edge down; the mission behind moves on at about half speed
+  // the hand-over: side lines from the section's top edge down; the mission behind moves on at about a third of the
+  // scroll, so the site slides over it quickly
   const lines = root.querySelector('[data-sol-lines]');
   const behind = document.querySelector('[data-mission-sticky]');
   let last = '';
@@ -1016,7 +1017,7 @@ function initSol(root) {
     const top = root.getBoundingClientRect().top, vh = innerHeight;
     const clip = `inset(${Math.max(0, Math.min(vh, top)).toFixed(1)}px 0 0 0)`;
     if (lines && clip !== last) { last = clip; lines.style.clipPath = clip; }
-    if (behind && !reduce) { const d = Math.max(0, Math.min(vh, vh - top)); behind.style.transform = d > 0 && d < vh ? `translate3d(0,${(d * .45).toFixed(1)}px,0)` : ''; }
+    if (behind && !reduce) { const d = Math.max(0, Math.min(vh, vh - top)); behind.style.transform = d > 0 && d < vh ? `translate3d(0,${(d * .7).toFixed(1)}px,0)` : ''; }
     requestAnimationFrame(handover);
   }
   requestAnimationFrame(handover);
@@ -1191,6 +1192,14 @@ function injectCSS() {
 [data-mission-line],[data-mission-note]{pointer-events:none}
 [data-mission-note]{opacity:.72}
 [data-sol]{box-shadow:0 -40px 80px -20px rgba(5,7,13,.35)}
+/* the homepage's split grid has a fixed height; this one grows with its content, so the middle divider stretches along */
+[data-sol] .split_grid .divider_vertical{height:auto;align-self:stretch}
+/* the band labels start where the content under them starts */
+[data-sol] .sol_band-in .stand_tag{margin-left:4rem}
+/* the Rhythms block lines up with the two blocks above it */
+[data-sol] .sol_slot-wide{padding-left:4rem;padding-right:4rem}
+@media (max-width:767px){[data-sol] .sol_band-in .stand_tag{margin-left:2rem}[data-sol] .sol_slot-wide{padding-left:2rem;padding-right:2rem}
+  [data-sol-path]{flex-wrap:wrap;gap:.6rem 1.2rem}[data-sol-path] .sol_seg{display:none}}
 [data-sol-path] .sol_seg{background:linear-gradient(90deg,var(--brand-colors--blue) 50%,transparent 0) 0 0/6px 2px;transform-origin:left;transform:scaleX(0);transition:transform 1.1s cubic-bezier(.625,.05,0,1)}
 [data-sol-path].is-in .sol_seg{transform:none}[data-sol-path].is-in .sol_seg:nth-of-type(4){transition-delay:.5s}
 [data-sol-slides] .sol-slide{position:absolute;inset:0;opacity:0;transition:opacity .9s ease}

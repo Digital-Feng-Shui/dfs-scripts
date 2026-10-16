@@ -1021,6 +1021,8 @@ function initSol(root) {
   // the section after this one opens on a full-width field that this one slides off ([data-found-field], see
   // dive/solutions.js): there the lines stop at this section's bottom edge, and come back once the field has gone by
   const field = document.querySelector('[data-found-field]');
+  // and the close ([data-close], the dive's colours) at the end: the lines stop where it begins
+  const close = document.querySelector('[data-close]');
   let last = '';
   function handover() {
     const r = root.getBoundingClientRect(), top = r.top, vh = innerHeight;
@@ -1030,6 +1032,7 @@ function initSol(root) {
       const fb = field.getBoundingClientRect().bottom;
       if (fb < vh) { t = Math.max(0, fb); b = 0; }
     }
+    if (close) b = Math.max(b, Math.min(vh, vh - close.getBoundingClientRect().top));
     const clip = `inset(${t.toFixed(1)}px 0 ${b.toFixed(1)}px 0)`;
     if (lines && clip !== last) { last = clip; lines.style.clipPath = clip; }
     if (behind && !reduce) { const d = Math.max(0, Math.min(vh, vh - top)); behind.style.transform = d > 0 && d < vh ? `translate3d(0,${(d * .7).toFixed(1)}px,0)` : ''; }

@@ -11,8 +11,8 @@
      Rhythms       [data-sol-rhythms]   around the real app window (main.js brings it to life): the menu bar clock
                                         reaches 21:30, Evenings switches on, the toast says what closed, and a browser
                                         that tries YouTube gets the calm page instead. Pauses while you use the app.
-   And the sections after it: Who's behind it ([data-found], see initFounders) and the journal ([data-journal], see
-   initJournal).
+   And the sections after it: Who's behind it ([data-found], see initFounders), the journal ([data-journal], see
+   initJournal) and the close ([data-close], see initClose).
 
    Everything only runs while it's on screen. With reduced motion nothing plays by itself.
    ========================================================= */
@@ -38,6 +38,8 @@ export function initSolutions(root) {
   if (found) initFounders(found);
   const journal = document.querySelector('[data-journal]');
   if (journal) initJournal(journal);
+  const close = document.querySelector('[data-close]');
+  if (close) initClose(close, journal);
 }
 
 /* ---------------------------------------------------------
@@ -1005,6 +1007,51 @@ function initJournal(host) {
 }
 
 /* ---------------------------------------------------------
+   The close ([data-close]): the answer to the dive. The page opened on "The Only Question Is Whether You Chose
+   Where."; here the dive's swirl comes back, restless, and settles as you scroll: it slows, turns from noise to an
+   ordered pattern and pulls back, and a veil of calm opens behind the words. End frame: "Choose Where.", the two
+   doors (the course, Rhythms) and, quieter, the newsletter. The journal slides off over it on the way in, the way
+   the solutions slid off over the founders' field.
+   --------------------------------------------------------- */
+function initClose(host, above) {
+  const sticky = host.querySelector('[data-close-sticky]'), pin = host.querySelector('[data-close-pin]') || host;
+  const shader = host.querySelector('[data-close-shader]'), rise = host.querySelector('[data-close-rise]');
+  if (rise) riseWords(rise);
+  // the dive's own colours
+  const pal = () => isNight() ? ['#0e1628', '#5f719c'] : ['#f1ede2', '#3d3a35'];
+  let fx = null, lastSpd = -1, lastScale = -1, lastType = 0;
+  if (shader) dither(shader, { u_shape: 6, u_scale: 1.5, u_type: 1, u_pxSize: 2 }, reduce ? 0 : 1.3, pal).then(f => { fx = f; if (reduce && fx) fx.set({ u_scale: .7, u_type: 4 }); });
+  const settle = e => {
+    sticky.style.setProperty('--settle', e.toFixed(3));
+    host.classList.toggle('is-titled', e > .3);
+    host.classList.toggle('is-open', e > .5);
+    if (rise) rise.classList.toggle('dive-in', e > .3);
+    if (!fx) return;
+    const spd = +(1.3 - 1.22 * e).toFixed(2), scale = +(1.5 - .8 * e).toFixed(3), type = e > .4 ? 4 : 1;
+    if (spd !== lastSpd) { lastSpd = spd; fx.setSpeed(spd); }
+    if (scale !== lastScale || type !== lastType) { lastScale = scale; lastType = type; fx.set({ u_scale: scale, u_type: type }); }
+  };
+  if (reduce) { settle(1); return; }
+  let on = false, raf = 0, lastY = '', lastE = -1;
+  const frame = () => {
+    raf = 0; if (!on) return;
+    const vh = innerHeight, r = pin.getBoundingClientRect();
+    // the hand-over: while the journal's bottom edge crosses the screen this lags behind, at a third of the scroll
+    const ab = above ? Math.max(0, Math.min(vh, above.getBoundingClientRect().bottom)) : 0;
+    const ty = ab > 0 ? `translate3d(0,${(-.7 * ab).toFixed(1)}px,0)` : '';
+    if (ty !== lastY) { lastY = ty; sticky.style.transform = ty; }
+    // then, while it holds still, it settles: done at 75% through
+    const e = smooth(0, .75, -r.top / Math.max(1, r.height - vh));
+    if (Math.abs(e - lastE) > .002) { lastE = e; settle(e); }
+    raf = requestAnimationFrame(frame);
+  };
+  if (above) sticky.style.transform = lastY = `translate3d(0,${(-.7 * innerHeight).toFixed(1)}px,0)`;
+  settle(0);
+  watch(host, v => { on = v; if (on && !raf) raf = requestAnimationFrame(frame); });
+  addEventListener('resize', () => { lastY = ''; lastE = -1; });
+}
+
+/* ---------------------------------------------------------
    styles
    --------------------------------------------------------- */
 function injectSolCSS() {
@@ -1342,6 +1389,35 @@ function injectSolCSS() {
 [data-journal] .journal_card:hover .journal_cover{transform:translateY(-4px)}
 [data-journal] .journal_card:hover .journal_card-title{text-decoration-color:currentColor}
 [data-journal] .journal_card:focus-visible{outline:2px solid #0297db;outline-offset:6px}
+[data-journal]{box-shadow:0 40px 80px -20px rgba(5,7,13,.22)}
+/* the close: the dive's colours and glass (dive.js keeps the --dive-* vars on <html>, day and night) */
+[data-close]{background:var(--dive-back,#f1ede2);color:var(--dive-text,#3d3a35);font-family:var(--_typography---font-styles--mono,monospace)}
+[data-close] .close_sticky{will-change:transform}
+[data-close] .close_inner{max-width:62rem}
+[data-close] .close_inner::before{content:"";position:absolute;left:50%;top:50%;width:140%;height:190%;transform:translate(-50%,-50%);z-index:-1;pointer-events:none;
+  background:radial-gradient(closest-side,var(--dive-back,#f1ede2) 50%,transparent);opacity:calc(.35 + var(--settle,0) * .6)}
+[data-close] .close_kicker{opacity:.72}
+[data-close] .close_title{font-family:var(--_typography---font-styles--heading,serif);font-weight:400;font-size:clamp(3.2rem,9vw,7rem);color:inherit}
+[data-close] .close_doors,[data-close] .close_letter{opacity:0;transform:translateY(14px);transition:opacity .7s ${EASE},transform .7s ${EASE}}
+[data-close] .close_letter{transition-delay:.15s}
+[data-close].is-open .close_doors,[data-close].is-open .close_letter{opacity:1;transform:none}
+[data-close]:not(.is-open) .close_doors,[data-close]:not(.is-open) .close_letter{pointer-events:none}
+[data-close] .close_door{color:var(--dive-text);background:var(--dive-glass);box-shadow:inset 0 1px 0 var(--dive-glass-hi),inset 0 0 0 1px var(--dive-nav-line),0 12px 32px rgba(0,0,0,.12);
+  -webkit-backdrop-filter:blur(14px) saturate(1.3);backdrop-filter:blur(14px) saturate(1.3);transition:background-color .35s ease,transform .5s ${EASE}}
+[data-close] .close_door:hover{background:var(--dive-glass-hover)}
+[data-close] .close_door.is-main{color:#fff;background:var(--dive-accent,#0297db);box-shadow:0 12px 32px rgba(2,151,219,.28)}
+[data-close] .close_door.is-main:hover{background:color-mix(in srgb,var(--dive-accent,#0297db) 88%,#000)}
+[data-close] .close_door-arrow{transition:transform .5s ${EASE}}
+[data-close] .close_door:hover .close_door-arrow{transform:translateX(4px)}
+[data-close] .close_door:focus-visible,[data-close] .close_submit:focus-visible,[data-close] .close_input:focus-visible{outline:2px solid var(--dive-accent,#0297db);outline-offset:3px}
+[data-close] .close_letter-text{opacity:.72}
+[data-close] .close_form{display:block;margin:0}
+[data-close] .close_form form{display:flex;justify-content:center}
+[data-close] .close_input{color:var(--dive-text);background:var(--dive-glass);border:1px solid var(--dive-nav-line);border-right:0;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);font-family:inherit}
+[data-close] .close_input::placeholder{color:var(--dive-text);opacity:.5}
+[data-close] .close_submit{color:var(--dive-back);background:var(--dive-text);border:0;font-family:inherit;transition:opacity .3s ease}
+[data-close] .close_submit:hover{opacity:.85}
+[data-close] .w-form-done,[data-close] .w-form-fail{margin-top:.25rem;padding:0;background:none;color:inherit;font-size:.82rem;text-align:center}
 /* B: the co-founders, as the instructor block's own tags, in a row */
 [data-found] .found_team-row{gap:.5rem}
 [data-found] .found_team-row .instructor_tag{position:relative;inset:auto;margin:0}

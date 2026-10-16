@@ -878,7 +878,7 @@ async function dither(host, uniforms, speed, pal) {
   watch(host, v => { seen = v; go(); }, '10% 0px');
   new MutationObserver(() => { const [b, f] = pal(); mount.setUniforms({ u_colorBack: col(b), u_colorFront: col(f) }); })
     .observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-  return { setSpeed: s => { speed = s; go(); } };
+  return { setSpeed: s => { speed = s; go(); }, set: u => mount.setUniforms(u) };
 }
 
 // the heading's words rise in (the dive's own word boxes)
@@ -960,79 +960,45 @@ function initFounders(host) {
 }
 
 /* ---------------------------------------------------------
-   Journal ([data-journal]): "Updates And Insights", the latest three articles. There are no articles yet, so each
-   card's cover ([data-journal-art]) is drawn: an ordered dither (the dive's look) of a small scene for its topic,
-   in its own two colours. It comes in from coarse blocks to fine as it scrolls into view and drifts while you hover.
-   When the articles come (CMS), a real image takes the cover's place (data-pixel-reveal on it, main.js).
+   Journal ([data-journal]): "Updates & Insights", the latest three articles. There are no articles yet, so each
+   card's cover ([data-journal-art]) is the dive's moving dither (Paper Shaders, fine 8x8 pattern), in its own shape
+   and colours. It comes into focus from big pixels as it scrolls into view, runs slowly while it's on screen and
+   picks up while you hover. When the articles come (CMS), a real image takes the cover's place.
    --------------------------------------------------------- */
-const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map(v => (v + .5) / 16);
-const hash = (a, b) => { const n = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return n - Math.floor(n); };
-const hexRGB = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
-// each scene: f(x, y, t, ar) gives a brightness from 0 to 1; x runs 0..ar (the cover's aspect), y 0..1, t in seconds
-const ART = {
-  // a Dock crammed with icons: rows of rounded blocks, each lit a little differently, now and then a new one
-  stack: { back: '#16181d', front: '#f1ede2', f: (x, y, t) => {
-    const s = 1 / 6, i = Math.floor(x / s), j = Math.floor(y / s), u = x / s - i - .5, v = y / s - j - .5;   // six across, no cut-off icons
-    const qx = Math.max(Math.abs(u) - .22, 0), qy = Math.max(Math.abs(v) - .22, 0);
-    if (Math.hypot(qx, qy) > .12) return .03;
-    // a few levels only (so each icon reads as one thing), lit from the top
-    const lvl = [.22, .5, .78, .97][Math.floor(hash(i, j + Math.floor(t * .9 + hash(j, i) * 3)) * 4)];
-    return lvl + .12 * (-v);
-  } },
-  // the current you never chose: diagonal waves that carry everything along
-  flow: { back: '#e3dccf', front: '#0297db', f: (x, y, t) =>
-    smooth(.25, .75, .5 + .5 * Math.sin(4.4 * (x * .7 + y) + 1.6 * Math.sin(2.6 * x - t * .7) + t * .45)) * (.35 + .65 * y) },
-  // a calm sun going down on the horizon, its reflection moving on the water
-  sun: { back: '#0e1628', front: '#7f90bb', f: (x, y, t, ar) => {
-    const cx = x - ar / 2, hz = .64;
-    if (y < hz) { const d = Math.hypot(cx, y - .48); return d < .17 ? .95 : Math.max(0, .55 - (d - .17) * 1.5) * .7 + .03; }
-    const ry = (y - hz) / (1 - hz), w = .17 * (1 - ry * .5), band = .5 + .5 * Math.sin(ry * 40 - t * 1.6);
-    return Math.abs(cx) < w ? .6 * band * (1 - ry * .6) + .08 : .04 + .05 * band * (1 - ry);
-  } },
+const COVERS = {
+  stack: { shape: 3, scale: .8, back: ['#16181d', '#16181d'], front: ['#e9e3d6', '#c9c3b6'] },   // dots: columns of busy little lights
+  flow:  { shape: 4, scale: .7, back: ['#e3dccf', '#1b2236'], front: ['#0297db', '#1dabfa'] },   // a sine wave: the current you never chose
+  sun:   { shape: 7, scale: .62, back: ['#0e1628', '#0e1628'], front: ['#7f90bb', '#8a9bc6'] },  // a sphere with the light going round it
 };
 
-function paintArt(canvas, art, cell, t) {
-  const w = canvas.clientWidth, h = canvas.clientHeight;
-  if (!w || !h) return;
-  const cols = Math.ceil(w / cell), rows = Math.ceil(h / cell);
-  if (canvas.width !== cols || canvas.height !== rows) { canvas.width = cols; canvas.height = rows; }
-  const ctx = canvas.getContext('2d'), img = ctx.createImageData(cols, rows), d = img.data;
-  const B = hexRGB(art.back), F = hexRGB(art.front), ar = w / h;
-  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
-    const c = art.f((i + .5) / cols * ar, (j + .5) / rows, t, ar) > BAYER[(j & 3) * 4 + (i & 3)] ? F : B, k = (j * cols + i) * 4;
-    d[k] = c[0]; d[k + 1] = c[1]; d[k + 2] = c[2]; d[k + 3] = 255;
-  }
-  ctx.putImageData(img, 0, 0);
-}
-
 function initJournal(host) {
-  const CELL = 4, STEPS = [26, 13, 7, CELL];
+  const REST = .25, HOVER = .9, FINE = 2, COARSE = 14;
   host.querySelectorAll('[data-journal-art]').forEach((cover, n) => {
-    const art = ART[cover.dataset.journalArt];
-    if (!art || cover.querySelector('img')) return;
-    const canvas = document.createElement('canvas'); canvas.setAttribute('aria-hidden', 'true');
-    cover.prepend(canvas);
-    let t = n * 2.3, cell = reduce ? CELL : STEPS[0], raf = 0, last = 0, hovered = false;
-    const draw = () => paintArt(canvas, art, cell, t);
-    draw();
-    new ResizeObserver(draw).observe(cover);
-    if (reduce) return;
-    // comes into focus: coarse blocks to fine
-    const io = new IntersectionObserver(es => {
-      if (!es[0].isIntersecting) return;
-      io.disconnect();
-      STEPS.forEach((c, i) => setTimeout(() => { cell = c; draw(); }, 140 * i + n * 90));
-    }, { threshold: .35 });
-    io.observe(cover);
-    // drifts while you hover, at a stepped 15 frames a second (it's pixels, it can be a bit jerky)
-    const tick = now => {
-      raf = 0; if (!hovered) return;
-      if (now - last > 66) { t += (now - last) / 1000; last = now; draw(); }
-      raf = requestAnimationFrame(tick);
-    };
+    const c = COVERS[cover.dataset.journalArt];
+    if (!c || cover.querySelector('img')) return;
+    const pal = () => { const k = isNight() ? 1 : 0; return [c.back[k], c.front[k]]; };
+    cover.style.backgroundColor = pal()[0];
     const card = cover.closest('[data-journal-card]') || cover;
-    card.addEventListener('pointerenter', () => { hovered = true; last = performance.now(); if (!raf) raf = requestAnimationFrame(tick); });
-    card.addEventListener('pointerleave', () => { hovered = false; });
+    dither(cover, { u_shape: c.shape, u_scale: c.scale, u_type: 4, u_pxSize: reduce ? FINE : COARSE }, REST, pal).then(fx => {
+      if (!fx) return;
+      new MutationObserver(() => { cover.style.backgroundColor = pal()[0]; }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+      if (reduce) return;
+      // into focus: the pixels shrink to fine, one cover after the other
+      const io = new IntersectionObserver(es => {
+        if (!es[0].isIntersecting) return;
+        io.disconnect();
+        const t0 = performance.now() + n * 120;
+        const step = now => {
+          const k = Math.min(1, Math.max(0, (now - t0) / 700)), e = 1 - Math.pow(1 - k, 3);
+          fx.set({ u_pxSize: COARSE + (FINE - COARSE) * e });
+          if (k < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+      }, { threshold: .35 });
+      io.observe(cover);
+      card.addEventListener('pointerenter', () => fx.setSpeed(HOVER));
+      card.addEventListener('pointerleave', () => fx.setSpeed(REST));
+    });
   });
   // no articles yet: the placeholder links stay where they are
   host.querySelectorAll('a[href="#"]').forEach(a => a.addEventListener('click', e => e.preventDefault()));
@@ -1363,18 +1329,19 @@ function injectSolCSS() {
 [data-found] .found_play:focus-visible{outline:2px solid #0297db;outline-offset:3px}
 [data-found] .found_play::after{content:"Film coming soon";position:absolute;top:calc(100% + .75rem);left:50%;transform:translate(-50%,4px);white-space:nowrap;padding:.4rem .6rem;border-radius:2px;background:#16181d;color:#fbf7ee;font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;opacity:0;pointer-events:none;transition:opacity .3s ease,transform .3s ${EASE}}
 [data-found] .found_play.is-soon::after{opacity:1;transform:translate(-50%,0)}
-/* the journal: under the solutions' side lines (which come back here), covers in pixels */
+/* the journal: under the solutions' side lines (which come back here); square covers with the moving dither */
 [data-journal]{z-index:1;padding-top:0}
 [data-journal] .journal_all{white-space:nowrap}
 @media (max-width:767px){[data-journal] .journal_inner{padding-left:2rem;padding-right:2rem}}
 [data-journal] .journal_cover{transition:transform .6s ${EASE}}
-[data-journal] .journal_cover canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:-webkit-optimize-contrast;image-rendering:pixelated}
+[data-journal] .journal_cover{border-radius:0}
+[data-journal] .journal_cover canvas{position:absolute;inset:0;width:100%;height:100%}
 [data-journal] .journal_cover::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 1px rgba(61,58,53,.1);pointer-events:none}
 .dfs-night [data-journal] .journal_cover::after{box-shadow:inset 0 0 0 1px rgba(241,237,226,.12)}
 [data-journal] .journal_card-title{text-transform:none;letter-spacing:normal;text-decoration:underline;text-decoration-color:transparent;text-decoration-thickness:1px;text-underline-offset:.22em;transition:text-decoration-color .3s ease}
 [data-journal] .journal_card:hover .journal_cover{transform:translateY(-4px)}
 [data-journal] .journal_card:hover .journal_card-title{text-decoration-color:currentColor}
-[data-journal] .journal_card:focus-visible{outline:2px solid #0297db;outline-offset:6px;border-radius:14px}
+[data-journal] .journal_card:focus-visible{outline:2px solid #0297db;outline-offset:6px}
 /* B: the co-founders, as the instructor block's own tags, in a row */
 [data-found] .found_team-row{gap:.5rem}
 [data-found] .found_team-row .instructor_tag{position:relative;inset:auto;margin:0}

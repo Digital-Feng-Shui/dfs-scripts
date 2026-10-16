@@ -792,9 +792,6 @@ function initRhythms(host) {
   layer.innerHTML = `
     <div class="rs-menu">
       <div class="rs-menubar"><span class="rs-mstar">${STAR}</span><span class="rs-clock">Wed 21:29</span></div>
-      <div class="rs-mlist"><div class="rs-mlabel">Right now, with these rhythms</div>
-        <div class="rs-mitems"><div class="rs-mitem">Peace of mind · all day, every day</div><div class="rs-mitem is-new">Evenings · until tomorrow 07:00</div></div>
-        <div class="rs-mdiv"></div><div class="rs-mitem is-action">Open Rhythms…</div></div>
     </div>
     <div class="rs-toast"><span class="rs-tstar">${STAR}</span><div><div class="rs-ttag">Closed by Evenings</div><div class="rs-tmsg">YouTube is resting until tomorrow 07:00.</div></div><span class="rs-tx">✕</span><i class="rs-tbar"></i></div>
     <div class="rs-browser">
@@ -848,7 +845,13 @@ function injectSolCSS() {
   if (document.getElementById('dive-sol-css')) return;
   const s = document.createElement('style'); s.id = 'dive-sol-css';
   s.textContent = `
-[data-sol] .is-sol-meta .sol_top{flex-direction:column;align-items:flex-start;gap:.5rem}
+[data-sol] .is-sol-meta .sol_top{flex-direction:row;justify-content:space-between;align-items:flex-start;gap:1rem}
+/* what Tinko does: there while you watch him, in the same quiet grey as the line above it */
+[data-sol] [data-tinko-list]{margin-top:2.25rem;row-gap:1.25rem;opacity:.62}
+[data-sol] [data-tinko-list] .offer_item{gap:.85rem}
+[data-sol] [data-tinko-list] .icon_diamond{color:inherit;display:flex}[data-sol] [data-tinko-list] .icon_diamond svg{width:10px;height:10px}
+[data-sol] [data-tinko-list] .context_item{color:inherit;font-size:.75rem;line-height:1.2;letter-spacing:.04em}
+[data-sol] [data-tinko-list]+.sol_link{margin-top:2.25rem}
 /* the homepage's grid (with its blue lines) behind a demo, fading out toward the edges */
 [data-sol] .is-sol-demo{position:relative}
 [data-sol] .is-sol-demo>:not(.grid-background){position:relative;z-index:1}
@@ -1080,14 +1083,7 @@ function injectSolCSS() {
 .rs-mstar svg{width:.95em;height:.95em}
 .rs-layer.is-on .rs-mstar{background:#0297db;color:#fff}
 .rs-clock{font-variant-numeric:tabular-nums}
-.rs-mlist{margin-top:.35em;padding:.3em;border-radius:.6em;background:rgba(246,243,236,.92);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 0 0 .5px rgba(0,0,0,.2),0 22px 44px -14px rgba(61,58,53,.4);font-size:.78em}
-.rs-mlabel{padding:.35em .6em .2em;font-size:.85em;opacity:.5}
-.rs-mitem{padding:.3em .6em;border-radius:.3em}
-.rs-mitem.is-new{max-height:0;padding-block:0;opacity:0;overflow:hidden;transition:max-height .5s ${EASE},opacity .4s,padding .5s ${EASE}}
-.rs-layer.is-on .rs-mitem.is-new{max-height:2em;padding-block:.3em;opacity:1}
-.rs-mdiv{height:1px;margin:.3em .6em;background:rgba(0,0,0,.1)}
-.rs-mitem.is-action{opacity:.85}
-.dfs-night .rs-menu{color:#ecebe8}.dfs-night .rs-menubar{background:rgba(30,40,64,.85)}.dfs-night .rs-mlist{background:rgba(32,42,66,.94)}.dfs-night .rs-mdiv{background:rgba(255,255,255,.1)}
+.dfs-night .rs-menu{color:#ecebe8}.dfs-night .rs-menubar{background:rgba(30,40,64,.85)}
 .rs-toast{position:absolute;left:-1em;bottom:2.4em;width:25.5em;display:flex;align-items:center;gap:.8em;padding:.8em .9em .8em 1em;border-radius:.25em;background:var(--brand-colors--light-bage,#fbf7ee);color:var(--brand-colors--dark_gray,#3d3a35);box-shadow:0 0 0 1px var(--brand-colors--dark-bage,#dfd5c9),0 24px 48px -20px rgba(61,58,53,.45);font-family:var(--_typography---font-styles--body,monospace);overflow:hidden;opacity:0;transform:translateY(.8em);transition:opacity .45s,transform .6s ${EASE}}
 .rs-layer.is-toast .rs-toast{opacity:1;transform:none}
 .rs-tstar{width:1.25em;height:1.25em;flex:none}.rs-tstar svg{width:100%;height:100%}

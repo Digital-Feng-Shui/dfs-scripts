@@ -11,7 +11,8 @@
      Rhythms       [data-sol-rhythms]   around the real app window (main.js brings it to life): the menu bar clock
                                         reaches 21:30, Evenings switches on, the toast says what closed, and a browser
                                         that tries YouTube gets the calm page instead. Pauses while you use the app.
-   And the section after it, Who's behind it ([data-found]): see initFounders.
+   And the sections after it: Who's behind it ([data-found], see initFounders) and the journal ([data-journal], see
+   initJournal).
 
    Everything only runs while it's on screen. With reduced motion nothing plays by itself.
    ========================================================= */
@@ -35,6 +36,8 @@ export function initSolutions(root) {
   if (rhythms) initRhythms(rhythms);
   const found = document.querySelector('[data-found]');
   if (found) initFounders(found);
+  const journal = document.querySelector('[data-journal]');
+  if (journal) initJournal(journal);
 }
 
 /* ---------------------------------------------------------
@@ -957,6 +960,85 @@ function initFounders(host) {
 }
 
 /* ---------------------------------------------------------
+   Journal ([data-journal]): "Updates And Insights", the latest three articles. There are no articles yet, so each
+   card's cover ([data-journal-art]) is drawn: an ordered dither (the dive's look) of a small scene for its topic,
+   in its own two colours. It comes in from coarse blocks to fine as it scrolls into view and drifts while you hover.
+   When the articles come (CMS), a real image takes the cover's place (data-pixel-reveal on it, main.js).
+   --------------------------------------------------------- */
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map(v => (v + .5) / 16);
+const hash = (a, b) => { const n = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return n - Math.floor(n); };
+const hexRGB = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+// each scene: f(x, y, t, ar) gives a brightness from 0 to 1; x runs 0..ar (the cover's aspect), y 0..1, t in seconds
+const ART = {
+  // a Dock crammed with icons: rows of rounded blocks, each lit a little differently, now and then a new one
+  stack: { back: '#16181d', front: '#f1ede2', f: (x, y, t) => {
+    const s = 1 / 6, i = Math.floor(x / s), j = Math.floor(y / s), u = x / s - i - .5, v = y / s - j - .5;   // six across, no cut-off icons
+    const qx = Math.max(Math.abs(u) - .22, 0), qy = Math.max(Math.abs(v) - .22, 0);
+    if (Math.hypot(qx, qy) > .12) return .03;
+    // a few levels only (so each icon reads as one thing), lit from the top
+    const lvl = [.22, .5, .78, .97][Math.floor(hash(i, j + Math.floor(t * .9 + hash(j, i) * 3)) * 4)];
+    return lvl + .12 * (-v);
+  } },
+  // the current you never chose: diagonal waves that carry everything along
+  flow: { back: '#e3dccf', front: '#0297db', f: (x, y, t) =>
+    smooth(.25, .75, .5 + .5 * Math.sin(4.4 * (x * .7 + y) + 1.6 * Math.sin(2.6 * x - t * .7) + t * .45)) * (.35 + .65 * y) },
+  // a calm sun going down on the horizon, its reflection moving on the water
+  sun: { back: '#0e1628', front: '#7f90bb', f: (x, y, t, ar) => {
+    const cx = x - ar / 2, hz = .64;
+    if (y < hz) { const d = Math.hypot(cx, y - .48); return d < .17 ? .95 : Math.max(0, .55 - (d - .17) * 1.5) * .7 + .03; }
+    const ry = (y - hz) / (1 - hz), w = .17 * (1 - ry * .5), band = .5 + .5 * Math.sin(ry * 40 - t * 1.6);
+    return Math.abs(cx) < w ? .6 * band * (1 - ry * .6) + .08 : .04 + .05 * band * (1 - ry);
+  } },
+};
+
+function paintArt(canvas, art, cell, t) {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (!w || !h) return;
+  const cols = Math.ceil(w / cell), rows = Math.ceil(h / cell);
+  if (canvas.width !== cols || canvas.height !== rows) { canvas.width = cols; canvas.height = rows; }
+  const ctx = canvas.getContext('2d'), img = ctx.createImageData(cols, rows), d = img.data;
+  const B = hexRGB(art.back), F = hexRGB(art.front), ar = w / h;
+  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+    const c = art.f((i + .5) / cols * ar, (j + .5) / rows, t, ar) > BAYER[(j & 3) * 4 + (i & 3)] ? F : B, k = (j * cols + i) * 4;
+    d[k] = c[0]; d[k + 1] = c[1]; d[k + 2] = c[2]; d[k + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+function initJournal(host) {
+  const CELL = 4, STEPS = [26, 13, 7, CELL];
+  host.querySelectorAll('[data-journal-art]').forEach((cover, n) => {
+    const art = ART[cover.dataset.journalArt];
+    if (!art || cover.querySelector('img')) return;
+    const canvas = document.createElement('canvas'); canvas.setAttribute('aria-hidden', 'true');
+    cover.prepend(canvas);
+    let t = n * 2.3, cell = reduce ? CELL : STEPS[0], raf = 0, last = 0, hovered = false;
+    const draw = () => paintArt(canvas, art, cell, t);
+    draw();
+    new ResizeObserver(draw).observe(cover);
+    if (reduce) return;
+    // comes into focus: coarse blocks to fine
+    const io = new IntersectionObserver(es => {
+      if (!es[0].isIntersecting) return;
+      io.disconnect();
+      STEPS.forEach((c, i) => setTimeout(() => { cell = c; draw(); }, 140 * i + n * 90));
+    }, { threshold: .35 });
+    io.observe(cover);
+    // drifts while you hover, at a stepped 15 frames a second (it's pixels, it can be a bit jerky)
+    const tick = now => {
+      raf = 0; if (!hovered) return;
+      if (now - last > 66) { t += (now - last) / 1000; last = now; draw(); }
+      raf = requestAnimationFrame(tick);
+    };
+    const card = cover.closest('[data-journal-card]') || cover;
+    card.addEventListener('pointerenter', () => { hovered = true; last = performance.now(); if (!raf) raf = requestAnimationFrame(tick); });
+    card.addEventListener('pointerleave', () => { hovered = false; });
+  });
+  // no articles yet: the placeholder links stay where they are
+  host.querySelectorAll('a[href="#"]').forEach(a => a.addEventListener('click', e => e.preventDefault()));
+}
+
+/* ---------------------------------------------------------
    styles
    --------------------------------------------------------- */
 function injectSolCSS() {
@@ -1263,24 +1345,17 @@ function injectSolCSS() {
 [data-found] .found_box:not(.is-open) .found_box-player{pointer-events:none}
 @media (max-width:767px){[data-found] .found_box{aspect-ratio:4/5;width:88vw}}
 /* the player: play in the very middle, the words above it, the time bar a rounded track */
-[data-found] .found_box-text{bottom:calc(50% + 2.5rem + 1.75rem)}
+[data-found] .found_box-text{bottom:calc(50% + 2.25rem + 1.75rem)}
 [data-found] .found_box .found_film-line{border-radius:2px}
-/* play as liquid glass (CSS only): a clear lens with a light rim on top, a soft shade at the bottom and a highlight
-   that catches the light; it swells a little under the pointer and gives when pressed */
-[data-found] .found_box .found_play{position:absolute;left:50%;top:50%;width:5rem;height:5rem;margin:-2.5rem 0 0 -2.5rem;border:0;border-radius:50%;
-  background:linear-gradient(180deg,rgba(255,255,255,.24),rgba(255,255,255,.08) 50%,rgba(255,255,255,.14));
-  -webkit-backdrop-filter:blur(6px) saturate(1.8) brightness(1.2);backdrop-filter:blur(6px) saturate(1.8) brightness(1.2);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.7),inset 0 -1px 0 rgba(255,255,255,.28),inset 0 0 0 1px rgba(255,255,255,.2),
-    inset 0 12px 18px -10px rgba(255,255,255,.35),inset 0 -10px 18px -12px rgba(0,0,0,.2),0 10px 28px rgba(0,0,0,.25),0 1px 4px rgba(0,0,0,.2);
-  transition:transform .6s ${EASE},box-shadow .4s ease,background .4s ease}
-[data-found] .found_box .found_play::before{content:"";position:absolute;inset:3px;border-radius:50%;pointer-events:none;
-  background:radial-gradient(90% 60% at 32% 6%,rgba(255,255,255,.5),rgba(255,255,255,0) 60%),radial-gradient(70% 45% at 68% 100%,rgba(255,255,255,.2),rgba(255,255,255,0) 70%)}
-[data-found] .found_box .found_play svg{position:relative;width:1.25rem;height:1.4rem;margin-left:5px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))}
-[data-found] .found_box .found_play:hover{transform:scale(1.07);background:linear-gradient(180deg,rgba(255,255,255,.3),rgba(255,255,255,.11) 50%,rgba(255,255,255,.18))}
+/* play, plainly (like a video site's): a white triangle in a soft dark circle */
+[data-found] .found_box .found_play{position:absolute;left:50%;top:50%;width:4.5rem;height:4.5rem;margin:-2.25rem 0 0 -2.25rem;border:0;border-radius:50%;
+  background:rgba(0,0,0,.45);-webkit-backdrop-filter:none;backdrop-filter:none;transition:transform .5s ${EASE},background-color .3s ease}
+[data-found] .found_box .found_play svg{width:1.2rem;height:1.35rem;margin-left:4px}
+[data-found] .found_box .found_play:hover{transform:scale(1.06);background:rgba(0,0,0,.62)}
 [data-found] .found_box .found_play:active{transform:scale(.96);transition-duration:.15s}
 /* on the dark player the "coming soon" note is light, and round like the rest */
 [data-found] .found_box .found_play::after{background:#f1ede2;color:#16181d;border-radius:99px;padding:.45rem .8rem}
-@media (max-width:767px){[data-found] .found_box .found_play{width:4.25rem;height:4.25rem;margin:-2.125rem 0 0 -2.125rem}[data-found] .found_box-text{bottom:calc(50% + 2.125rem + 1.5rem)}}
+@media (max-width:767px){[data-found] .found_box-text{bottom:calc(50% + 2.25rem + 1.5rem)}}
 /* the play button (everywhere) */
 [data-found] .found_play{color:#fff;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);transition:transform .5s ${EASE},background-color .3s ease,border-color .3s ease;text-decoration:none}
 [data-found] .found_play svg{margin-left:4px}
@@ -1288,6 +1363,18 @@ function injectSolCSS() {
 [data-found] .found_play:focus-visible{outline:2px solid #0297db;outline-offset:3px}
 [data-found] .found_play::after{content:"Film coming soon";position:absolute;top:calc(100% + .75rem);left:50%;transform:translate(-50%,4px);white-space:nowrap;padding:.4rem .6rem;border-radius:2px;background:#16181d;color:#fbf7ee;font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;opacity:0;pointer-events:none;transition:opacity .3s ease,transform .3s ${EASE}}
 [data-found] .found_play.is-soon::after{opacity:1;transform:translate(-50%,0)}
+/* the journal: under the solutions' side lines (which come back here), covers in pixels */
+[data-journal]{z-index:1;padding-top:0}
+[data-journal] .journal_all{white-space:nowrap}
+@media (max-width:767px){[data-journal] .journal_inner{padding-left:2rem;padding-right:2rem}}
+[data-journal] .journal_cover{transition:transform .6s ${EASE}}
+[data-journal] .journal_cover canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:-webkit-optimize-contrast;image-rendering:pixelated}
+[data-journal] .journal_cover::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 1px rgba(61,58,53,.1);pointer-events:none}
+.dfs-night [data-journal] .journal_cover::after{box-shadow:inset 0 0 0 1px rgba(241,237,226,.12)}
+[data-journal] .journal_card-title{text-transform:none;letter-spacing:normal;text-decoration:underline;text-decoration-color:transparent;text-decoration-thickness:1px;text-underline-offset:.22em;transition:text-decoration-color .3s ease}
+[data-journal] .journal_card:hover .journal_cover{transform:translateY(-4px)}
+[data-journal] .journal_card:hover .journal_card-title{text-decoration-color:currentColor}
+[data-journal] .journal_card:focus-visible{outline:2px solid #0297db;outline-offset:6px;border-radius:14px}
 /* B: the co-founders, as the instructor block's own tags, in a row */
 [data-found] .found_team-row{gap:.5rem}
 [data-found] .found_team-row .instructor_tag{position:relative;inset:auto;margin:0}

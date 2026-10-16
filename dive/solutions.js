@@ -1016,7 +1016,9 @@ function initJournal(host) {
 function initClose(host, above) {
   const sticky = host.querySelector('[data-close-sticky]'), pin = host.querySelector('[data-close-pin]') || host;
   const shader = host.querySelector('[data-close-shader]'), rise = host.querySelector('[data-close-rise]');
+  const kicker = host.querySelector('[data-close-kicker]');
   if (rise) riseWords(rise);
+  if (kicker) riseWords(kicker);
   // the dive's own colours
   const pal = () => isNight() ? ['#0e1628', '#5f719c'] : ['#f1ede2', '#3d3a35'];
   let fx = null, lastSpd = -1, lastScale = -1, lastType = 0;
@@ -1031,7 +1033,7 @@ function initClose(host, above) {
     if (spd !== lastSpd) { lastSpd = spd; fx.setSpeed(spd); }
     if (scale !== lastScale || type !== lastType) { lastScale = scale; lastType = type; fx.set({ u_scale: scale, u_type: type }); }
   };
-  if (reduce) { settle(1); return; }
+  if (reduce) { settle(1); if (kicker) kicker.classList.add('dive-in'); return; }
   let on = false, raf = 0, lastY = '', lastE = -1;
   const frame = () => {
     raf = 0; if (!on) return;
@@ -1040,6 +1042,8 @@ function initClose(host, above) {
     const ab = above ? Math.max(0, Math.min(vh, above.getBoundingClientRect().bottom)) : 0;
     const ty = ab > 0 ? `translate3d(0,${(-.7 * ab).toFixed(1)}px,0)` : '';
     if (ty !== lastY) { lastY = ty; sticky.style.transform = ty; }
+    // (the question comes in as the journal's last edge goes, the answer as it settles)
+    if (kicker) kicker.classList.toggle('dive-in', ab < vh * .25);
     // then, while it holds still, it settles: done at 75% through
     const e = smooth(0, .75, -r.top / Math.max(1, r.height - vh));
     if (Math.abs(e - lastE) > .002) { lastE = e; settle(e); }
@@ -1377,7 +1381,7 @@ function injectSolCSS() {
 [data-found] .found_play::after{content:"Film coming soon";position:absolute;top:calc(100% + .75rem);left:50%;transform:translate(-50%,4px);white-space:nowrap;padding:.4rem .6rem;border-radius:2px;background:#16181d;color:#fbf7ee;font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;opacity:0;pointer-events:none;transition:opacity .3s ease,transform .3s ${EASE}}
 [data-found] .found_play.is-soon::after{opacity:1;transform:translate(-50%,0)}
 /* the journal: under the solutions' side lines (which come back here); square covers with the moving dither */
-[data-journal]{z-index:1;padding-top:0}
+[data-journal]{z-index:1;padding-top:0;padding-bottom:0}
 [data-journal] .journal_all{white-space:nowrap}
 @media (max-width:767px){[data-journal] .journal_inner{padding-left:2rem;padding-right:2rem}}
 [data-journal] .journal_cover{transition:transform .6s ${EASE}}
@@ -1402,19 +1406,24 @@ function injectSolCSS() {
 [data-close] .close_letter{transition-delay:.15s}
 [data-close].is-open .close_doors,[data-close].is-open .close_letter{opacity:1;transform:none}
 [data-close]:not(.is-open) .close_doors,[data-close]:not(.is-open) .close_letter{pointer-events:none}
-[data-close] .close_door{color:var(--dive-text);background:var(--dive-glass);box-shadow:inset 0 1px 0 var(--dive-glass-hi),inset 0 0 0 1px var(--dive-nav-line),0 12px 32px rgba(0,0,0,.12);
-  -webkit-backdrop-filter:blur(14px) saturate(1.3);backdrop-filter:blur(14px) saturate(1.3);transition:background-color .35s ease,transform .5s ${EASE}}
-[data-close] .close_door:hover{background:var(--dive-glass-hover)}
-[data-close] .close_door.is-main{color:#fff;background:var(--dive-accent,#0297db);box-shadow:0 12px 32px rgba(2,151,219,.28)}
-[data-close] .close_door.is-main:hover{background:color-mix(in srgb,var(--dive-accent,#0297db) 88%,#000)}
-[data-close] .close_door-arrow{transition:transform .5s ${EASE}}
-[data-close] .close_door:hover .close_door-arrow{transform:translateX(4px)}
-[data-close] .close_door:focus-visible,[data-close] .close_submit:focus-visible,[data-close] .close_input:focus-visible{outline:2px solid var(--dive-accent,#0297db);outline-offset:3px}
+/* the doors are the site's arrow buttons (styles.css animates them); the course's one blue, with a soft glow */
+[data-close] .close_doors{align-items:center}
+[data-close] .close_btn-main .btn-icon-content{box-shadow:0 12px 32px rgba(2,151,219,.3)}
+[data-close] .btn-icon-content__text{font-size:.8rem;letter-spacing:.06em}
+[data-close] .btn-icon-content{padding:.85rem 1rem .85rem 1.15rem;gap:.85rem}
+[data-close] .btn-icon-icon__arrow{transition:transform .525s cubic-bezier(.625,.05,0,1)}
+[data-close] .btn-icon-link:focus-visible{outline:2px solid var(--dive-accent,#0297db);outline-offset:3px}
+/* (the light one keeps an edge over the swirl) */
+[data-close] .btn-icon-content.is-light{box-shadow:inset 0 0 0 1px var(--dive-nav-line),0 12px 32px rgba(0,0,0,.08)}
 [data-close] .close_letter-text{opacity:.72}
 [data-close] .close_form{display:block;margin:0}
 [data-close] .close_form form{display:flex;justify-content:center}
 [data-close] .close_input{color:var(--dive-text);background:var(--dive-glass);border:1px solid var(--dive-nav-line);border-right:0;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);font-family:inherit}
 [data-close] .close_input::placeholder{color:var(--dive-text);opacity:.5}
+/* focus: quiet, only the line gets darker (no ring) */
+[data-close] .close_input:focus,[data-close] .close_input:focus-visible{outline:0;box-shadow:none;border-color:color-mix(in srgb,var(--dive-text) 45%,transparent)}
+[data-close] .close_input:-webkit-autofill,[data-close] .close_input:-webkit-autofill:focus{-webkit-text-fill-color:var(--dive-text);-webkit-box-shadow:0 0 0 100px var(--dive-back) inset;caret-color:var(--dive-text)}
+[data-close] .close_submit:focus-visible{outline:2px solid var(--dive-accent,#0297db);outline-offset:3px}
 [data-close] .close_submit{color:var(--dive-back);background:var(--dive-text);border:0;font-family:inherit;transition:opacity .3s ease}
 [data-close] .close_submit:hover{opacity:.85}
 [data-close] .w-form-done,[data-close] .w-form-fail{margin-top:.25rem;padding:0;background:none;color:inherit;font-size:.82rem;text-align:center}

@@ -64,6 +64,8 @@ const COURSE = [
   ['8: Flow-state by Design', [['8.1', 'The Final Layer', '1:44'], ['8.2', 'The Art of Doing Nothing', '5:48'], ['8.3', 'Rituals For Flow', '8:27'], ['8.4', 'Thank You', '1:33']]],
 ];
 const TOTAL_LESSONS = 35;
+const PREVIEW = 40;   // seconds of each lesson; then "Continue in the course"
+
 const SVG = {
   pause: '<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 24 24" fill="none" class="bunny-player__pause-svg"><path d="M16 5V19" stroke="currentColor" stroke-width="3" stroke-miterlimit="10"></path><path d="M8 5V19" stroke="currentColor" stroke-width="3" stroke-miterlimit="10"></path></svg>',
   play: '<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 24 24" fill="none" class="bunny-player__play-svg"><path d="M6 12V5.01109C6 4.05131 7.03685 3.4496 7.87017 3.92579L14 7.42855L20.1007 10.9147C20.9405 11.3945 20.9405 12.6054 20.1007 13.0853L14 16.5714L7.87017 20.0742C7.03685 20.5503 6 19.9486 6 18.9889V12Z" fill="currentColor"></path></svg>',
@@ -85,9 +87,10 @@ function initCourse(host) {
   const W = 1000;
   host.innerHTML = `<div class="cpr">
     <div class="cpr-left">
-      <div class="bunny-player" data-player-status="idle" data-player-activated="false" data-player-hover="idle" data-player-muted="false" data-player-fullscreen="false">
+      <div class="next_lesson_container"><a href="/" class="lesson-complete_overlay w-inline-block" data-cp="continue"><div class="inherit_txt_cl">Continue in the course</div><div class="svg_arrow w-embed">${SVG.next}</div></a>
+      <div class="bunny-player" data-player-status="idle" data-player-activated="false" data-player-hover="idle" data-player-muted="true" data-player-fullscreen="false">
         <div class="bunny-player__before" style="padding-top:56.25%"></div>
-        <video class="bunny-player__video" playsinline preload="none"></video>
+        <video class="bunny-player__video" playsinline muted preload="none"></video>
         <img class="bunny-player__placeholder" src="${LESSONS[0].cover}" alt="">
         <div class="bunny-player__dark"></div>
         <div data-player-control="playpause" class="bunny-player__playpause"><div class="bunny-player__big-btn">${SVG.pause}${SVG.play}</div></div>
@@ -101,12 +104,12 @@ function initCourse(host) {
               <div data-player-control="fullscreen" class="bunny-player__toggle-fullscreen">${SVG.full}${SVG.shrink}</div></div>
           </div></div>
         <div class="bunny-player__loading">${SVG.loading}</div>
-      </div>
+      </div></div>
       <div class="course_navigation_bar"><a href="#" class="cnb_option is-outline w-inline-block" data-cp="prev"><div class="svg_arrow w-embed">${SVG.prev}</div><div class="inherit_txt_cl">Previous Lesson</div></a><a href="#" class="cnb_option is-dark w-inline-block" data-cp="next"><div class="inherit_txt_cl is-right">Next Lesson</div><div class="svg_arrow w-embed">${SVG.next}</div></a></div>
     </div>
     <div class="cpr-right">
       <div class="cpr-title"><div class="course_progrpess_wrap"><div class="course_prog_title"><div class="logo_icon w-embed">${STAR}</div><div class="course_h1">Fundamentals</div></div><div class="cpr-pct"><span>0</span>%</div></div><div class="progression_bar"><div class="progress_juice"></div></div></div>
-      <div class="accordion-css"><ul class="accordion-css__list">${COURSE.map(([t, ls], m) => `<li data-accordion-status="${m === 0 ? 'active' : 'not-active'}" class="accordion-css__item is-course">
+      <div class="accordion-css" data-lenis-prevent><ul class="accordion-css__list">${COURSE.map(([t, ls], m) => `<li data-accordion-status="${m === 0 ? 'active' : 'not-active'}" class="accordion-css__item is-course">
         <div data-accordion-toggle class="course_module"><h3 class="course_item_title">${t}</h3><div class="accordion-css__item-icon">${SVG.chevron}</div></div>
         <div class="accordion-css__item-bottom"><div class="overflowhide_this">${ls.map(([n, name, d]) => `<div class="c_item${n === '0.1' ? ' is-active' : ''}" data-l="${n}"><div class="left_content"><div class="check_box"><div class="check_fill"></div></div><p class="accordion-css__item-p">${n}: ${name}</p></div><div class="lesson_duration"><div class="code-embed-4 w-embed">${SVG.lesson}</div><div class="c_time">${d}</div></div></div>`).join('')}</div></div>
       </li>`).join('')}</ul></div>
@@ -115,7 +118,9 @@ function initCourse(host) {
   const $ = s => host.querySelector(s), $$ = s => [...host.querySelectorAll(s)];
   const cpr = $('.cpr'), player = $('.bunny-player'), v = $('video'), cover = $('.bunny-player__placeholder');
   const timeP = $('[data-player-time-progress]'), timeD = $('[data-player-time-duration]'), prog = $('[data-player-progress]'), buf = $('[data-player-buffered]'), speedL = $('[data-player-speed-label]');
-  const pctEl = $('.cpr-pct span'), juice = $('.progress_juice');
+  const pctEl = $('.cpr-pct span'), juice = $('.progress_juice'), overlay = $('[data-cp="continue"]');
+  v.muted = true; v.defaultMuted = true;   // a preview on the homepage: never with sound
+  const ending = on => { overlay.style.display = on ? 'flex' : 'none'; };
   const st = (k, val) => player.setAttribute('data-player-' + k, val);
   // fit: the course's own sizes, scaled to the column; phones get the player and its buttons only
   const fit = () => {
@@ -129,6 +134,7 @@ function initCourse(host) {
   let at = 0, hls = null, loaded = false, done = new Set(), hoverT = 0;
   function progress() {
     const t = v.currentTime || 0, d = v.duration || 0;
+    if (t >= PREVIEW && !v.paused) { v.pause(); ending(true); }
     timeP.textContent = mmss(t);
     if (d) timeD.textContent = mmss(d);
     prog.style.transform = `translateX(${d ? (t / d * 100 - 100).toFixed(2) : -100}%)`;
@@ -154,13 +160,14 @@ function initCourse(host) {
     const L = LESSONS[at];
     cover.src = L.cover;
     timeP.textContent = '00:00'; timeD.textContent = L.dur; prog.style.transform = 'translateX(-100%)'; buf.style.transform = 'translateX(-100%)';
-    st('status', 'idle'); st('activated', 'false');
+    st('status', 'idle'); st('activated', 'false'); ending(false);
     course();
     if (autoplay) play();
   }
   async function play() {
     const L = LESSONS[at];
-    st('activated', 'true');
+    if (v.currentTime >= PREVIEW) v.currentTime = 0;
+    ending(false); st('activated', 'true');
     if (!loaded) {
       loaded = true; st('status', 'loading');
       if (v.canPlayType('application/vnd.apple.mpegurl')) v.src = L.src;
@@ -181,7 +188,6 @@ function initCourse(host) {
   v.addEventListener('ended', () => { done.add(LESSONS[at].id); select(at + 1, true); });
   $$('[data-player-control="playpause"]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); toggle(); }));
   player.addEventListener('click', e => { if (!e.target.closest('.bunny-player__interface-bottom')) toggle(); });
-  $('[data-player-control="mute"]').addEventListener('click', () => { v.muted = !v.muted; st('muted', String(v.muted)); });
   const SPEEDS = [1, 1.25, 1.5, 2];
   $('[data-player-control="speed"]').addEventListener('click', () => { const s = SPEEDS[(SPEEDS.indexOf(v.playbackRate) + 1) % SPEEDS.length]; v.playbackRate = s; speedL.textContent = (Number.isInteger(s) ? s.toFixed(1) : s) + 'x'; });
   $('[data-player-control="fullscreen"]').addEventListener('click', () => {
@@ -201,9 +207,32 @@ function initCourse(host) {
     const les = e.target.closest('.c_item');
     if (les) { const i = LESSONS.findIndex(L => L.id === les.dataset.l); if (i > -1 && i !== at) select(i, loaded && !v.paused); }
   });
-  watch(host, on => { if (!on && loaded && !v.paused) v.pause(); }, '0px');
+  let seen = false;
+  watch(host, on => { seen = on; if (!on && loaded && !v.paused) v.pause(); }, '0px');
+  tilt(host, 2.5, () => seen && !document.fullscreenElement);
   select(0, false);
   fit();
+}
+
+// a card that leans a few degrees toward the pointer (anywhere on the page), easing back when it leaves the window
+function tilt(el, max, active) {
+  if (reduce || !matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+  el.parentElement.style.perspective = '1800px';
+  let tx = 0, ty = 0, rx = 0, ry = 0, raf = 0;
+  const step = () => {
+    rx += (tx - rx) * .1; ry += (ty - ry) * .1;
+    el.style.transform = `rotateX(${rx.toFixed(3)}deg) rotateY(${ry.toFixed(3)}deg)`;
+    raf = Math.abs(tx - rx) + Math.abs(ty - ry) > .01 ? requestAnimationFrame(step) : 0;
+  };
+  const go = () => { if (!raf) raf = requestAnimationFrame(step); };
+  window.addEventListener('pointermove', e => {
+    if (!active()) { tx = ty = 0; go(); return; }
+    const r = el.getBoundingClientRect();
+    const nx = Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / (r.width / 2)));
+    const ny = Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height / 2)) / (r.height / 2)));
+    tx = -ny * max; ty = nx * max; go();
+  }, { passive: true });
+  document.addEventListener('pointerleave', () => { tx = ty = 0; go(); });
 }
 
 /* ---------------------------------------------------------
@@ -521,24 +550,33 @@ function injectSolCSS() {
   const s = document.createElement('style'); s.id = 'dive-sol-css';
   s.textContent = `
 [data-sol] .is-sol-meta .sol_top{flex-direction:column;align-items:flex-start;gap:.5rem}
+/* the homepage's grid (with its blue lines) behind a demo, fading out toward the edges */
+[data-sol] .is-sol-demo{position:relative}
+[data-sol] .is-sol-demo>:not(.grid-background){position:relative;z-index:1}
+[data-sol] .is-sol-demo>.grid-background{opacity:.8;-webkit-mask-image:radial-gradient(ellipse 72% 70% at 50% 50%,#000 35%,transparent 100%);mask-image:radial-gradient(ellipse 72% 70% at 50% 50%,#000 35%,transparent 100%)}
 /* stacked (tablet and phone): every product reads text first, then its demo */
 @media (max-width:991px){[data-sol] .is-flip .is-sol-meta{order:-1}[data-sol] .is-sol-row .divider_vertical{display:none}}
 /* the course player: the course's own classes; only the layout of this little copy and the player states
    (on the course they come with its page code) are set here */
-[data-course-demo]{position:relative;width:100%;overflow:hidden;border:1px solid var(--brand-colors--dark-bage,#dfd5c9);border-radius:4px;background:var(--brand-colors--light-bage,#fbf7ee);box-shadow:0 30px 60px -36px rgba(61,58,53,.4)}
+[data-course-demo]{position:relative;width:100%;overflow:hidden;border:1px solid var(--brand-colors--dark-bage,#dfd5c9);border-radius:4px;background:var(--brand-colors--light-bage,#fbf7ee);box-shadow:rgba(61,58,53,.08) 0 0 0 1px,rgba(61,58,53,.42) 0 40px 80px -30px;transform-style:preserve-3d;will-change:transform;-webkit-user-select:none;user-select:none}
+.dfs-night [data-course-demo]{box-shadow:rgba(0,0,0,.2) 0 0 0 1px,rgba(0,0,0,.55) 0 40px 80px -30px}
+[data-course-demo] .next_lesson_container{position:relative}
+[data-course-demo] .lesson-complete_overlay{display:none;align-items:center;justify-content:center;text-decoration:none}
+[data-course-demo] .bunny-player__toggle-mute{cursor:default}
 [data-course-demo] .cpr{position:absolute;left:0;top:0;width:1000px;display:grid;grid-template-columns:690px 310px;transform-origin:0 0}
 [data-course-demo] .cpr-left{min-width:0}
 [data-course-demo] .cpr-right{position:relative;min-width:0;overflow:hidden;border-left:1px dashed var(--brand-colors--dark-bage,#dfd5c9)}
-[data-course-demo] .cpr-right .accordion-css{position:absolute;left:0;right:0;top:86px;bottom:0;overflow:hidden}
+[data-course-demo] .cpr-right .accordion-css{position:absolute;left:0;right:0;top:92px;bottom:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+[data-course-demo] .cpr-right .accordion-css::-webkit-scrollbar{display:none}
 [data-course-demo] .cpr-right .accordion-css__item{border-left:0}
-[data-course-demo] .cpr-title{height:86px;padding:18px 18px 0;box-sizing:border-box}
+[data-course-demo] .cpr-title{height:92px;padding:18px 18px 0;box-sizing:border-box}
 [data-course-demo] .cpr-title .course_progrpess_wrap{width:100%}
 [data-course-demo] .cpr-title .course_prog_title{justify-content:flex-start}
 [data-course-demo] .cpr-title .logo_icon{width:28px;height:28px;flex:none}
 [data-course-demo] .cpr-title .logo_icon svg{width:100%;height:100%;display:block}
 [data-course-demo] .cpr-title .course_h1{font-family:var(--_typography---font-styles--heading,serif);font-size:28px;line-height:28px;font-weight:400;margin:0}
 [data-course-demo] .cpr-pct{font-family:var(--_typography---font-styles--heading,serif);font-size:28px;line-height:28px}
-[data-course-demo] .cpr-title .progression_bar{width:100%;overflow:hidden}
+[data-course-demo] .cpr-title .progression_bar{width:100%;overflow:hidden;margin-top:9px}
 [data-course-demo] .progress_juice{width:0;height:100%;border-radius:4px;background:radial-gradient(circle farthest-corner at 50% 50%,#0297db,#3fc3ff);transition:width .8s ${EASE}}
 [data-course-demo] .c_item:not([data-l="0.1"]):not([data-l="0.2"]){cursor:default}
 [data-course-demo] .c_item[data-l="0.1"],[data-course-demo] .c_item[data-l="0.2"]{cursor:pointer}

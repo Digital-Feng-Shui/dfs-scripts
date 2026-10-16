@@ -232,7 +232,7 @@ function tilt(el, max, active) {
    bounces), floats in the middle and goes through it the way the app does (tinko/Sources: QuitPass, PinPass,
    DockViews, DeskViews, Desk): what's open, one app at a time behind him; what's pinned, down to the daily drivers
    (he and Rhythms stay); then he hides the rest, glides to the bottom left corner and clears the desk. A bar under
-   the screen shows how far he is (a diamond per part) and starts him over from the mess. Space, the delete key, S
+   the screen fills at one steady pace with how far he is (a diamond where each part starts) and starts him over. Space, the delete key, S
    and Cmd+Z work too; doing something yourself takes over from the autoplay for a while.
    --------------------------------------------------------- */
 const MAC = name => new URL(`./media/mac/${name}.avif`, import.meta.url).href;
@@ -259,6 +259,10 @@ const OPEN = [
   { id: 'spotify', name: 'Spotify', pinned: true, keep: true }, { id: 'rhythms', name: 'Rhythms', pinned: true, keep: true },
   { id: 'preview', name: 'Preview', pinned: false, keep: false, win: 'pv' }, { id: 'textedit', name: 'TextEdit', pinned: false, keep: false, win: 'te' },
 ];
+// the bar under the screen runs at one steady pace: when each step starts on the autoplay, in seconds from Tinko's
+// first screen (measured on a run; end = the loop starts over). Doing things yourself only makes it wait or catch up
+const PACE = { quitAsk: 0, quit: 2.2, quitDone: 8.1, pinsAsk: 10.2, pin: 12.3, pinsDone: 21.4, dockDone: 24.5, scan: 27.2, desk: 28.9, fixes: 30.5, moved: 34.6, leftover: 36.2, binned: 38.5, left: 39.5, empty: 44.8, end: 48.3 };
+const PACE_ORDER = Object.keys(PACE);
 // the menus of the app in front
 const MENUS = {
   finder: ['Finder', 'File', 'Edit', 'View', 'Go', 'Window', 'Help'], preview: ['Preview', 'File', 'Edit', 'View', 'Go', 'Tools', 'Window', 'Help'],
@@ -368,8 +372,8 @@ function initTinko(host) {
     </div></div>
     <div class="ms-dock">${dapp('finder', ' is-run')}${DOCK.map(a => dapp(a.id, a.run ? ' is-run' : '')).join('')}${EXTRA.map(([id]) => dapp(id, ' is-out')).join('')}<b class="ms-dsep"></b><div class="ms-dapp ms-trash"><img class="is-empty" src="${MAC('trash-empty')}" alt=""><img class="is-full" src="${MAC('trash-full')}" alt=""></div></div>
   </div>`;
-  // under the screen: how far he is (a diamond for each part: what's open, the Dock, the desk, done) and start over
-  const PARTS = [['What’s open', 0], ['What’s pinned', 1 / 3], ['Your desktop', 2 / 3], ['Done', 1]];
+  // under the screen: how far he is (a diamond where each part starts: what's open, the Dock, the desk, done) and start over
+  const PARTS = [['What’s open', 0], ['What’s pinned', PACE.pinsAsk / PACE.end], ['Your desktop', PACE.scan / PACE.end], ['Done', PACE.empty / PACE.end]];
   const bar = document.createElement('div');
   bar.className = 'tk-prog';
   bar.innerHTML = `<div class="tk-line" role="progressbar" aria-label="How far Tinko is" aria-valuemin="0" aria-valuemax="100"><i class="tk-fill"></i>${PARTS.map(([t, f]) => `<span class="tk-dia" title="${t}" style="left:calc(6px + (100% - 12px) * ${f})">${DIAMOND}</span>`).join('')}</div><button class="tk-reset" type="button" title="Start over" aria-label="Start over">${SVGI.reset}</button>`;
@@ -443,7 +447,7 @@ function initTinko(host) {
   const list = n => n.length > 1 ? n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1] : (n[0] || 'nothing');
   const PINS = DOCK.filter(a => a.when !== 'self');   // Tinko leaves himself out of the pass
   const running = id => dockEl(id).classList.contains('is-run');
-  let state = 'mess', qfate = {}, qAt = 0, fate = {}, pinAt = 0, gone = new Set(), binned = new Set(), queue = [], lAt = 0, ticks = 0, scanAt = 0;
+  let state = 'mess', qfate = {}, qAt = 0, fate = {}, pinAt = 0, gone = new Set(), binned = new Set(), queue = [], lAt = 0, ticks = 0;
   function render(key, html) {
     const swap = screen.dataset.key !== key; screen.dataset.key = key;
     screen.innerHTML = html;
@@ -505,18 +509,25 @@ function initTinko(host) {
     else if (state === 'skipped') render('skipped', tag('Your desktop') + words('Your desktop stays as it is.') + `<div class="tkw-btns">${btn('space', 'Next', 'SPACE')}</div>`);
     progress();
   }
-  // the bar under the screen: three equal parts, each filled as he goes through it
-  const PART = 1 / 3;
+  // the bar under the screen: at each step it heads for the next step's start at the autoplay's pace, in a straight line,
+  // so it fills at one speed; the steps within a step (the next app, the next file) leave it alone
+  let paced = null;
   function progress() {
-    const p = ({
-      mess: 0, quitAsk: PART * .08, quit: PART * (.1 + .82 * qAt / OPEN.length), quitDone: PART * .96,
-      pinsAsk: PART * 1.05, pin: PART * (1.08 + .82 * pinAt / PINS.length), pinsDone: PART * 1.93, dockDone: PART * 1.97,
-      scan: PART * (2.04 + .08 * scanAt), desk: PART * 2.14, fixes: PART * (2.16 + .28 * ticks / 4), moved: PART * 2.48,
-      leftover: PART * 2.54, binned: PART * 2.6, left: PART * (2.62 + .34 * lAt / Math.max(1, queue.length)), empty: 1, skipped: 1,
-    })[state] || 0;
-    bar.querySelector('.tk-fill').style.width = `calc((100% - 12px) * ${p.toFixed(4)})`;
-    bar.querySelector('.tk-line').setAttribute('aria-valuenow', Math.round(p * 100));
-    bar.querySelectorAll('.tk-dia').forEach((d, i) => d.classList.toggle('is-on', state !== 'mess' && p >= PARTS[i][1] - .001));
+    const base = state === 'skipped' ? 'empty' : state;
+    if (base === paced) return;
+    paced = base;
+    const fill = bar.querySelector('.tk-fill'), at = PACE[base];
+    const set = (f, dur) => { fill.style.transition = dur ? `width ${dur.toFixed(2)}s linear` : 'none'; fill.style.width = `calc((100% - 12px) * ${f.toFixed(4)})`; };
+    if (at === undefined) set(0);
+    else {
+      const next = PACE[PACE_ORDER[PACE_ORDER.indexOf(base) + 1]], from = at / PACE.end, to = next / PACE.end;
+      const now = parseFloat(getComputedStyle(fill).width) / (bar.querySelector('.tk-line').clientWidth - 12) || 0;
+      // a step that came sooner (or an undo) than the pace: catch up to where it starts, then on at the pace
+      if (reduce || Math.abs(now - from) > .01) { set(from); fill.offsetWidth; }
+      if (!reduce) set(to, next - at);
+    }
+    bar.querySelector('.tk-line').setAttribute('aria-valuenow', Math.round((at || 0) / PACE.end * 100));
+    bar.querySelectorAll('.tk-dia').forEach((d, i) => d.classList.toggle('is-on', at !== undefined && at / PACE.end >= PARTS[i][1] - .001));
   }
 
   /* what happens on the screen */
@@ -577,7 +588,6 @@ function initTinko(host) {
       const el = fileEl(order[i].id); if (el) { el.classList.add('is-seen'); setTimeout(() => el.classList.remove('is-seen'), 420); }
       if (meter) meter.style.width = ((i + 1) / order.length * 100) + '%';
       if (count) count.textContent = `${i + 1} ${i ? 'THINGS' : 'THING'}`;
-      scanAt = (i + 1) / order.length; progress();
       await wait(reduce ? 0 : 160);
     }
     await wait(reduce ? 0 : 300);
@@ -619,7 +629,7 @@ function initTinko(host) {
   // back to the mess: everything as it was before Tinko opened
   function reset() {
     clearTimeout(autoT);
-    gone = new Set(); binned = new Set(); ticks = 0; fate = {}; pinAt = 0; qfate = {}; qAt = 0; scanAt = 0; sorted = false; cornered = false;
+    gone = new Set(); binned = new Set(); ticks = 0; fate = {}; pinAt = 0; qfate = {}; qAt = 0; sorted = false; cornered = false;
     host.querySelectorAll('.ms-file').forEach(el => el.classList.remove('is-gone', 'is-sel', 'is-in'));
     arrange(false);
     setTrash(false); dockRestore();
@@ -1052,7 +1062,7 @@ function injectSolCSS() {
 .tk-prog{display:flex;align-items:center;gap:1rem;margin-top:1.75rem;-webkit-user-select:none;user-select:none}
 .tk-line{position:relative;flex:1;height:12px}
 .tk-line::before{content:"";position:absolute;left:6px;right:6px;top:5px;height:2px;background:var(--brand-colors--dark-bage,#dfd5c9)}
-.tk-fill{position:absolute;left:6px;top:5px;height:2px;width:0;background-image:radial-gradient(circle,#0297db,#3fc3ff);transition:width .7s ${EASE}}
+.tk-fill{position:absolute;left:6px;top:5px;height:2px;width:0;background-image:radial-gradient(circle,#0297db,#3fc3ff)}
 .tk-dia{position:absolute;top:0;width:12px;height:12px;margin-left:-6px;color:var(--brand-colors--dark-bage,#dfd5c9);transition:color .4s,transform .5s ${EASE}}
 .tk-dia svg{display:block;width:12px;height:12px}
 .tk-dia.is-on{color:var(--brand-colors--blue,#0297db);transform:scale(1.15)}

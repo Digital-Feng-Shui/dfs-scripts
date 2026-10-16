@@ -40,17 +40,18 @@ export function initSolutions(root) {
    Fundamentals: the course player, built from the course's own pieces
    The markup and classes of /courses/fundamentals (the Bunny player, the navigation bar, the course title with its
    progress, the module accordion), so it looks and moves like the course, night mode included (night.css styles
-   them). It plays the course's own first two lessons, 0.1 Course Intro and 0.2 Roadmap, from the course's video
-   host: it starts on the lesson cover with the play button, like the course. Modules open and close.
+   them). It's a demo: 20 seconds of each of the course's first two lessons, 0.1 Course Intro and 0.2 Roadmap, cut
+   and cropped to the slide, without sound (dive/media; the full lessons stay on the course's own video host). It
+   starts on the lesson cover with the play button, like the course; at the end of a clip the course's own
+   Complete-and-Continue overlay fades in and opens the course in a new tab. Modules open and close.
    Laid out at a fixed size (1000 wide, the course's own proportions) and scaled to the column, like the Rhythms window; on phones without the list.
    --------------------------------------------------------- */
-const HOST = 'https://vz-87a2c68f-2a7.b-cdn.net/';
+const CLIP = name => new URL(`./media/${name}`, import.meta.url).href;
 const COVER = 'https://cdn.prod.website-files.com/67f2341f69b4c6d58de38b9d/';
 const LESSONS = [
-  { id: '0.1', src: HOST + 'dcf95851-4ac1-4e1a-b9a8-de42d1b05d05/playlist.m3u8', cover: COVER + '6a108d4ac20ca7593cd6572a_PIMG_1.avif', dur: '03:09' },
-  { id: '0.2', src: HOST + 'ed429fa7-b87e-495d-82bc-e43c0c311865/playlist.m3u8', cover: COVER + '6a108c903b165a99aabd81e0_PIMG_2.avif', dur: '04:34' },
+  { id: '0.1', src: CLIP('fundamentals-0.1-preview.mp4'), cover: COVER + '6a108d4ac20ca7593cd6572a_PIMG_1.avif', dur: '00:20' },
+  { id: '0.2', src: CLIP('fundamentals-0.2-preview.mp4'), cover: COVER + '6a108c903b165a99aabd81e0_PIMG_2.avif', dur: '00:20' },
 ];
-const HLS = 'https://cdn.jsdelivr.net/npm/hls.js@1.6.11';
 // the course as it is (0.3, the Tinko add-on, only shows for its owners)
 const COURSE = [
   ['0: Intro', [['0.1', 'Course Intro', '3:09'], ['0.2', 'Roadmap', '4:34']]],
@@ -64,7 +65,6 @@ const COURSE = [
   ['8: Flow-state by Design', [['8.1', 'The Final Layer', '1:44'], ['8.2', 'The Art of Doing Nothing', '5:48'], ['8.3', 'Rituals For Flow', '8:27'], ['8.4', 'Thank You', '1:33']]],
 ];
 const TOTAL_LESSONS = 35;
-const PREVIEW = 40;   // seconds of each lesson; then "Continue in the course"
 
 const SVG = {
   pause: '<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 24 24" fill="none" class="bunny-player__pause-svg"><path d="M16 5V19" stroke="currentColor" stroke-width="3" stroke-miterlimit="10"></path><path d="M8 5V19" stroke="currentColor" stroke-width="3" stroke-miterlimit="10"></path></svg>',
@@ -80,14 +80,12 @@ const SVG = {
   next: '<svg viewBox="0 0 12 7" fill="currentColor" xmlns="http://www.w3.org/2000/svg" width="100%" preserveAspectRatio="xMidYMid meet"> <path d="M7.35319 0.493288V0.986576H7.90213H8.45106V1.49161V1.99664H9H9.54894L9.54383 2.49463L9.53617 2.99497L4.76681 3.00201L0 3.00671L0 3.5L0 3.99329L4.76681 3.99799L9.53617 4.00503L9.54383 4.50302L9.54894 5.00336H9H8.45106V5.50839V6.01342H7.90213H7.35319V6.50671V7H7.90213H8.45106V6.50671V6.01342L8.99489 6.00872L9.53617 6.00168L9.54383 5.50134L9.54894 5.00336L10.0851 5.00336H10.6213L10.6264 4.50302L10.634 4.00503L11.3183 3.99799L12 3.99329V3.5V3.00671L11.3183 3.00201L10.634 2.99497L10.6264 2.49463L10.6213 1.99664H10.0851H9.54894L9.54383 1.49631L9.53617 0.998321L8.99489 0.991274L8.45106 0.986576V0.493288V0H7.90213H7.35319V0.493288Z"/> </svg>',
 };
 const mmss = s => { s = Math.max(0, Math.floor(s || 0)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
-let hlsLoading = null;
-const loadHls = () => hlsLoading || (hlsLoading = new Promise((res, rej) => { if (window.Hls) return res(window.Hls); const sc = document.createElement('script'); sc.src = HLS; sc.onload = () => res(window.Hls); sc.onerror = rej; document.head.append(sc); }));
 
 function initCourse(host) {
   const W = 1000;
   host.innerHTML = `<div class="cpr">
     <div class="cpr-left">
-      <div class="next_lesson_container"><a href="/" class="lesson-complete_overlay w-inline-block" data-cp="continue"><div class="inherit_txt_cl">Continue in the course</div><div class="svg_arrow w-embed">${SVG.next}</div></a>
+      <div class="next_lesson_container"><a href="/" target="_blank" rel="noopener" class="lesson-complete_overlay w-inline-block" data-cp="continue"><div class="inherit_txt_cl">Continue in the course</div><div class="svg_arrow w-embed">${SVG.next}</div></a>
       <div class="bunny-player" data-player-status="idle" data-player-activated="false" data-player-hover="idle" data-player-muted="true" data-player-fullscreen="false">
         <div class="bunny-player__before" style="padding-top:56.25%"></div>
         <video class="bunny-player__video" playsinline muted preload="none"></video>
@@ -120,7 +118,7 @@ function initCourse(host) {
   const timeP = $('[data-player-time-progress]'), timeD = $('[data-player-time-duration]'), prog = $('[data-player-progress]'), buf = $('[data-player-buffered]'), speedL = $('[data-player-speed-label]');
   const pctEl = $('.cpr-pct span'), juice = $('.progress_juice'), overlay = $('[data-cp="continue"]');
   v.muted = true; v.defaultMuted = true;   // a preview on the homepage: never with sound
-  const ending = on => { overlay.style.display = on ? 'flex' : 'none'; };
+  const ending = on => overlay.classList.toggle('is-on', on);
   const st = (k, val) => player.setAttribute('data-player-' + k, val);
   // fit: the course's own sizes, scaled to the column; phones get the player and its buttons only
   const fit = () => {
@@ -131,10 +129,9 @@ function initCourse(host) {
   };
   new ResizeObserver(fit).observe(host);
 
-  let at = 0, hls = null, loaded = false, done = new Set(), hoverT = 0;
+  let at = 0, loaded = false, done = new Set(), hoverT = 0;
   function progress() {
     const t = v.currentTime || 0, d = v.duration || 0;
-    if (t >= PREVIEW && !v.paused) { v.pause(); ending(true); }
     timeP.textContent = mmss(t);
     if (d) timeD.textContent = mmss(d);
     prog.style.transform = `translateX(${d ? (t / d * 100 - 100).toFixed(2) : -100}%)`;
@@ -150,7 +147,6 @@ function initCourse(host) {
   }
   function unload() {
     try { v.pause(); } catch (_) {}
-    if (hls) { hls.destroy(); hls = null; }
     v.removeAttribute('src'); try { v.load(); } catch (_) {}
     loaded = false;
   }
@@ -164,18 +160,11 @@ function initCourse(host) {
     course();
     if (autoplay) play();
   }
-  async function play() {
+  function play() {
     const L = LESSONS[at];
-    if (v.currentTime >= PREVIEW) v.currentTime = 0;
+    if (v.ended) v.currentTime = 0;
     ending(false); st('activated', 'true');
-    if (!loaded) {
-      loaded = true; st('status', 'loading');
-      if (v.canPlayType('application/vnd.apple.mpegurl')) v.src = L.src;
-      else {
-        try { const Hls = await loadHls(); hls = new Hls({ maxBufferLength: 10 }); hls.loadSource(L.src); hls.attachMedia(v); }
-        catch (_) { st('status', 'idle'); loaded = false; return; }
-      }
-    }
+    if (!loaded) { loaded = true; st('status', 'loading'); v.src = L.src; }
     const p = v.play(); if (p) p.catch(() => { if (v.paused) st('status', 'paused'); });
   }
   const toggle = () => { if (!loaded || v.paused) play(); else v.pause(); };
@@ -185,7 +174,9 @@ function initCourse(host) {
   v.addEventListener('timeupdate', progress);
   v.addEventListener('progress', progress);
   v.addEventListener('loadedmetadata', progress);
-  v.addEventListener('ended', () => { done.add(LESSONS[at].id); select(at + 1, true); });
+  // the end of a clip: the lesson is ticked off and the course's overlay fades in; going back on the bar takes it away
+  v.addEventListener('ended', () => { done.add(LESSONS[at].id); course(); st('status', 'paused'); ending(true); });
+  v.addEventListener('seeking', () => { if (v.duration && v.currentTime < v.duration - .3) ending(false); });
   $$('[data-player-control="playpause"]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); toggle(); }));
   player.addEventListener('click', e => { if (!e.target.closest('.bunny-player__interface-bottom')) toggle(); });
   const SPEEDS = [1, 1.25, 1.5, 2];
@@ -561,7 +552,8 @@ function injectSolCSS() {
 [data-course-demo]{position:relative;width:100%;overflow:hidden;border:1px solid var(--brand-colors--dark-bage,#dfd5c9);border-radius:4px;background:var(--brand-colors--light-bage,#fbf7ee);box-shadow:rgba(61,58,53,.08) 0 0 0 1px,rgba(61,58,53,.42) 0 40px 80px -30px;transform-style:preserve-3d;will-change:transform;-webkit-user-select:none;user-select:none}
 .dfs-night [data-course-demo]{box-shadow:rgba(0,0,0,.2) 0 0 0 1px,rgba(0,0,0,.55) 0 40px 80px -30px}
 [data-course-demo] .next_lesson_container{position:relative}
-[data-course-demo] .lesson-complete_overlay{display:none;align-items:center;justify-content:center;text-decoration:none}
+[data-course-demo] .lesson-complete_overlay{display:flex;align-items:center;justify-content:center;text-decoration:none;opacity:0;visibility:hidden;transition:opacity .7s ease,visibility .7s ease}
+[data-course-demo] .lesson-complete_overlay.is-on{opacity:1;visibility:visible}
 [data-course-demo] .bunny-player__toggle-mute{cursor:default}
 [data-course-demo] .cpr{position:absolute;left:0;top:0;width:1000px;display:grid;grid-template-columns:690px 310px;transform-origin:0 0}
 [data-course-demo] .cpr-left{min-width:0}
@@ -584,9 +576,8 @@ function injectSolCSS() {
 [data-course-demo] .course_navigation_bar .cnb_option{border:0;cursor:pointer}
 [data-course-demo].is-phone .cpr{width:690px;grid-template-columns:690px}
 [data-course-demo].is-phone .cpr-right{display:none}
-/* the real lessons sit as a slide on a mountain backdrop: show the slide, like a screen */
 [data-course-demo] .bunny-player{overflow:hidden;cursor:pointer}
-[data-course-demo] .bunny-player__video{position:absolute;left:-8.26%;top:-8.21%;width:116.65%;height:auto}
+[data-course-demo] .bunny-player__video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 [data-course-demo] .bunny-player__placeholder{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 [data-course-demo] :is(.bunny-player__placeholder,.bunny-player__dark,.bunny-player__playpause,.bunny-player__loading){transition:opacity .3s linear,visibility .3s linear}
 [data-course-demo] [data-player-activated="true"] .bunny-player__placeholder{opacity:0;visibility:hidden}

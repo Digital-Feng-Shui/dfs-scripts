@@ -227,15 +227,20 @@ function tilt(el, max, active) {
 /* ---------------------------------------------------------
    Tinko on a Mac
    A 1000 x 650 crop of a Mac screen (scaled to the column): Tinko's own wallpaper, the menu bar, the glass Dock with
-   the real icons (as macOS draws them, dive/media/mac), and Tinko's window at its real size (614 x 540). He does the
-   real Dock pass first ("What's pinned": the cluttered default Dock down to the daily drivers; Tinko and Rhythms
-   stay), then the desktop (screenshots into their folder, the installer to the Bin, the rest to Documents).
-   Lines and steps are the app's own (tinko/Sources: DockViews, PinPass, DeskViews). Space, the delete key, S and
-   Cmd+Z work too; doing something yourself takes over from the autoplay for a while.
+   the real icons (as macOS draws them, dive/media/mac), the desk, and Tinko's window. It starts before Tinko: a Mac
+   in the middle of things (the desk's files open in Finder, Preview and TextEdit). Then Tinko opens (his Dock icon
+   bounces), floats in the middle and goes through it the way the app does (tinko/Sources: QuitPass, PinPass,
+   DockViews, DeskViews, Desk): what's open, one app at a time behind him; what's pinned, down to the daily drivers
+   (he and Rhythms stay); then he hides the rest, glides to the bottom left corner and clears the desk. A bar under
+   the screen shows how far he is (a diamond per part) and starts him over from the mess. Space, the delete key, S
+   and Cmd+Z work too; doing something yourself takes over from the autoplay for a while.
    --------------------------------------------------------- */
 const MAC = name => new URL(`./media/mac/${name}.avif`, import.meta.url).href;
 const TK_BITMAP = ['....######....', '..##########..', '.############.', '.#############', '##############', '##############', '##############', '.############.', '.############.', '..##########..', '....#####.....'];
 const DEL = '<svg viewBox="0 0 22 18" aria-hidden="true"><path d="M7 2h13v14H7L1 9z"/><path d="M11 6l6 6M17 6l-6 6"/></svg>';
+const DIAMOND = '<svg viewBox="0 0 12 12" aria-hidden="true"><path fill="currentColor" d="M0 5.656 5.657 0l5.657 5.657-5.657 5.657z"/></svg>';
+const TK = .86;                     // Tinko's window (614 x 540) a little smaller than life, so the desk has room
+const TKW = 614 * TK, TKH = 540 * TK;
 // the Dock as it often is: the default apps plus what piled up. keep = a daily driver; run = open right now
 const DOCK = [
   ['apps', 'Apps', '6 months ago'], ['safari', 'Safari', '2 months ago'], ['messages', 'Messages', 'yesterday'], ['mail', 'Mail', '3 weeks ago'],
@@ -245,7 +250,20 @@ const DOCK = [
   ['settings', 'System Settings', '4 days ago'], ['arc', 'Arc', 'run', 1], ['figma', 'Figma', 'today', 1], ['claude', 'Claude', 'run', 1],
   ['slack', 'Slack', '2 months ago'], ['chrome', 'Google Chrome', '5 months ago'], ['spotify', 'Spotify', 'run', 1], ['zoom', 'zoom.us', '6 weeks ago'],
   ['tinko', 'Tinko', 'self'], ['rhythms', 'Rhythms', 'run', 1],
-].map(([id, name, when, keep]) => ({ id, name, when, keep: !!keep, run: when === 'run' || when === 'self' }));
+].map(([id, name, when, keep]) => ({ id, name, when, keep: !!keep, run: when === 'run' }));
+// open but not pinned: they sit after the pinned apps while they run (Preview and TextEdit, opened from the desk)
+const EXTRA = [['preview', 'Preview'], ['textedit', 'TextEdit']];
+// what's open, in the order it was opened: the quit pass (Finder can't be quit and Tinko is Tinko)
+const OPEN = [
+  { id: 'arc', name: 'Arc', pinned: true, keep: true }, { id: 'claude', name: 'Claude', pinned: true, keep: true },
+  { id: 'spotify', name: 'Spotify', pinned: true, keep: true }, { id: 'rhythms', name: 'Rhythms', pinned: true, keep: true },
+  { id: 'preview', name: 'Preview', pinned: false, keep: false, win: 'pv' }, { id: 'textedit', name: 'TextEdit', pinned: false, keep: false, win: 'te' },
+];
+// the menus of the app in front
+const MENUS = {
+  finder: ['Finder', 'File', 'Edit', 'View', 'Go', 'Window', 'Help'], preview: ['Preview', 'File', 'Edit', 'View', 'Go', 'Tools', 'Window', 'Help'],
+  textedit: ['TextEdit', 'File', 'Edit', 'Format', 'View', 'Window', 'Help'], tinko: ['Tinko', 'File', 'Edit', 'View', 'Window', 'Help'],
+};
 // the desk, as in the real recording (test mode, demo files). at: [column from the right, row], where macOS puts
 // them; ph: the slot on a phone, where the scene is a tall crop with the desk in two rows under the window
 const FILES = [
@@ -259,9 +277,19 @@ const FILES = [
   { id: 'old', kind: 'folder', name: 'Old stuff', at: [1, 3], ph: 8 },
 ];
 const SHOTS = { id: 'shots', kind: 'folder', name: 'Screenshots', at: [0, 4], ph: 4 };   // the new folder, in the next free spot
+// mid / corner: where Tinko's window sits in the middle (the Dock part) and in the bottom left corner (the desk part,
+// 24 points from the edge and the Dock, as Desk.swift has it). wins: the open windows of the mess
 const LAYOUT = {
-  mac: { W: 1000, H: 650, win: [44, 42], spot: f => [932 - f.at[0] * 108, 38 + f.at[1] * 104], slot: i => ({ at: [Math.floor(i / 5), i % 5] }) },
-  phone: { W: 660, H: 880, win: [23, 36], spot: f => [66 + (f.ph % 5) * 132, 590 + Math.floor(f.ph / 5) * 100], slot: i => ({ ph: i }) },
+  mac: {
+    W: 1000, H: 650, mid: [236, 74], corner: [24, 99],
+    wins: { old: [36, 44], dl: [500, 340], pv: [520, 58], te: [80, 300] },   // each peeks out from behind Tinko
+    spot: f => [932 - f.at[0] * 108, 38 + f.at[1] * 104], slot: i => ({ at: [Math.floor(i / 5), i % 5] }),
+  },
+  phone: {
+    W: 660, H: 800, mid: [66, 40], corner: [66, 40],
+    wins: { old: [10, 44], dl: [250, 330], pv: [200, 70], te: [20, 300] },
+    spot: f => [66 + (f.ph % 5) * 132, 528 + Math.floor(f.ph / 5) * 100], slot: i => ({ ph: i }),
+  },
 };
 // a desktop label the way Finder sets it: two lines at most, the second cut in the middle ("2026-10…09.41.22")
 let measure;
@@ -280,14 +308,34 @@ function deskLabel(name, max = 98) {
   return two ? one + '<br>' + two : one;
 }
 const deskFile = f => `<div class="ms-file is-${f.kind}${f === SHOTS ? ' is-shots' : ''}" data-id="${f.id}"><div class="ms-art">${fileArt(f)}</div><span>${deskLabel(f.name)}</span></div>`;
-const fileArt = f => f.kind === 'shot' ? `<img class="ms-thumb" src="${MAC(f.img)}" alt="">` : `<img class="ms-ficon" src="${MAC('file-' + ({ folder: 'folder', dmg: 'dmg', zip: 'zip', txt: 'txt' })[f.kind])}" alt="">`;
+const fileArt = f => f.kind === 'shot' ? `<img class="ms-thumb" src="${MAC(f.img)}" alt="">` : `<img class="ms-ficon" src="${MAC('file-' + f.kind)}" alt="">`;
 const SVGI = {
   apple: '<svg viewBox="0 0 170 170" aria-hidden="true"><path fill="currentColor" d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.2-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.93.21-9.84-1.96-14.75-6.52-3.13-2.73-7.05-7.41-11.74-14.04-5.03-7.08-9.17-15.29-12.41-24.65-3.47-10.11-5.21-19.9-5.21-29.38 0-10.86 2.35-20.22 7.04-28.07 3.69-6.3 8.61-11.27 14.77-14.92s12.81-5.51 19.97-5.63c3.92 0 9.06 1.21 15.43 3.6 6.36 2.39 10.44 3.6 12.23 3.6 1.34 0 5.88-1.42 13.57-4.24 7.27-2.62 13.41-3.7 18.44-3.28 13.63 1.1 23.87 6.47 30.68 16.15-12.19 7.39-18.22 17.73-18.1 31 .11 10.34 3.86 18.94 11.23 25.77 3.34 3.17 7.07 5.62 11.22 7.36-.9 2.61-1.85 5.11-2.86 7.51zM119.11 7.24c0 8.1-2.96 15.67-8.86 22.67-7.12 8.32-15.73 13.13-25.07 12.37a25.2 25.2 0 0 1-.19-3.07c0-7.78 3.39-16.1 9.4-22.91 3-3.44 6.82-6.31 11.45-8.6 4.62-2.25 8.99-3.5 13.1-3.71.12 1.08.17 2.17.17 3.25z"/></svg>',
   search: '<svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="5.8" cy="5.8" r="4.75" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M9.3 9.3l3.9 3.9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
   cc: '<svg viewBox="0 0 18 14" aria-hidden="true"><rect x=".75" y=".75" width="16.5" height="5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="4.2" cy="3.25" r="1.6" fill="currentColor"/><rect x=".75" y="8.25" width="16.5" height="5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="13.8" cy="10.75" r="1.6" fill="currentColor"/></svg>',
   wifi: '<svg viewBox="0 0 18 13" aria-hidden="true"><path fill="currentColor" d="M9 12.6l2.3-2.9a3.6 3.6 0 0 0-4.6 0zM9 3a10.6 10.6 0 0 1 7.6 3.2l1.2-1.5A12.6 12.6 0 0 0 9 1 12.6 12.6 0 0 0 .2 4.7l1.2 1.5A10.6 10.6 0 0 1 9 3zm0 3.7a6.9 6.9 0 0 1 4.9 2l1.2-1.5A8.9 8.9 0 0 0 9 4.7a8.9 8.9 0 0 0-6.1 2.5l1.2 1.5a6.9 6.9 0 0 1 4.9-2z"/></svg>',
   battery: '<svg viewBox="0 0 27 13" aria-hidden="true"><rect x=".6" y=".6" width="22.8" height="11.8" rx="3.4" fill="none" stroke="currentColor" stroke-opacity=".45" stroke-width="1.2"/><rect x="2.3" y="2.3" width="15.6" height="8.4" rx="1.9" fill="currentColor"/><path d="M25 4.3v4.4c.9-.3 1.5-1.2 1.5-2.2s-.6-1.9-1.5-2.2z" fill="currentColor" fill-opacity=".45"/></svg>',
+  reset: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 8a4.8 4.8 0 1 0 1.5-3.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M4.4 1.9v2.9h2.9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
 };
+/* the open windows: Finder (a folder and Downloads), Preview (a screenshot) and TextEdit (a note), drawn the way
+   macOS 26 draws them, small */
+const SIDE = {
+  recents: '<path d="M8 3.2v5l3 1.8"/><circle cx="8" cy="8" r="6.2"/>',
+  apps: '<path d="M8 1.8l2 5.4M8 1.8L6 7.2M3.4 12.6L8 1.8l4.6 10.8M4.6 9.6h6.8"/>',
+  desk: '<rect x="1.8" y="2.6" width="12.4" height="8.6" rx="1.4"/><path d="M5.6 14h4.8M8 11.2V14"/>',
+  docs: '<path d="M4 1.8h5.2L12.4 5v9.2H4z"/><path d="M9 1.8V5.2h3.4"/>',
+  dl: '<circle cx="8" cy="8" r="6.2"/><path d="M8 4.4v6.2M5.4 8l2.6 2.6L10.6 8"/>',
+};
+const lights = '<div class="ma-lights"><i></i><i></i><i></i></div>';
+const finderSide = on => `<div class="ma-side">${lights}<p>Favourites</p>${[['recents', 'Recents'], ['apps', 'Applications'], ['desk', 'Desktop'], ['docs', 'Documents'], ['dl', 'Downloads']].map(([k, t]) => `<span${k === on ? ' class="is-on"' : ''}><svg viewBox="0 0 16 16" aria-hidden="true">${SIDE[k]}</svg>${t}</span>`).join('')}</div>`;
+const finderNav = '<span class="ma-nav"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg></span>';
+const WINS = {
+  old: { app: 'finder', w: 430, h: 270, html: () => `${finderSide()}<div class="ma-main"><div class="ma-tool">${finderNav}<b>Old stuff</b></div><div class="ma-icons">${[['folder', 'Taxes 2023'], ['png', 'logo-final-v3.png'], ['zip', 'backup.zip'], ['txt', 'ideas.txt'], ['folder', 'untitled folder'], ['png', 'IMG_2041.png'], ['dmg', 'Figma-old.dmg']].map(([k, t]) => `<figure><img src="${MAC('file-' + k)}" alt=""><span>${t}</span></figure>`).join('')}</div></div>` },
+  dl: { app: 'finder', w: 400, h: 220, html: () => `${finderSide('dl')}<div class="ma-main"><div class="ma-tool">${finderNav}<b>Downloads</b></div><div class="ma-list"><div class="ma-head"><span>Name</span><span>Date Modified</span><span>Size</span></div>${[['dmg', 'Spotify.dmg', 'Today at 09:12', '182 MB'], ['zip', 'fonts-2026.zip', 'Yesterday at 17:40', '24 MB'], ['png', 'IMG_2041.png', '14 Oct 2026', '3.1 MB'], ['folder', 'photos-export', '11 Oct 2026', '--'], ['txt', 'invoice-notes.txt', '9 Oct 2026', '2 KB'], ['zip', 'Archive.zip', '2 Oct 2026', '611 KB']].map(([k, n, d, s]) => `<div class="ma-row"><span><img src="${MAC('file-' + k)}" alt="">${n}</span><span>${d}</span><span>${s}</span></div>`).join('')}</div></div>` },
+  pv: { app: 'preview', w: 470, h: 330, html: () => `<div class="ma-bar">${lights}<b>Screenshot 2026-10-14 at 11.22.09</b><i class="ma-gap"></i><span class="ma-tools"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v4M8 4.6v.2"/></svg><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4 14 14M5 7h4"/></svg><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4 14 14M5 7h4M7 5v4"/></svg><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.8v8.4M5.2 4.4 8 1.6l2.8 2.8M4.6 7H3.4v7.2h9.2V7h-1.2"/></svg></span></div><div class="ma-img"><img src="${new URL('./media/mac/preview-shot.jpg', import.meta.url).href}" alt=""></div>` },
+  te: { app: 'textedit', w: 320, h: 240, html: () => `<div class="ma-bar is-centre">${lights}<b>Notes for Monday.txt</b></div><div class="ma-page"><p>call the dentist before 12</p><p>pay the parking fine</p><p>back up the photos</p><p>send Sam the files</p><p>tidy the desktop (for real this time)</p></div>` },
+};
+const MESS = ['old', 'dl', 'pv', 'te'];   // the order they were opened in
 
 function initTinko(host) {
   if (!document.querySelector('link[href*="Space+Mono"]')) {
@@ -295,13 +343,15 @@ function initTinko(host) {
   }
   let L = LAYOUT.mac, W = L.W, H = L.H;
   host.tabIndex = 0;
-  host.setAttribute('aria-label', 'Tinko tidying a Mac: first the Dock, then the desktop. Space keeps, Delete unpins or moves to the Bin, S skips.');
+  host.setAttribute('aria-label', 'Tinko tidying a Mac: the open apps, the Dock, then the desktop. Space keeps, Delete quits, unpins or moves to the Bin, S skips.');
+  const dapp = (id, cls = '') => `<div class="ms-dapp${cls}" data-app="${id}"><img src="${MAC(id)}" alt=""><i></i></div>`;
   host.innerHTML = `<div class="ms">
     <div class="ms-wall"></div>
-    <div class="ms-bar"><span class="ms-apple">${SVGI.apple}</span><b>Tinko</b><span>File</span><span>Edit</span><span>View</span><span>Window</span><span>Help</span>
+    <div class="ms-bar"><span class="ms-apple">${SVGI.apple}</span><span class="ms-menu"></span>
       <i class="ms-gap"></i><span class="ms-extra is-star">${STAR}</span><span class="ms-extra">${SVGI.battery}</span><span class="ms-extra">${SVGI.wifi}</span><span class="ms-extra is-search">${SVGI.search}</span><span class="ms-extra">${SVGI.cc}</span><span class="ms-clock">Fri 16 Oct  10:24</span></div>
     <div class="ms-desk">${FILES.map(deskFile).join('')}${deskFile(SHOTS)}</div>
-    <div class="ms-win"><div class="tkw">
+    <div class="ms-apps">${MESS.map(id => `<div class="ms-app is-${WINS[id].app} is-shut" data-win="${id}" style="width:${WINS[id].w}px;height:${WINS[id].h}px">${WINS[id].html()}</div>`).join('')}</div>
+    <div class="ms-win is-off"><div class="tkw">
       <div class="tkw-grain" aria-hidden="true"></div>
       <div class="tkw-lights" aria-hidden="true"><i></i><i></i><i></i></div>
       <div class="tkw-dash" style="top:28px"></div><div class="tkw-dash" style="bottom:28px"></div>
@@ -313,19 +363,26 @@ function initTinko(host) {
         </div>
       </div>
     </div></div>
-    <div class="ms-dock"><div class="ms-dapp is-run" data-app="finder"><img src="${MAC('finder')}" alt=""><i></i></div>${DOCK.map(a => `<div class="ms-dapp${a.run ? ' is-run' : ''}" data-app="${a.id}"><img src="${MAC(a.id)}" alt=""><i></i></div>`).join('')}<b class="ms-dsep"></b><div class="ms-dapp ms-trash"><img class="is-empty" src="${MAC('trash-empty')}" alt=""><img class="is-full" src="${MAC('trash-full')}" alt=""></div></div>
+    <div class="ms-dock">${dapp('finder', ' is-run')}${DOCK.map(a => dapp(a.id, a.run ? ' is-run' : '')).join('')}${EXTRA.map(([id]) => dapp(id, ' is-out')).join('')}<b class="ms-dsep"></b><div class="ms-dapp ms-trash"><img class="is-empty" src="${MAC('trash-empty')}" alt=""><img class="is-full" src="${MAC('trash-full')}" alt=""></div></div>
   </div>`;
-  const ms = host.querySelector('.ms'), screen = host.querySelector('.tkw-screen'), tinkoEl = host.querySelector('.tkw-tinko');
-  const $ = s => host.querySelector(s), fileEl = id => host.querySelector(`.ms-file[data-id="${id}"]`), dockEl = id => host.querySelector(`.ms-dapp[data-app="${id}"]`);
+  // under the screen: how far he is (a diamond for each part: what's open, the Dock, the desk, done) and start over
+  const PARTS = [['What’s open', 0], ['What’s pinned', 1 / 3], ['Your desktop', 2 / 3], ['Done', 1]];
+  const bar = document.createElement('div');
+  bar.className = 'tk-prog';
+  bar.innerHTML = `<div class="tk-line" role="progressbar" aria-label="How far Tinko is" aria-valuemin="0" aria-valuemax="100"><i class="tk-fill"></i>${PARTS.map(([t, f]) => `<span class="tk-dia" title="${t}" style="left:calc(6px + (100% - 12px) * ${f})">${DIAMOND}</span>`).join('')}</div><button class="tk-reset" type="button" title="Start over" aria-label="Start over">${SVGI.reset}</button>`;
+  host.after(bar);
+  const ms = host.querySelector('.ms'), screen = host.querySelector('.tkw-screen'), tinkoEl = host.querySelector('.tkw-tinko'), win = host.querySelector('.ms-win');
+  const $ = s => host.querySelector(s), fileEl = id => host.querySelector(`.ms-file[data-id="${id}"]`), dockEl = id => host.querySelector(`.ms-dapp[data-app="${id}"]`), winEl = id => host.querySelector(`.ms-app[data-win="${id}"]`);
   let scale = 1;
-  // a crop of a wide screen on a desktop, a tall one on a phone (the window keeps its real size either way)
+  // a crop of a wide screen on a desktop, a tall one on a phone (the window keeps its size either way)
   const fit = () => {
     const next = host.clientWidth < 560 ? LAYOUT.phone : LAYOUT.mac;
     if (next !== L || !fit.done) {
       L = next; W = L.W; H = L.H; fit.done = true;
       Object.assign(ms.style, { width: W + 'px', height: H + 'px' });
       ms.classList.toggle('is-phone', L === LAYOUT.phone);
-      Object.assign($('.ms-win').style, { left: L.win[0] + 'px', top: L.win[1] + 'px' });
+      placeWin(cornered ? L.corner : L.mid, false);
+      MESS.forEach(id => Object.assign(winEl(id).style, { left: L.wins[id][0] + 'px', top: L.wins[id][1] + 'px' }));
       arrange(false);
       dockFit();
     }
@@ -334,6 +391,14 @@ function initTinko(host) {
   new ResizeObserver(fit).observe(host);   // (the first fit is at the end, once everything below exists)
   // a point on the scene (unscaled), e.g. the middle of a Dock icon
   const centre = el => { const r = el.getBoundingClientRect(), m = ms.getBoundingClientRect(); return { x: (r.left + r.width / 2 - m.left) / scale, y: (r.top + r.height / 2 - m.top) / scale }; };
+  // Tinko's window: in the middle or in the corner, gliding there like Desk.glide
+  let cornered = false;
+  function placeWin([x, y], glide = true) {
+    win.classList.toggle('is-glide', glide && !reduce);
+    Object.assign(win.style, { left: x + 'px', top: y + 'px' });
+  }
+  // the app in front owns the menu bar
+  function front(app) { const [name, ...items] = MENUS[app]; $('.ms-menu').innerHTML = `<b>${name}</b>${items.map(t => `<span>${t}</span>`).join('')}`; }
 
   /* his eyes, after Tinko.swift: blinks, and where he looks depends on what he's doing */
   const eyeL = $('.tkw-eye.is-l'), eyeR = $('.tkw-eye.is-r'), CELL = 6;
@@ -374,28 +439,40 @@ function initTinko(host) {
   const undo = '<button class="tkw-undo" data-tk="undo" type="button">⌘Z  UNDO</button>';
   const list = n => n.length > 1 ? n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1] : (n[0] || 'nothing');
   const PINS = DOCK.filter(a => a.when !== 'self');   // Tinko leaves himself out of the pass
-  let state = 'pinsAsk', fate = {}, pinAt = 0, gone = new Set(), binned = new Set(), queue = [], qAt = 0, ticks = 0;
+  const running = id => dockEl(id).classList.contains('is-run');
+  let state = 'mess', qfate = {}, qAt = 0, fate = {}, pinAt = 0, gone = new Set(), binned = new Set(), queue = [], lAt = 0, ticks = 0, scanAt = 0;
   function render(key, html) {
     const swap = screen.dataset.key !== key; screen.dataset.key = key;
     screen.innerHTML = html;
     if (swap && !reduce) { screen.classList.add('is-swap'); requestAnimationFrame(() => requestAnimationFrame(() => screen.classList.remove('is-swap'))); }
   }
-  // the pins row (PinPass.swift PinsRow): the one that's up is full size with a dot, kept ones faint, unpinned ones gone
-  function pinsRow() {
-    return `<div class="tkw-pins"><div class="tkw-pins-in">${PINS.map((a, i) => `<div class="tkw-pin ${fate[a.id] === 'unpin' ? 'is-gone' : i === pinAt ? 'is-now' : fate[a.id] === 'kept' ? 'is-kept' : 'is-wait'}" title="${a.name}"><img src="${MAC(a.id)}" alt=""><i></i></div>`).join('')}</div></div>`;
-  }
-  // where the row sits so the current app is in the middle (worked out, not measured: the unpinned ones are still closing)
+  // the rows (QuitPass.swift OpenAppsRow, PinPass.swift PinsRow): the one that's up is full size with a dot, the
+  // ones to come a little faded, kept ones faint, quit or unpinned ones shrink away
+  const rowItem = (id, name, cls) => `<div class="tkw-pin ${cls}" title="${name}"><img src="${MAC(id)}" alt=""><i></i></div>`;
+  const openRow = () => `<div class="tkw-pins is-open"><div class="tkw-pins-in">${OPEN.map((a, i) => rowItem(a.id, a.name, qfate[a.id] === 'quit' ? 'is-gone' : i === qAt ? 'is-now' : qfate[a.id] === 'kept' ? 'is-kept' : 'is-wait')).join('')}</div></div>`;
+  const pinsRow = () => `<div class="tkw-pins"><div class="tkw-pins-in">${PINS.map((a, i) => rowItem(a.id, a.name, fate[a.id] === 'unpin' ? 'is-gone' : i === pinAt ? 'is-now' : fate[a.id] === 'kept' ? 'is-kept' : 'is-wait')).join('')}</div></div>`;
+  // where the pins row sits so the current app is in the middle (worked out, not measured: the unpinned ones are still closing)
   function centrePins() {
-    const inn = screen.querySelector('.tkw-pins-in');
+    const inn = screen.querySelector('.tkw-pins:not(.is-open) .tkw-pins-in');
     if (!inn) return;
     const before = PINS.slice(0, pinAt).filter(a => fate[a.id] !== 'unpin').length;
     inn.style.transform = `translateX(${210 - (before * 36 + 14)}px)`;
   }
   function draw() {
     const files = FILES.filter(f => !gone.has(f.id));
-    if (state === 'pinsAsk') render('pinsAsk', tag('What’s pinned') + words('Now what stays in your Dock for good. Keep your daily drivers, unpin the rest. They’re still one ⌘Space away.') + `<div class="tkw-btns">${btn('space', 'Start', 'SPACE')}</div>`);
+    if (state === 'mess') render('mess', '');
+    else if (state === 'quitAsk') render('quitAsk', tag('What’s open') + words('Now the apps that are on but don’t need to be. I’ll show them one by one; quit anything you’re not using today.') + `<div class="tkw-btns">${btn('space', 'Start', 'SPACE')}</div>`);
+    else if (state === 'quit') {
+      const a = OPEN[qAt];
+      render('quit', tag('What’s open') + words(`${a.name}. ${a.pinned ? 'Pinned, so its icon stays either way.' : 'Not pinned: quit it and it leaves your Dock.'} Using it today?`) + openRow() + `<div class="tkw-btns">${btn('space', 'Keep', 'SPACE')}${btn('del', 'Quit', 'del', true)}</div>`);
+    }
+    else if (state === 'quitDone') {
+      const q = OPEN.filter(a => qfate[a.id] === 'quit').length, k = OPEN.length - q;
+      render('quitDone', tag('What’s open') + words(q ? `${q} ${q === 1 ? 'app' : 'apps'} quit${k ? `, ${k} still open` : ''}. Anywhere else, that’s ⌘Q: when you’re done with an app, not the red button.` : 'Everything stays. That’s fine: you know what you’re using today.') + `<div class="tkw-btns">${btn('space', 'Next', 'SPACE')}</div>`);
+    }
+    else if (state === 'pinsAsk') render('pinsAsk', tag('What’s pinned') + words('Now what stays in your Dock for good. Keep your daily drivers, unpin the rest. They’re still one ⌘Space away.') + `<div class="tkw-btns">${btn('space', 'Start', 'SPACE')}</div>`);
     else if (state === 'pin') {
-      const a = PINS[pinAt], when = a.run ? 'Open right now. Unpin it and it leaves the Dock once you quit it.' : `Last opened ${a.when}.`;
+      const a = PINS[pinAt], when = running(a.id) ? 'Open right now. Unpin it and it leaves the Dock once you quit it.' : `Last opened ${a.run ? 'today' : a.when}.`;
       render('pin', tag('What’s pinned') + words(`${a.name}. ${when} Daily driver?`) + pinsRow() + `<div class="tkw-btns">${btn('space', 'Keep', 'SPACE')}${btn('del', 'Unpin', 'del', true)}</div>`);
       centrePins();
     }
@@ -403,7 +480,7 @@ function initTinko(host) {
       const out = PINS.filter(a => fate[a.id] === 'unpin').length, stay = PINS.filter(a => fate[a.id] !== 'unpin').map(a => a.name);
       render('pinsDone', tag('What’s pinned') + words(out ? `${out} unpinned. Your Dock keeps ${list(stay)}. That’s the lot.` : 'Everything stays pinned. Your daily drivers, your call.') + `<div class="tkw-btns">${btn('space', 'Next', 'SPACE')}</div>` + (out ? undo : ''));
     }
-    else if (state === 'dockDone') render('dockDone', tag('Your Dock') + words(`Dock done.${PINS.some(a => fate[a.id] === 'unpin') ? ' Lighter already.' : ''} I’ll stay in it myself until the course is through. Now the desktop.`) + `<div class="tkw-btns">${btn('space', 'On to the desktop', 'SPACE')}</div>`);
+    else if (state === 'dockDone') render('dockDone', tag('Your Dock') + words(`${PINS.some(a => fate[a.id] === 'unpin') ? 'Dock done. Lighter already.' : 'Dock done, as it was.'} I’ll stay in it myself until the course is through. Now the desktop.`) + `<div class="tkw-btns">${btn('space', 'On to the desktop', 'SPACE')}</div>`);
     else if (state === 'scan') render('scan', tag('Your desktop') + words('One moment…') + '<div class="tkw-progress"><i></i></div><div class="tkw-count">0 THINGS</div>');
     else if (state === 'desk') render('desk', tag('Your desktop') + words('Now we’re looking at the desktop. A proper pile, but nothing I can’t handle.')
       + `<div class="tkw-stats">${stat(files.filter(f => f.kind !== 'folder').length, 'files')}${stat(files.filter(f => f.kind === 'folder').length, 'folder')}${stat(4, 'screenshots')}</div>`
@@ -416,13 +493,27 @@ function initTinko(host) {
       + `<div class="tkw-btns">${btn('space', 'Leave it', 'SPACE')}${btn('del', 'Move to Bin', 'del', true)}</div>`);
     else if (state === 'binned') render('binned', tag('Leftovers') + words('1 in the Bin.') + `<div class="tkw-btns">${btn('space', 'Next', 'SPACE')}</div>` + undo);
     else if (state === 'left') {
-      const f = queue[qAt];
+      const f = queue[lAt];
       render('left-' + f.id, tag('What’s left') + words('Into Documents, to sort later? Or the Bin?')
-        + `<div class="tkw-file"><div class="tkw-file-art">${fileArt(f)}</div><div><b>${f.name}</b><span>Here since today · ${qAt + 1} of ${queue.length}</span></div></div>`
+        + `<div class="tkw-file"><div class="tkw-file-art">${fileArt(f)}</div><div><b>${f.name}</b><span>Here since today · ${lAt + 1} of ${queue.length}</span></div></div>`
         + `<div class="tkw-btns">${btn('space', 'Sort later', 'SPACE')}${btn('del', 'Bin', 'del', true)}</div>`);
     }
     else if (state === 'empty') render('empty', tag('Your desktop') + words('An empty desk. New screenshots go to their own folder now, so it stays that way.') + `<div class="tkw-btns">${btn('space', 'On to Documents', 'SPACE')}</div>`);
     else if (state === 'skipped') render('skipped', tag('Your desktop') + words('Your desktop stays as it is.') + `<div class="tkw-btns">${btn('space', 'Next', 'SPACE')}</div>`);
+    progress();
+  }
+  // the bar under the screen: three equal parts, each filled as he goes through it
+  const PART = 1 / 3;
+  function progress() {
+    const p = ({
+      mess: 0, quitAsk: PART * .08, quit: PART * (.1 + .82 * qAt / OPEN.length), quitDone: PART * .96,
+      pinsAsk: PART * 1.05, pin: PART * (1.08 + .82 * pinAt / PINS.length), pinsDone: PART * 1.93, dockDone: PART * 1.97,
+      scan: PART * (2.04 + .08 * scanAt), desk: PART * 2.14, fixes: PART * (2.16 + .28 * ticks / 4), moved: PART * 2.48,
+      leftover: PART * 2.54, binned: PART * 2.6, left: PART * (2.62 + .34 * lAt / Math.max(1, queue.length)), empty: 1, skipped: 1,
+    })[state] || 0;
+    bar.querySelector('.tk-fill').style.width = `calc((100% - 12px) * ${p.toFixed(4)})`;
+    bar.querySelector('.tk-line').setAttribute('aria-valuenow', Math.round(p * 100));
+    bar.querySelectorAll('.tk-dia').forEach((d, i) => d.classList.toggle('is-on', state !== 'mess' && p >= PARTS[i][1] - .001));
   }
 
   /* what happens on the screen */
@@ -442,9 +533,24 @@ function initTinko(host) {
     return a.finished.then(() => { el.classList.add('is-gone'); a.cancel(); if (sorted) arrange(); });
   }
   const bump = el => { if (el && !reduce) el.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-10px)' }, { transform: 'translateY(0)' }], { duration: 420, easing: 'cubic-bezier(.33,1,.68,1)' }); };
+  // an app opening: its Dock icon bounces (twice for a slow one) and gets its dot
+  function launch(id, times = 1) {
+    const d = dockEl(id); d.classList.remove('is-out'); d.classList.add('is-run');
+    if (reduce) return Promise.resolve();
+    const up = `translateY(-${(parseFloat(getComputedStyle(ms).getPropertyValue('--ds')) * .5).toFixed(1)}px)`, k = [];
+    for (let i = 0; i < times; i++) k.push({ transform: 'none', easing: 'cubic-bezier(.33,1,.68,1)' }, { transform: up, easing: 'cubic-bezier(.32,0,.67,0)' });
+    k.push({ transform: 'none' });
+    return d.animate(k, { duration: 520 * times, delay: 120 }).finished;
+  }
   const select = id => host.querySelectorAll('.ms-file').forEach(el => el.classList.toggle('is-sel', el.dataset.id === id));
   const trash = () => $('.ms-trash'), finder = () => dockEl('finder');
   function setTrash(full) { trash().classList.toggle('is-full', full); }
+  // windows: opened (in front), brought forward, hidden (Cmd+H), or closed with their app
+  let zTop = 1;
+  function openWin(id) { const w = winEl(id); w.classList.remove('is-shut', 'is-hid'); w.style.zIndex = ++zTop; if (!reduce) w.animate([{ opacity: 0, transform: 'scale(.94)' }, { opacity: 1, transform: 'none' }], { duration: 240, easing: 'cubic-bezier(.33,1,.68,1)' }); }
+  function raise(id) { const w = winEl(id); w.classList.remove('is-hid'); w.style.zIndex = ++zTop; }
+  const hideWin = id => winEl(id).classList.add('is-hid');
+  const shutWin = id => winEl(id).classList.add('is-shut');
   // the Dock: decided ones dim during the pass; at the end the unpinned ones leave together (the Dock restarts)
   function dockDim() { PINS.forEach(a => { const d = dockEl(a.id); if (d) d.classList.toggle('is-going', fate[a.id] === 'unpin'); }); }
   async function dockUnpin() {
@@ -454,20 +560,21 @@ function initTinko(host) {
     dockFit();
     await wait(reduce ? 0 : 500);
   }
-  function dockRestore() { host.querySelectorAll('.ms-dapp').forEach(d => d.classList.remove('is-out', 'is-going')); dockFit(); }
+  function dockRestore() { PINS.forEach(a => dockEl(a.id).classList.remove('is-out', 'is-going')); dockFit(); }
   // like macOS: the icons keep their set size (44) unless the Dock would run off the screen, then they all shrink
   function dockFit() {
     const n = host.querySelectorAll('.ms-dapp:not(.is-out)').length;
-    ms.style.setProperty('--ds', Math.min(44, Math.floor((W - 40 - 25) / n) - 3) + 'px');
+    ms.style.setProperty('--ds', Math.min(44, Math.floor((W - 40 - 14) / (n * 1.06 + .24))) + 'px');
   }
   async function scan() {
     setMood('working'); select(null);
-    const bar = screen.querySelector('.tkw-progress i'), count = screen.querySelector('.tkw-count');
+    const meter = screen.querySelector('.tkw-progress i'), count = screen.querySelector('.tkw-count');
     const order = [...FILES].sort((a, b) => a.at[1] - b.at[1] || a.at[0] - b.at[0]);
     for (let i = 0; i < order.length; i++) {
       const el = fileEl(order[i].id); if (el) { el.classList.add('is-seen'); setTimeout(() => el.classList.remove('is-seen'), 420); }
-      if (bar) bar.style.width = ((i + 1) / order.length * 100) + '%';
+      if (meter) meter.style.width = ((i + 1) / order.length * 100) + '%';
       if (count) count.textContent = `${i + 1} ${i ? 'THINGS' : 'THING'}`;
+      scanAt = (i + 1) / order.length; progress();
       await wait(reduce ? 0 : 220);
     }
     await wait(reduce ? 0 : 400);
@@ -506,71 +613,125 @@ function initTinko(host) {
     setTrash(binned.size > 0);
     if (sorted) arrange();
   }
+  // back to the mess: everything as it was before Tinko opened
   function reset() {
-    gone = new Set(); binned = new Set(); ticks = 0; fate = {}; pinAt = 0; sorted = false;
+    clearTimeout(autoT);
+    gone = new Set(); binned = new Set(); ticks = 0; fate = {}; pinAt = 0; qfate = {}; qAt = 0; scanAt = 0; sorted = false; cornered = false;
     host.querySelectorAll('.ms-file').forEach(el => el.classList.remove('is-gone', 'is-sel', 'is-in'));
     arrange(false);
     setTrash(false); dockRestore();
-    if (!reduce) host.querySelectorAll('.ms-file:not(.is-shots), .ms-dapp').forEach((el, i) => el.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 500, delay: i * 25, easing: EASE, fill: 'backwards' }));
+    OPEN.forEach(a => dockEl(a.id).classList.toggle('is-run', a.pinned));
+    EXTRA.forEach(([id]) => { dockEl(id).classList.add('is-out'); dockEl(id).classList.remove('is-run'); });
+    dockEl('tinko').classList.remove('is-run');
+    MESS.forEach(id => { winEl(id).classList.add('is-shut'); winEl(id).classList.remove('is-hid'); });
+    win.classList.add('is-off'); placeWin(L.mid, false);
+    dockFit(); front('finder');
+    state = 'mess'; draw();
   }
 
   /* the flow: every action is the same whether the autoplay or you do it */
-  let busy = false, manual = false, autoT = 0, running = false, visible = false;
+  let busy = false, manual = false, autoT = 0, started = false, visible = false, again = false;
+  // before Tinko: the desk's files get opened one after another, then he opens and floats in the middle
+  async function mess() {
+    state = 'mess'; draw(); setMood('idle');
+    await wait(reduce ? 0 : 500);
+    for (const id of MESS) {
+      const app = WINS[id].app;
+      if (EXTRA.some(([e]) => e === app) && !running(app)) { launch(app); dockFit(); await wait(reduce ? 0 : 380); }
+      openWin(id); front(app);
+      await wait(reduce ? 0 : 520);
+    }
+    await wait(reduce ? 0 : 1300);
+    await launch('tinko', 2);
+    front('tinko'); win.classList.remove('is-off');
+    if (!reduce) win.animate([{ opacity: 0, transform: `translate(${TKW * .03}px,${TKH * .03}px) scale(${TK * .94})` }, { opacity: 1, transform: `scale(${TK})` }], { duration: 300, easing: 'cubic-bezier(.33,1,.68,1)' });
+    await wait(reduce ? 0 : 450);
+  }
+  // he hides the rest and glides to the bottom left corner, out of the way of the desk (Desk.toDeskCorner)
+  async function toCorner() {
+    MESS.forEach(id => { if (!winEl(id).classList.contains('is-shut')) hideWin(id); });
+    cornered = true; placeWin(L.corner);
+    await wait(reduce ? 0 : 950);
+  }
   async function go(next) {
     state = next; draw();
-    if (next === 'pinsAsk' || next === 'pin' || next === 'pinsDone' || next === 'dockDone') setMood('down');
+    // where he looks (Views.swift): down at the Dock through what's open and what's pinned
+    if (['quitAsk', 'quit', 'quitDone', 'pinsAsk', 'pin', 'pinsDone'].includes(next)) setMood('down');
+    if (next === 'quit') { const a = OPEN[qAt]; if (a.win && !winEl(a.win).classList.contains('is-shut')) raise(a.win); }
+    if (next === 'dockDone') setMood('idle');
     if (next === 'scan') { await scan(); return go('desk'); }
     if (next === 'desk') setMood('side');
     if (next === 'fixes') { await doFixes(); return go('moved'); }
     if (next === 'leftover') { setMood('side'); select('dmg'); }
-    if (next === 'left') { setMood('side'); select(queue[qAt].id); }
+    if (next === 'left') { setMood('side'); select(queue[lAt].id); }
     if (next === 'empty') { setMood('cheer'); select(null); }
     if (next === 'skipped') setMood('idle');
     planAuto();
   }
-  async function act(key) {
+  // a step holds the lock until it's done; a start-over asked for meanwhile happens right after
+  async function step(fn) {
     if (busy) return;
     busy = true;
+    try { await fn(); } finally { busy = false; }
+    if (again) { again = false; reset(); step(async () => { await mess(); return go('quitAsk'); }); }
+  }
+  const act = key => step(async () => {
     const b = screen.querySelector(`[data-tk="${key}"]`);
     if (b) { b.classList.add('is-press'); setTimeout(() => b.classList.remove('is-press'), 260); }
-    try {
-      if (state === 'pinsAsk') { if (key === 'space') { pinAt = 0; return await go('pin'); } }
-      else if (state === 'pin') {
-        if (key === 'space' || key === 'del') {
-          fate[PINS[pinAt].id] = key === 'del' ? 'unpin' : 'kept'; dockDim();
-          pinAt++;
-          if (pinAt < PINS.length) return await go('pin');
-          state = 'pinsDone'; draw(); await dockUnpin();
-          return await go('pinsDone');
+    if (state === 'quitAsk') { if (key === 'space') { qAt = 0; return go('quit'); } }
+    else if (state === 'quit') {
+      if (key === 'space' || key === 'del') {
+        const a = OPEN[qAt];
+        if (key === 'space') { qfate[a.id] = 'kept'; if (a.win) hideWin(a.win); }
+        else {
+          // quit: its windows close, the dot goes, and an app that isn't pinned leaves the Dock; a beat to see it go
+          qfate[a.id] = 'quit'; draw();
+          if (a.win) shutWin(a.win);
+          const d = dockEl(a.id); d.classList.remove('is-run'); if (!a.pinned) { d.classList.add('is-out'); setTimeout(dockFit, 200); }
+          await wait(reduce ? 0 : 450);
         }
+        qAt++;
+        return go(qAt < OPEN.length ? 'quit' : 'quitDone');
       }
-      else if (state === 'pinsDone') { if (key === 'space') { return await go('dockDone'); } if (key === 'undo') { dockRestore(); fate = {}; pinAt = 0; return await go('pinsAsk'); } }
-      else if (state === 'dockDone') { if (key === 'space') { return await go('scan'); } }
-      else if (state === 'desk') { if (key === 'space') { return await go('fixes'); } if (key === 's') { return await go('skipped'); } }
-      else if (state === 'moved') { if (key === 'space') { return await go('leftover'); } if (key === 'undo') { sorted = false; gone.delete('shots'); fileEl('shots').classList.remove('is-in', 'is-gone'); restore(['s1', 's2', 's3', 's4']); arrange(); return await go('desk'); } }
-      else if (state === 'leftover') {
-        if (key === 'del') { select(null); setMood('down'); await fly('dmg', centre(trash()), { scale: .2, arc: 60, dur: 850 }); binned.add('dmg'); setTrash(true); bump(trash()); return await go('binned'); }
-        if (key === 'space') { select(null); return await startLeft(); }
+    }
+    else if (state === 'quitDone') { if (key === 'space') return go('pinsAsk'); }
+    else if (state === 'pinsAsk') { if (key === 'space') { pinAt = 0; return go('pin'); } }
+    else if (state === 'pin') {
+      if (key === 'space' || key === 'del') {
+        fate[PINS[pinAt].id] = key === 'del' ? 'unpin' : 'kept'; dockDim();
+        pinAt++;
+        if (pinAt < PINS.length) return go('pin');
+        state = 'pinsDone'; draw(); await dockUnpin();
+        return go('pinsDone');
       }
-      else if (state === 'binned') { if (key === 'space') { return await startLeft(); } if (key === 'undo') { restore(['dmg']); return await go('leftover'); } }
-      else if (state === 'left') {
-        const f = queue[qAt];
-        if (key === 'space' || key === 'del') {
-          select(null);
-          if (key === 'del') { setMood('down'); await fly(f.id, centre(trash()), { scale: .2, arc: 60, dur: 800 }); binned.add(f.id); setTrash(true); bump(trash()); }
-          else { await fly(f.id, centre(finder()), { scale: .25, arc: 40, dur: 800 }); bump(finder()); }
-          qAt++;
-          return await go(qAt < queue.length ? 'left' : 'empty');
-        }
+    }
+    else if (state === 'pinsDone') { if (key === 'space') return go('dockDone'); if (key === 'undo') { dockRestore(); fate = {}; pinAt = 0; return go('pinsAsk'); } }
+    else if (state === 'dockDone') { if (key === 'space') { await toCorner(); return go('scan'); } }
+    else if (state === 'desk') { if (key === 'space') return go('fixes'); if (key === 's') return go('skipped'); }
+    else if (state === 'moved') { if (key === 'space') return go('leftover'); if (key === 'undo') { sorted = false; gone.delete('shots'); fileEl('shots').classList.remove('is-in', 'is-gone'); restore(['s1', 's2', 's3', 's4']); arrange(); return go('desk'); } }
+    else if (state === 'leftover') {
+      if (key === 'del') { select(null); setMood('down'); await fly('dmg', centre(trash()), { scale: .2, arc: 60, dur: 850 }); binned.add('dmg'); setTrash(true); bump(trash()); return go('binned'); }
+      if (key === 'space') { select(null); return startLeft(); }
+    }
+    else if (state === 'binned') { if (key === 'space') return startLeft(); if (key === 'undo') { restore(['dmg']); return go('leftover'); } }
+    else if (state === 'left') {
+      const f = queue[lAt];
+      if (key === 'space' || key === 'del') {
+        select(null);
+        if (key === 'del') { setMood('down'); await fly(f.id, centre(trash()), { scale: .2, arc: 60, dur: 800 }); binned.add(f.id); setTrash(true); bump(trash()); }
+        else { await fly(f.id, centre(finder()), { scale: .25, arc: 40, dur: 800 }); bump(finder()); }
+        lAt++;
+        return go(lAt < queue.length ? 'left' : 'empty');
       }
-      else if (state === 'empty' || state === 'skipped') { if (key === 'space') { reset(); return await go('pinsAsk'); } }
-    } finally { busy = false; }
-  }
-  function startLeft() { queue = FILES.filter(f => !gone.has(f.id) && f.kind !== 'shot'); qAt = 0; return queue.length ? go('left') : go('empty'); }
+    }
+    else if (state === 'empty' || state === 'skipped') { if (key === 'space') { reset(); await mess(); return go('quitAsk'); } }
+  });
+  function startLeft() { queue = FILES.filter(f => !gone.has(f.id) && f.kind !== 'shot'); lAt = 0; return queue.length ? go('left') : go('empty'); }
   // what the autoplay presses, and after how long
   function autoKey() {
+    if (state === 'quit') { const a = OPEN[qAt]; return [a.keep ? 'space' : 'del', a.win ? 1700 : 1000]; }
     if (state === 'pin') { const a = PINS[pinAt]; return [a.keep ? 'space' : 'del', pinAt < 3 ? 1200 : 480]; }
-    return ({ pinsAsk: ['space', 2600], pinsDone: ['space', 2800], dockDone: ['space', 2400], desk: ['space', 2400], moved: ['space', 2000], leftover: ['del', 2200], binned: ['space', 1400], left: ['space', 1400], empty: ['space', 4200], skipped: ['space', 2000] })[state];
+    return ({ quitAsk: ['space', 2600], quitDone: ['space', 3000], pinsAsk: ['space', 2600], pinsDone: ['space', 2800], dockDone: ['space', 2400], desk: ['space', 2400], moved: ['space', 2000], leftover: ['del', 2200], binned: ['space', 1400], left: ['space', 1400], empty: ['space', 4200], skipped: ['space', 2000] })[state];
   }
   function planAuto() {
     clearTimeout(autoT);
@@ -585,11 +746,16 @@ function initTinko(host) {
     const k = e.key === ' ' ? 'space' : (e.key === 'Backspace' || e.key === 'Delete') ? 'del' : e.key.toLowerCase() === 's' && !e.metaKey ? 's' : (e.key.toLowerCase() === 'z' && (e.metaKey || e.ctrlKey)) ? 'undo' : null;
     if (k) { e.preventDefault(); takeOver(); act(k); }
   });
-  watch(host, on => { visible = on; if (on && !running) { running = true; go('pinsAsk'); } else planAuto(); }, '0px 0px -20% 0px');
+  // start over: back to the mess, the autoplay on again
+  bar.querySelector('.tk-reset').addEventListener('click', () => {
+    manual = false; clearTimeout(idleT);
+    if (busy) { again = true; return; }
+    reset(); step(async () => { await mess(); return go('quitAsk'); });
+  });
+  watch(host, on => { visible = on; if (on && !started) { started = true; step(async () => { await mess(); return go('quitAsk'); }); } else planAuto(); }, '0px 0px -20% 0px');
   tilt(host, 2.5, () => visible);
   fit();
-  setMood('down');
-  draw();
+  reset();
 }
 
 /* ---------------------------------------------------------
@@ -727,13 +893,14 @@ function injectSolCSS() {
 .ms-wall{position:absolute;inset:0;background:url(${new URL('./media/mac/wall-day.webp', import.meta.url).href}) 30% 100%/cover no-repeat}
 .dfs-night .ms-wall{background-image:linear-gradient(rgba(12,18,34,.28),rgba(12,18,34,.28)),url(${new URL('../night/HERO_BG_4-night.webp', import.meta.url).href})}
 /* the menu bar (macOS 26: no bar, the wallpaper shows through) */
-.ms-bar{position:absolute;left:0;right:0;top:0;height:24px;display:flex;align-items:center;gap:18px;padding:0 14px 0 16px;font-size:13px;line-height:1;letter-spacing:-.08px;z-index:4;color:rgba(0,0,0,.85)}
+.ms-bar{position:absolute;left:0;right:0;top:0;height:24px;display:flex;align-items:center;gap:18px;padding:0 14px 0 16px;font-size:13px;line-height:1;letter-spacing:-.08px;z-index:5;color:rgba(0,0,0,.85)}
 .ms-bar b{font-weight:700}
 .ms-apple{width:14px;height:17px;margin-right:2px}.ms-apple svg{width:14px;height:17px;display:block;margin-top:-2px}
 .ms-gap{flex:1}
 .ms-extra{display:grid;place-items:center;height:24px;margin-left:-4px}.ms-extra svg{height:13px;width:auto;display:block}
 .ms-extra.is-star svg{height:14px}.ms-extra.is-search svg{height:13px}
-.ms.is-phone .ms-bar{gap:15px}.ms.is-phone .ms-extra.is-search,.ms.is-phone .ms-bar>span:nth-of-type(6){display:none}
+.ms-menu{display:contents}
+.ms.is-phone .ms-bar{gap:15px}.ms.is-phone .ms-extra.is-search,.ms.is-phone .ms-menu span:last-child{display:none}
 .ms-clock{margin-left:-2px;white-space:pre;font-variant-numeric:tabular-nums}
 .dfs-night .ms-bar{color:rgba(255,255,255,.92)}
 /* desktop icons */
@@ -753,20 +920,54 @@ function injectSolCSS() {
 .ms-file.is-shots.is-gone{transition:none}
 .ms.is-sorting .ms-file{transition:left .6s ${EASE},top .6s ${EASE},opacity .4s,transform .5s ${EASE}}
 /* the Dock (macOS 26 glass) */
-.ms-dock{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);display:flex;align-items:flex-end;padding:6px 6px 7px;border-radius:calc(var(--ds) * .5 + 6px);background:rgba(255,255,255,.26);-webkit-backdrop-filter:blur(18px) saturate(1.7);backdrop-filter:blur(18px) saturate(1.7);box-shadow:inset 0 0 0 1px rgba(255,255,255,.5),inset 0 1px 1px rgba(255,255,255,.65),inset 0 -1px 1px rgba(255,255,255,.2),0 10px 30px rgba(0,0,0,.14),0 0 0 .5px rgba(0,0,0,.12);z-index:3;transition:border-radius .5s ${EASE}}
+/* the Dock, measured on a real macOS 26 one: corners about a fifth of its height, even padding all round */
+.ms-dock{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);display:flex;align-items:center;padding:calc(var(--ds) * .145) calc(var(--ds) * .12);border-radius:calc(var(--ds) * .27);background:rgba(255,255,255,.26);-webkit-backdrop-filter:blur(18px) saturate(1.7);backdrop-filter:blur(18px) saturate(1.7);box-shadow:inset 0 0 0 1px rgba(255,255,255,.5),inset 0 1px 1px rgba(255,255,255,.65),inset 0 -1px 1px rgba(255,255,255,.2),0 10px 30px rgba(0,0,0,.14),0 0 0 .5px rgba(0,0,0,.12);z-index:4;transition:border-radius .5s ${EASE},padding .5s ${EASE}}
 .dfs-night .ms-dock{background:rgba(40,46,64,.35);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18),inset 0 1px 1px rgba(255,255,255,.25),0 10px 30px rgba(0,0,0,.35),0 0 0 .5px rgba(0,0,0,.4)}
-.ms-dapp{position:relative;width:var(--ds);height:var(--ds);margin:0 1.5px;flex:none;transition:width .5s ${EASE},height .5s ${EASE},margin .45s ${EASE},opacity .35s,transform .45s ${EASE}}
+.ms-dapp{position:relative;width:var(--ds);height:var(--ds);margin:0 calc(var(--ds) * .03);flex:none;transition:width .5s ${EASE},height .5s ${EASE},margin .45s ${EASE},opacity .35s,transform .45s ${EASE}}
 .ms-dapp img{width:100%;height:100%;display:block}
-.ms-dapp i{position:absolute;left:50%;bottom:-5px;width:3px;height:3px;margin-left:-1.5px;border-radius:50%;background:rgba(0,0,0,.6);opacity:0}
+.ms-dapp i{position:absolute;left:50%;bottom:calc(var(--ds) * -.08 - 1.5px);width:3px;height:3px;margin-left:-1.5px;border-radius:50%;background:rgba(0,0,0,.6);opacity:0}
 .ms-dapp.is-run i{opacity:1}
 .dfs-night .ms-dapp i{background:rgba(255,255,255,.8)}
 .ms-dapp.is-going{opacity:.38}
 .ms-dapp.is-out{width:0;margin:0;opacity:0;transform:scale(.2)}
-.ms-dsep{width:1px;height:calc(var(--ds) * .8);margin:0 6px;transition:height .5s ${EASE};align-self:center;background:rgba(0,0,0,.18)}
+.ms-dsep{width:1px;height:calc(var(--ds) * .9);margin:0 6px;transition:height .5s ${EASE};align-self:center;background:rgba(0,0,0,.18)}
 .dfs-night .ms-dsep{background:rgba(255,255,255,.22)}
 .ms-trash img{position:absolute;inset:0;transition:opacity .3s}.ms-trash .is-full,.ms-trash.is-full .is-empty{opacity:0}.ms-trash.is-full .is-full{opacity:1}
+/* Tinko's window (614 x 540, drawn a little smaller), floating above the other windows; it glides to the corner */
+.ms-win.is-off{opacity:0;visibility:hidden}
+.ms-win.is-glide{transition:left .9s ${EASE},top .9s ${EASE},opacity .3s}
+/* the open windows of the mess (macOS 26, light and dark) */
+.ms-apps{position:absolute;inset:0;z-index:2;pointer-events:none}
+.ms-app{--w-bg:#fff;--w-chrome:#f5f4f2;--w-side:#ecebe8;--w-ink:#1d1d1f;--w-soft:#86868b;--w-line:rgba(0,0,0,.09);--w-row:#f4f4f6;position:absolute;display:flex;overflow:hidden;border-radius:14px;background:var(--w-bg);color:var(--w-ink);font-size:11px;line-height:1.3;box-shadow:0 0 0 .5px rgba(0,0,0,.24),0 18px 44px rgba(0,0,0,.2),0 4px 10px rgba(0,0,0,.08);transition:opacity .25s,transform .25s cubic-bezier(.33,1,.68,1)}
+.dfs-night .ms-app{--w-bg:#1f1f21;--w-chrome:#2b2b2d;--w-side:#29292b;--w-ink:#f2f2f4;--w-soft:#98989d;--w-line:rgba(255,255,255,.09);--w-row:#262628;box-shadow:0 0 0 .5px rgba(0,0,0,.6),inset 0 0 0 .5px rgba(255,255,255,.12),0 18px 44px rgba(0,0,0,.45)}
+.ms-app.is-shut{opacity:0;transform:scale(.94);visibility:hidden;transition:opacity .2s,transform .2s,visibility 0s .2s}
+.ms-app.is-hid{opacity:0;visibility:hidden;transition:opacity .25s,visibility 0s .25s}
+.ma-lights{display:flex;gap:7px}.ma-lights i{width:11px;height:11px;border-radius:50%;background:#ff5f57;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.12)}.ma-lights i:nth-child(2){background:#febc2e}.ma-lights i:nth-child(3){background:#28c840}
+.ma-bar{position:absolute;left:0;right:0;top:0;height:36px;display:flex;align-items:center;gap:12px;padding:0 12px 0 14px;background:var(--w-chrome);border-bottom:1px solid var(--w-line);z-index:1}
+.ma-bar b{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ma-bar.is-centre b{position:absolute;left:0;right:0;text-align:center;pointer-events:none}
+.ma-gap{flex:1}.ma-tools{display:flex;gap:12px;color:var(--w-soft)}.ma-tools svg,.ma-nav svg,.ma-side svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round}
+.ma-img{position:absolute;left:0;right:0;top:37px;bottom:0;background:var(--w-chrome)}.ma-img img{width:100%;height:100%;object-fit:cover;object-position:top;display:block}
+.ma-page{position:absolute;left:0;right:0;top:37px;bottom:0;padding:12px 16px;font:12.5px/1.55 -apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif}.ma-page p{margin:0;font:inherit;color:inherit}
+.ma-side{width:128px;flex:none;margin:6px 0 6px 6px;padding:10px 8px;border-radius:10px;background:var(--w-side);box-shadow:inset 0 0 0 .5px var(--w-line)}
+.ma-side .ma-lights{margin:0 0 12px 4px}.ma-side p{margin:0 0 4px 6px;font-size:10px;font-weight:600;color:var(--w-soft)}
+.ma-side span{display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:6px;font-size:11px}.ma-side span svg{color:#0a84ff;flex:none}
+.ma-side span.is-on{background:color-mix(in srgb,var(--w-ink) 9%,transparent)}
+.ma-main{flex:1;min-width:0;display:flex;flex-direction:column}
+.ma-tool{height:38px;flex:none;display:flex;align-items:center;gap:10px;padding:0 12px}.ma-tool b{font-size:12.5px;font-weight:600}
+.ma-nav{display:flex;gap:6px;color:var(--w-soft)}
+.ma-icons{display:grid;grid-template-columns:repeat(4,1fr);gap:8px 4px;padding:10px 10px 0;align-content:start}
+.ms-app figure,.ms-app p{font-family:inherit;letter-spacing:normal;text-transform:none}
+.ma-icons figure{margin:0;display:grid;justify-items:center;gap:3px;text-align:center}.ma-icons img{width:44px;height:44px;display:block}.ma-icons span{font-size:10.5px;max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ma-list{padding:0 8px;font-size:10.5px}
+.ma-head,.ma-row{display:grid;grid-template-columns:1.6fr 1.3fr .6fr;gap:8px;align-items:center;height:21px;padding:0 6px;border-radius:5px}
+.ma-head{color:var(--w-soft);font-weight:500;border-bottom:1px solid var(--w-line);border-radius:0;margin-bottom:2px}
+.ma-row:nth-child(odd){background:var(--w-row)}.ma-row span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ma-row span:first-child{display:flex;align-items:center;gap:5px}.ma-row img{width:16px;height:16px;flex:none}
+.ma-row span:not(:first-child),.ma-head span:not(:first-child){color:var(--w-soft)}
+/* the open apps row in Tinko's window: all of them fit, centred */
+.tkw-pins.is-open{-webkit-mask-image:none;mask-image:none}.tkw-pins.is-open .tkw-pins-in{justify-content:center}
 /* Tinko's window, at its real size (614 x 540) */
-.ms-win{position:absolute;left:44px;top:42px;width:614px;height:540px;z-index:2;border-radius:12px;box-shadow:0 0 0 .5px rgba(0,0,0,.22),0 22px 50px rgba(0,0,0,.24),0 6px 14px rgba(0,0,0,.08)}
+.ms-win{position:absolute;left:236px;top:74px;width:614px;height:540px;z-index:3;transform:scale(${TK});transform-origin:0 0;transition:opacity .3s;border-radius:12px;box-shadow:0 0 0 .5px rgba(0,0,0,.22),0 22px 50px rgba(0,0,0,.24),0 6px 14px rgba(0,0,0,.08)}
 .ms-win .tkw{border-radius:12px;overflow:hidden}
 /* Tinko's window (after the app: Views.swift, Theme.swift, Surface.swift) */
 .tkw{--c-card:#fbf7ef;--c-ink:#3d3a36;--c-soft:#7d776f;--c-line:#dfd5ca;--c-calm:#1a97d7;--c-calmsoft:#edf5f9;position:absolute;left:0;top:0;width:614px;height:540px;background:var(--c-card);color:var(--c-ink);font-family:"Space Mono",monospace;font-size:12px;-webkit-font-smoothing:antialiased}
@@ -833,6 +1034,19 @@ function injectSolCSS() {
 .tkw-pin.is-now img{transform:scale(1.15)}.tkw-pin.is-now i{opacity:1}
 .tkw-pin.is-kept img{opacity:.3}.tkw-pin.is-wait img{opacity:.6}
 .tkw-pin.is-gone{width:0;margin-inline:-4px;opacity:0;transform:scale(.2)}
+
+/* under Tinko's screen: how far he is. The site's small diamond for each part, the course's blue on a line, and start over */
+.tk-prog{display:flex;align-items:center;gap:1rem;margin-top:1.75rem;-webkit-user-select:none;user-select:none}
+.tk-line{position:relative;flex:1;height:12px}
+.tk-line::before{content:"";position:absolute;left:6px;right:6px;top:5px;height:2px;background:var(--brand-colors--dark-bage,#dfd5c9)}
+.tk-fill{position:absolute;left:6px;top:5px;height:2px;width:0;background-image:radial-gradient(circle,#0297db,#3fc3ff);transition:width .7s ${EASE}}
+.tk-dia{position:absolute;top:0;width:12px;height:12px;margin-left:-6px;color:var(--brand-colors--dark-bage,#dfd5c9);transition:color .4s,transform .5s ${EASE}}
+.tk-dia svg{display:block;width:12px;height:12px}
+.tk-dia.is-on{color:var(--brand-colors--blue,#0297db);transform:scale(1.15)}
+.tk-reset{all:unset;cursor:pointer;flex:none;width:32px;height:32px;display:grid;place-items:center;box-sizing:border-box;border:1px solid var(--brand-colors--dark-bage,#dfd5c9);border-radius:4px;background:var(--brand-colors--light-bage,#fbf7ee);color:var(--brand-colors--dark_gray,#3d3a35);transition:border-color .3s,transform .2s}
+.tk-reset svg{width:14px;height:14px;display:block;transition:transform .6s ${EASE}}
+.tk-reset:hover svg{transform:rotate(-180deg)}.tk-reset:active{transform:scale(.94)}
+.tk-reset:focus-visible{box-shadow:0 0 0 2px var(--brand-colors--blue,#0297db)}
 
 /* Rhythms: the moment it keeps your hours */
 [data-sol-rhythms]{position:relative}

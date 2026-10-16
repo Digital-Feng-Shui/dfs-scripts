@@ -5,11 +5,9 @@
      Fundamentals  [data-course-demo]   the course player, built from the course's own markup and classes, with the
                                         course's first two lessons (0.1 Course Intro, 0.2 Roadmap) from its video host;
                                         starts on the cover with the play button. Modules open and close.
-     Tinko         [data-tinko-demo]    Tinko's window on a small Mac desktop, doing the real desktop pass on its own:
-                                        it counts the desk, the screenshots fly into their folder, an installer goes
-                                        to the Bin, the rest goes to Documents one by one, and the desk is empty.
-                                        Lines and steps from the app and its recording (tinko/Sources, /tinko).
-                                        Space, ⌫ and S work too; doing something yourself takes over from the autoplay.
+     Tinko         [data-tinko-demo]    a crop of a Mac screen (menu bar, glass Dock with the real icons, Tinko's
+                                        window at its real size): Tinko clears the cluttered Dock down to the daily
+                                        drivers, then the desktop. The app's own lines and steps.
      Rhythms       [data-sol-rhythms]   around the real app window (main.js brings it to life): the menu bar clock
                                         reaches 21:30, Evenings switches on, the toast says what closed, and a browser
                                         that tries YouTube gets the calm page instead. Pauses while you use the app.
@@ -227,44 +225,84 @@ function tilt(el, max, active) {
 }
 
 /* ---------------------------------------------------------
-   Tinko on a small Mac desktop
+   Tinko on a Mac
+   A 1000 x 650 crop of a Mac screen (scaled to the column): Tinko's own wallpaper, the menu bar, the glass Dock with
+   the real icons (as macOS draws them, dive/media/mac), and Tinko's window at its real size (614 x 540). He does the
+   real Dock pass first ("What's pinned": the cluttered default Dock down to the daily drivers; Tinko and Rhythms
+   stay), then the desktop (screenshots into their folder, the installer to the Bin, the rest to Documents).
+   Lines and steps are the app's own (tinko/Sources: DockViews, PinPass, DeskViews). Space, the delete key, S and
+   Cmd+Z work too; doing something yourself takes over from the autoplay for a while.
    --------------------------------------------------------- */
+const MAC = name => new URL(`./media/mac/${name}.avif`, import.meta.url).href;
 const TK_BITMAP = ['....######....', '..##########..', '.############.', '.#############', '##############', '##############', '##############', '.############.', '.############.', '..##########..', '....#####.....'];
 const DEL = '<svg viewBox="0 0 22 18" aria-hidden="true"><path d="M7 2h13v14H7L1 9z"/><path d="M11 6l6 6M17 6l-6 6"/></svg>';
-const WALL = { day: 'https://cdn.prod.website-files.com/67f2341f69b4c6d58de38b9d/691db9dc168bceec0fea78a2_HERO_BG_4.avif', night: 'https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@v1.7.67/night/HERO_BG_4-night.webp' };
-// the desk, as in the real recording (test mode, demo files)
+// the Dock as it often is: the default apps plus what piled up. keep = a daily driver; run = open right now
+const DOCK = [
+  ['apps', 'Apps', '6 months ago'], ['safari', 'Safari', '2 months ago'], ['messages', 'Messages', 'yesterday'], ['mail', 'Mail', '3 weeks ago'],
+  ['maps', 'Maps', '8 months ago'], ['photos', 'Photos', '4 months ago'], ['facetime', 'FaceTime', 'a year ago'], ['calendar', 'Calendar', '5 days ago'],
+  ['contacts', 'Contacts', '7 months ago'], ['reminders', 'Reminders', '9 months ago'], ['notes', 'Notes', '2 weeks ago'], ['freeform', 'Freeform', 'a year ago'],
+  ['tv', 'TV', '11 months ago'], ['music', 'Music', '3 months ago'], ['news', 'News', 'a year ago'], ['appstore', 'App Store', '2 weeks ago'],
+  ['settings', 'System Settings', '4 days ago'], ['arc', 'Arc', 'run', 1], ['figma', 'Figma', 'today', 1], ['claude', 'Claude', 'run', 1],
+  ['slack', 'Slack', '2 months ago'], ['chrome', 'Google Chrome', '5 months ago'], ['spotify', 'Spotify', 'run', 1], ['zoom', 'zoom.us', '6 weeks ago'],
+  ['tinko', 'Tinko', 'self'], ['rhythms', 'Rhythms', 'run', 1],
+].map(([id, name, when, keep]) => ({ id, name, when, keep: !!keep, run: when === 'run' || when === 'self' }));
+// the desk, as in the real recording (test mode, demo files). at: [column from the right, row], where macOS puts
+// them; ph: the slot on a phone, where the scene is a tall crop with the desk in two rows under the window
 const FILES = [
-  { id: 's1', kind: 'shot', name: 'Screenshot 2026-10-12 at 09.41', x: 572, y: 46, hue: 'linear-gradient(135deg,#9db4c4,#e3d8c2)' },
-  { id: 's2', kind: 'shot', name: 'Screenshot 2026-10-13 at 16.07', x: 660, y: 58, hue: 'linear-gradient(135deg,#3d3a35,#7a8a99)' },
-  { id: 's3', kind: 'shot', name: 'Screenshot 2026-10-14 at 11.22', x: 578, y: 150, hue: 'linear-gradient(135deg,#f1ede2,#0297db)' },
-  { id: 'dmg', kind: 'dmg', name: 'zoomusInstallerFull.dmg', x: 664, y: 164 },
-  { id: 's4', kind: 'shot', name: 'Screenshot 2026-10-15 at 22.51', x: 586, y: 254, hue: 'linear-gradient(135deg,#c9a27e,#4f5d6b)' },
-  { id: 'zip', kind: 'zip', name: 'photos-export.zip', x: 668, y: 264 },
-  { id: 'txt', kind: 'txt', name: 'Notes for Monday.txt', x: 574, y: 356 },
-  { id: 'old', kind: 'folder', name: 'Old stuff', x: 662, y: 364 },
+  { id: 's1', kind: 'shot', img: 'shot-1', name: 'Screenshot 2026-10-12 at 09.41.22', at: [0, 0], ph: 0 },
+  { id: 's2', kind: 'shot', img: 'shot-2', name: 'Screenshot 2026-10-13 at 16.07.51', at: [0, 1], ph: 1 },
+  { id: 'dmg', kind: 'dmg', name: 'zoomusInstallerFull.dmg', at: [0, 2], ph: 2 },
+  { id: 'zip', kind: 'zip', name: 'photos-export.zip', at: [0, 3], ph: 3 },
+  { id: 's3', kind: 'shot', img: 'shot-3', name: 'Screenshot 2026-10-14 at 11.22.09', at: [1, 0], ph: 5 },
+  { id: 's4', kind: 'shot', img: 'shot-4', name: 'Screenshot 2026-10-15 at 22.51.40', at: [1, 1], ph: 6 },
+  { id: 'txt', kind: 'txt', name: 'Notes for Monday.txt', at: [1, 2], ph: 7 },
+  { id: 'old', kind: 'folder', name: 'Old stuff', at: [1, 3], ph: 8 },
 ];
-const fileArt = (kind, hue) => kind === 'shot' ? `<div class="ts-shot" style="background:${hue}"></div>`
-  : kind === 'folder' ? '<svg class="ts-art" viewBox="0 0 48 40"><path d="M2 8a3 3 0 0 1 3-3h13l4 4h21a3 3 0 0 1 3 3v3H2z" fill="#5aa9e8"/><rect x="2" y="12" width="44" height="26" rx="3" fill="#7cc0f5"/><rect x="2" y="12" width="44" height="3" fill="#a6d4f8"/></svg>'
-  : kind === 'dmg' ? '<svg class="ts-art" viewBox="0 0 48 48"><rect x="6" y="10" width="36" height="28" rx="4" fill="#d9d6d0"/><rect x="6" y="10" width="36" height="28" rx="4" fill="none" stroke="#a9a49b"/><rect x="10" y="30" width="28" height="3" rx="1.5" fill="#a9a49b"/><circle cx="35" cy="17" r="2" fill="#7fbf6a"/></svg>'
-  : kind === 'zip' ? '<svg class="ts-art" viewBox="0 0 40 48"><path d="M4 2h22l10 10v34H4z" fill="#f4f2ee" stroke="#c9c4ba"/><path d="M26 2v10h10" fill="#e3dfd7" stroke="#c9c4ba"/><path d="M17 4v24" stroke="#6b665e" stroke-width="3" stroke-dasharray="2 2"/><rect x="14.5" y="27" width="5" height="7" rx="1.5" fill="#6b665e"/><text x="20" y="43" font-size="7" text-anchor="middle" fill="#8a857c" font-family="Arial">ZIP</text></svg>'
-  : '<svg class="ts-art" viewBox="0 0 40 48"><path d="M4 2h22l10 10v34H4z" fill="#fff" stroke="#c9c4ba"/><path d="M26 2v10h10" fill="#eceae5" stroke="#c9c4ba"/><path d="M9 20h22M9 25h22M9 30h18M9 35h20" stroke="#cfcac1" stroke-width="1.5"/></svg>';
+const SHOTS = { id: 'shots', kind: 'folder', name: 'Screenshots', at: [0, 4], ph: 4 };   // the new folder, in the next free spot
+const LAYOUT = {
+  mac: { W: 1000, H: 650, win: [44, 42], spot: f => [932 - f.at[0] * 108, 38 + f.at[1] * 104], slot: i => ({ at: [Math.floor(i / 5), i % 5] }) },
+  phone: { W: 660, H: 880, win: [23, 36], spot: f => [66 + (f.ph % 5) * 132, 590 + Math.floor(f.ph / 5) * 100], slot: i => ({ ph: i }) },
+};
+// a desktop label the way Finder sets it: two lines at most, the second cut in the middle ("2026-10…09.41.22")
+let measure;
+function deskLabel(name, max = 98) {
+  measure = measure || Object.assign(document.createElement('canvas').getContext('2d'), { font: '12px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif' });
+  const w = t => measure.measureText(t).width, words = name.split(' ');
+  let one = words.shift();
+  while (words.length && w(one + ' ' + words[0]) <= max) one += ' ' + words.shift();
+  if (w(one) > max) {   // a long word: break after a hyphen if one fits, else where the line runs out
+    let i = one.length; while (i > 1 && w(one.slice(0, i)) > max) i--;
+    const h = one.slice(0, i).lastIndexOf('-'); if (h > 0) i = h + 1;
+    words.unshift(one.slice(i)); one = one.slice(0, i);
+  }
+  let two = words.join(' ');
+  if (w(two) > max) { let a = Math.ceil(two.length / 2), b = Math.floor(two.length / 2); while (a > 1 && w(two.slice(0, a) + '…' + two.slice(two.length - b)) > max) { a--; if (w(two.slice(0, a) + '…' + two.slice(two.length - b)) > max) b--; } two = two.slice(0, a) + '…' + two.slice(two.length - b); }
+  return two ? one + '<br>' + two : one;
+}
+const deskFile = f => `<div class="ms-file is-${f.kind}${f === SHOTS ? ' is-shots' : ''}" data-id="${f.id}"><div class="ms-art">${fileArt(f)}</div><span>${deskLabel(f.name)}</span></div>`;
+const fileArt = f => f.kind === 'shot' ? `<img class="ms-thumb" src="${MAC(f.img)}" alt="">` : `<img class="ms-ficon" src="${MAC('file-' + ({ folder: 'folder', dmg: 'dmg', zip: 'zip', txt: 'txt' })[f.kind])}" alt="">`;
+const SVGI = {
+  apple: '<svg viewBox="0 0 170 170" aria-hidden="true"><path fill="currentColor" d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.2-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.93.21-9.84-1.96-14.75-6.52-3.13-2.73-7.05-7.41-11.74-14.04-5.03-7.08-9.17-15.29-12.41-24.65-3.47-10.11-5.21-19.9-5.21-29.38 0-10.86 2.35-20.22 7.04-28.07 3.69-6.3 8.61-11.27 14.77-14.92s12.81-5.51 19.97-5.63c3.92 0 9.06 1.21 15.43 3.6 6.36 2.39 10.44 3.6 12.23 3.6 1.34 0 5.88-1.42 13.57-4.24 7.27-2.62 13.41-3.7 18.44-3.28 13.63 1.1 23.87 6.47 30.68 16.15-12.19 7.39-18.22 17.73-18.1 31 .11 10.34 3.86 18.94 11.23 25.77 3.34 3.17 7.07 5.62 11.22 7.36-.9 2.61-1.85 5.11-2.86 7.51zM119.11 7.24c0 8.1-2.96 15.67-8.86 22.67-7.12 8.32-15.73 13.13-25.07 12.37a25.2 25.2 0 0 1-.19-3.07c0-7.78 3.39-16.1 9.4-22.91 3-3.44 6.82-6.31 11.45-8.6 4.62-2.25 8.99-3.5 13.1-3.71.12 1.08.17 2.17.17 3.25z"/></svg>',
+  search: '<svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="5.8" cy="5.8" r="4.75" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M9.3 9.3l3.9 3.9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
+  cc: '<svg viewBox="0 0 18 14" aria-hidden="true"><rect x=".75" y=".75" width="16.5" height="5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="4.2" cy="3.25" r="1.6" fill="currentColor"/><rect x=".75" y="8.25" width="16.5" height="5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="13.8" cy="10.75" r="1.6" fill="currentColor"/></svg>',
+  wifi: '<svg viewBox="0 0 18 13" aria-hidden="true"><path fill="currentColor" d="M9 12.6l2.3-2.9a3.6 3.6 0 0 0-4.6 0zM9 3a10.6 10.6 0 0 1 7.6 3.2l1.2-1.5A12.6 12.6 0 0 0 9 1 12.6 12.6 0 0 0 .2 4.7l1.2 1.5A10.6 10.6 0 0 1 9 3zm0 3.7a6.9 6.9 0 0 1 4.9 2l1.2-1.5A8.9 8.9 0 0 0 9 4.7a8.9 8.9 0 0 0-6.1 2.5l1.2 1.5a6.9 6.9 0 0 1 4.9-2z"/></svg>',
+  battery: '<svg viewBox="0 0 27 13" aria-hidden="true"><rect x=".6" y=".6" width="22.8" height="11.8" rx="3.4" fill="none" stroke="currentColor" stroke-opacity=".45" stroke-width="1.2"/><rect x="2.3" y="2.3" width="15.6" height="8.4" rx="1.9" fill="currentColor"/><path d="M25 4.3v4.4c.9-.3 1.5-1.2 1.5-2.2s-.6-1.9-1.5-2.2z" fill="currentColor" fill-opacity=".45"/></svg>',
+};
 
 function initTinko(host) {
   if (!document.querySelector('link[href*="Space+Mono"]')) {
     const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Space+Mono&display=swap'; document.head.append(l);
   }
+  let L = LAYOUT.mac, W = L.W, H = L.H;
   host.tabIndex = 0;
-  host.setAttribute('aria-label', 'Tinko cleaning up a desktop. Space is the safe choice, Delete moves something to the Bin, S skips.');
-  const dockApps = ['Messages', 'Slack', 'WhatsApp', 'Discord'];
-  host.innerHTML = `<div class="ts">
-    <div class="ts-wall"></div>
-    <div class="ts-bar"><b>Tinko</b><span>File</span><span>Edit</span><span>Window</span><i class="ts-clock">Thu 10:24</i></div>
-    <div class="ts-desk">${FILES.map(f => `<div class="ts-file" data-id="${f.id}" style="left:${f.x}px;top:${f.y}px">${fileArt(f.kind, f.hue)}<span>${f.name}</span></div>`).join('')}
-      <div class="ts-file is-folder-shots" data-id="shots" style="left:654px;top:432px">${fileArt('folder')}<span>Screenshots</span></div></div>
-    <div class="ts-scan"></div>
-    <div class="ts-dock"><div class="ts-dapp is-finder">${fileArt('folder')}</div>${dockApps.map(n => `<img class="ts-dapp" src="${iconOf(n)}" alt="">`).join('')}<i class="ts-dsep"></i>
-      <div class="ts-dapp ts-bin"><svg viewBox="0 0 40 40"><path d="M9 11h22l-2 25H11z" fill="rgba(255,255,255,.55)" stroke="#8d8880"/><path d="M14 15l1 18M20 15v18M26 15l-1 18" stroke="#b5b0a7"/><g class="ts-papers"><path d="M12 12l3-6 5 2 4-3 4 5z" fill="#efe9dd" stroke="#8d8880"/><path d="M17 12l2-4 4 1" fill="none" stroke="#8d8880"/></g><path d="M7 11h26" stroke="#8d8880" stroke-width="2" stroke-linecap="round"/></svg></div></div>
-    <div class="ts-win"><div class="tkw">
+  host.setAttribute('aria-label', 'Tinko tidying a Mac: first the Dock, then the desktop. Space keeps, Delete unpins or moves to the Bin, S skips.');
+  host.innerHTML = `<div class="ms">
+    <div class="ms-wall"></div>
+    <div class="ms-bar"><span class="ms-apple">${SVGI.apple}</span><b>Tinko</b><span>File</span><span>Edit</span><span>View</span><span>Window</span><span>Help</span>
+      <i class="ms-gap"></i><span class="ms-extra is-star">${STAR}</span><span class="ms-extra">${SVGI.battery}</span><span class="ms-extra">${SVGI.wifi}</span><span class="ms-extra is-search">${SVGI.search}</span><span class="ms-extra">${SVGI.cc}</span><span class="ms-clock">Fri 16 Oct  10:24</span></div>
+    <div class="ms-desk">${FILES.map(deskFile).join('')}${deskFile(SHOTS)}</div>
+    <div class="ms-win"><div class="tkw">
+      <div class="tkw-grain" aria-hidden="true"></div>
       <div class="tkw-lights" aria-hidden="true"><i></i><i></i><i></i></div>
       <div class="tkw-dash" style="top:28px"></div><div class="tkw-dash" style="bottom:28px"></div>
       <div class="tkw-col">
@@ -275,30 +313,44 @@ function initTinko(host) {
         </div>
       </div>
     </div></div>
+    <div class="ms-dock"><div class="ms-dapp is-run" data-app="finder"><img src="${MAC('finder')}" alt=""><i></i></div>${DOCK.map(a => `<div class="ms-dapp${a.run ? ' is-run' : ''}" data-app="${a.id}"><img src="${MAC(a.id)}" alt=""><i></i></div>`).join('')}<b class="ms-dsep"></b><div class="ms-dapp ms-trash"><img class="is-empty" src="${MAC('trash-empty')}" alt=""><img class="is-full" src="${MAC('trash-full')}" alt=""></div></div>
   </div>`;
-  const ts = host.querySelector('.ts'), screen = host.querySelector('.tkw-screen'), wall = host.querySelector('.ts-wall'), tinkoEl = host.querySelector('.tkw-tinko');
-  const fileEl = id => host.querySelector(`.ts-file[data-id="${id}"]`);
-  new ResizeObserver(() => { ts.style.transform = `scale(${host.clientWidth / 760})`; }).observe(host);
-  const paintWall = () => { wall.style.backgroundImage = `url(${WALL[isNight() ? 'night' : 'day']})`; };
-  paintWall();
-  new MutationObserver(paintWall).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  const ms = host.querySelector('.ms'), screen = host.querySelector('.tkw-screen'), tinkoEl = host.querySelector('.tkw-tinko');
+  const $ = s => host.querySelector(s), fileEl = id => host.querySelector(`.ms-file[data-id="${id}"]`), dockEl = id => host.querySelector(`.ms-dapp[data-app="${id}"]`);
+  let scale = 1;
+  // a crop of a wide screen on a desktop, a tall one on a phone (the window keeps its real size either way)
+  const fit = () => {
+    const next = host.clientWidth < 560 ? LAYOUT.phone : LAYOUT.mac;
+    if (next !== L || !fit.done) {
+      L = next; W = L.W; H = L.H; fit.done = true;
+      Object.assign(ms.style, { width: W + 'px', height: H + 'px' });
+      ms.classList.toggle('is-phone', L === LAYOUT.phone);
+      Object.assign($('.ms-win').style, { left: L.win[0] + 'px', top: L.win[1] + 'px' });
+      arrange(false);
+      dockFit();
+    }
+    scale = host.clientWidth / W; ms.style.transform = `scale(${scale})`; host.style.height = (H * scale + host.offsetWidth - host.clientWidth) + 'px';
+  };
+  new ResizeObserver(fit).observe(host);   // (the first fit is at the end, once everything below exists)
+  // a point on the scene (unscaled), e.g. the middle of a Dock icon
+  const centre = el => { const r = el.getBoundingClientRect(), m = ms.getBoundingClientRect(); return { x: (r.left + r.width / 2 - m.left) / scale, y: (r.top + r.height / 2 - m.top) / scale }; };
 
   /* his eyes, after Tinko.swift: blinks, and where he looks depends on what he's doing */
-  const eyeL = host.querySelector('.tkw-eye.is-l'), eyeR = host.querySelector('.tkw-eye.is-r'), CELL = 6;
+  const eyeL = $('.tkw-eye.is-l'), eyeR = $('.tkw-eye.is-r'), CELL = 6;
   const E = (x, y, w = 1, h = 2) => ({ x, y, w, h });
   let eyes = [E(-1.5, -.5), E(1.5, -.5)], blinking = false, mood = 'idle', moodTimer = 0;
   const place = (el, e, dur) => { el.style.transitionDuration = dur + 's'; Object.assign(el.style, { left: (7 + e.x - e.w / 2) * CELL + 'px', top: (5.5 + e.y - e.h / 2) * CELL + 'px', width: e.w * CELL + 'px', height: e.h * CELL + 'px' }); };
   const setEyes = (l, r, dur = .6) => { eyes = [l, r]; place(eyeL, l, dur); place(eyeR, r, dur); };
   const LOOKS = {
-    // at the desktop on his right, reading down it
     side: [[.3, -.5, 1, 2, 3.3, -.5, 1, 2], [.4, -1.2, 1, 1.8, 3.4, -1.2, 1, 1.8], [.3, .4, 1, 1.8, 3.3, .4, 1, 1.8], [.5, 1, 1.1, 1.4, 3.5, 1, 1.1, 1.4]],
-    down: [[-1.5, 1.6, 1, 1.5, 1.5, 1.6, 1, 1.5], [-.3, 1.7, 1, 1.4, 2.7, 1.7, 1, 1.4], [.3, 1.6, 1, 1.5, 3.3, 1.6, 1, 1.5]],
+    down: [[-1.5, 1.6, 1, 1.5, 1.5, 1.6, 1, 1.5], [-2.7, 1.7, 1, 1.4, .3, 1.7, 1, 1.4], [-.3, 1.7, 1, 1.4, 2.7, 1.7, 1, 1.4], [-1.5, 1.9, 1.2, 1, 1.5, 1.9, 1.2, 1], [-3.3, 1.6, 1, 1.5, -.3, 1.6, 1, 1.5], [.3, 1.6, 1, 1.5, 3.3, 1.6, 1, 1.5]],
     working: [[-1.6, -1.4, 1, 2, 1.6, .6, 1, 2], [-1.3, -.5, 2, 2, 1.3, -.5, 2, 2], [-1.5, -.3, 2, .4, 1.5, -.3, 2, .4], [.4, 1.2, 1, 2, 3.4, 1.2, 1, 2], [-1.8, -.5, 2.2, 2.2, 1.9, -.3, .9, 1.4]],
     cheer: [[-1.5, -.7, 1.4, 2.2, 1.5, -.7, 1.4, 2.2]],
     idle: [[-1.5, -.5, 1, 2, 1.5, -.5, 1, 2]],
   };
   const look = n => { const set = LOOKS[mood], a = set[n % set.length]; setEyes(E(a[0], a[1], a[2], a[3]), E(a[4], a[5], a[6], a[7]), mood === 'working' ? .45 : .6); };
   function setMood(m) {
+    if (m === mood) return;
     mood = m; clearInterval(moodTimer); let n = 0; look(n);
     tinkoEl.classList.toggle('is-cheer', m === 'cheer');
     if (!reduce && LOOKS[m].length > 1) moodTimer = setInterval(() => { if (!blinking) look(++n); }, m === 'working' ? 1100 : 1600);
@@ -313,23 +365,46 @@ function initTinko(host) {
     setTimeout(blink, 2000);
   }
 
-  /* the screens */
+  /* the screens (Views.swift Screen: tag, words, content, buttons, ⌘Z under them) */
   const roll = t => `<span class="tkw-roll">${[...t.toUpperCase()].map(c => `<b>${c === ' ' ? '&nbsp;' : c}</b>`).join('')}</span>`;
   const btn = (act, title, key, light) => `<button class="tkw-btn${light ? ' is-light' : ''}" data-tk="${act}" type="button"><span class="tkw-key${key === 'del' ? ' is-del' : ''}">${key === 'del' ? DEL : key}</span>${roll(title)}</button>`;
   const stat = (n, label) => `<div class="tkw-stat"><b>${n}</b><span>${label}</span></div>`;
-  let state = 'scan', gone = new Set(), binned = new Set(), queue = [], qAt = 0, ticks = 0;
-  const left = () => FILES.filter(f => !gone.has(f.id) && f.kind !== 'shot');
+  const tag = t => `<div class="tkw-tag"><span>${t}</span></div>`;
+  const words = t => `<div class="tkw-words">${t}</div>`;
+  const undo = '<button class="tkw-undo" data-tk="undo" type="button">⌘Z  UNDO</button>';
+  const list = n => n.length > 1 ? n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1] : (n[0] || 'nothing');
+  const PINS = DOCK.filter(a => a.when !== 'self');   // Tinko leaves himself out of the pass
+  let state = 'pinsAsk', fate = {}, pinAt = 0, gone = new Set(), binned = new Set(), queue = [], qAt = 0, ticks = 0;
   function render(key, html) {
     const swap = screen.dataset.key !== key; screen.dataset.key = key;
     screen.innerHTML = html;
     if (swap && !reduce) { screen.classList.add('is-swap'); requestAnimationFrame(() => requestAnimationFrame(() => screen.classList.remove('is-swap'))); }
   }
-  const tag = t => `<div class="tkw-tag"><span>${t}</span></div>`;
-  const words = t => `<div class="tkw-words">${t}</div>`;
-  const undo = '<button class="tkw-undo" data-tk="undo" type="button">⌘Z  UNDO</button>';
+  // the pins row (PinPass.swift PinsRow): the one that's up is full size with a dot, kept ones faint, unpinned ones gone
+  function pinsRow() {
+    return `<div class="tkw-pins"><div class="tkw-pins-in">${PINS.map((a, i) => `<div class="tkw-pin ${fate[a.id] === 'unpin' ? 'is-gone' : i === pinAt ? 'is-now' : fate[a.id] === 'kept' ? 'is-kept' : 'is-wait'}" title="${a.name}"><img src="${MAC(a.id)}" alt=""><i></i></div>`).join('')}</div></div>`;
+  }
+  // where the row sits so the current app is in the middle (worked out, not measured: the unpinned ones are still closing)
+  function centrePins() {
+    const inn = screen.querySelector('.tkw-pins-in');
+    if (!inn) return;
+    const before = PINS.slice(0, pinAt).filter(a => fate[a.id] !== 'unpin').length;
+    inn.style.transform = `translateX(${210 - (before * 36 + 14)}px)`;
+  }
   function draw() {
     const files = FILES.filter(f => !gone.has(f.id));
-    if (state === 'scan') render('scan', tag('Your desktop') + words('One moment…') + '<div class="tkw-progress"><i></i></div><div class="tkw-count">0 THINGS</div>');
+    if (state === 'pinsAsk') render('pinsAsk', tag('What’s pinned') + words('Now what stays in your Dock for good. Keep your daily drivers, unpin the rest. They’re still one ⌘Space away.') + `<div class="tkw-btns">${btn('space', 'Start', 'SPACE')}</div>`);
+    else if (state === 'pin') {
+      const a = PINS[pinAt], when = a.run ? 'Open right now. Unpin it and it leaves the Dock once you quit it.' : `Last opened ${a.when}.`;
+      render('pin', tag('What’s pinned') + words(`${a.name}. ${when} Daily driver?`) + pinsRow() + `<div class="tkw-btns">${btn('space', 'Keep', 'SPACE')}${btn('del', 'Unpin', 'del', true)}</div>`);
+      centrePins();
+    }
+    else if (state === 'pinsDone') {
+      const out = PINS.filter(a => fate[a.id] === 'unpin').length, stay = PINS.filter(a => fate[a.id] !== 'unpin').map(a => a.name);
+      render('pinsDone', tag('What’s pinned') + words(out ? `${out} unpinned. Your Dock keeps ${list(stay)}. That’s the lot.` : 'Everything stays pinned. Your daily drivers, your call.') + `<div class="tkw-btns">${btn('space', 'Next', 'SPACE')}</div>` + (out ? undo : ''));
+    }
+    else if (state === 'dockDone') render('dockDone', tag('Your Dock') + words(`Dock done.${PINS.some(a => fate[a.id] === 'unpin') ? ' Lighter already.' : ''} I’ll stay in it myself until the course is through. Now the desktop.`) + `<div class="tkw-btns">${btn('space', 'On to the desktop', 'SPACE')}</div>`);
+    else if (state === 'scan') render('scan', tag('Your desktop') + words('One moment…') + '<div class="tkw-progress"><i></i></div><div class="tkw-count">0 THINGS</div>');
     else if (state === 'desk') render('desk', tag('Your desktop') + words('Now we’re looking at the desktop. A proper pile, but nothing I can’t handle.')
       + `<div class="tkw-stats">${stat(files.filter(f => f.kind !== 'folder').length, 'files')}${stat(files.filter(f => f.kind === 'folder').length, 'folder')}${stat(4, 'screenshots')}</div>`
       + `<div class="tkw-btns">${btn('space', 'Clean up', 'SPACE')}${btn('s', 'Skip', 'S', true)}</div>`);
@@ -343,79 +418,110 @@ function initTinko(host) {
     else if (state === 'left') {
       const f = queue[qAt];
       render('left-' + f.id, tag('What’s left') + words('Into Documents, to sort later? Or the Bin?')
-        + `<div class="tkw-file"><div class="tkw-file-art">${fileArt(f.kind, f.hue)}</div><div><b>${f.name}</b><span>Here since today · ${qAt + 1} of ${queue.length}</span></div></div>`
+        + `<div class="tkw-file"><div class="tkw-file-art">${fileArt(f)}</div><div><b>${f.name}</b><span>Here since today · ${qAt + 1} of ${queue.length}</span></div></div>`
         + `<div class="tkw-btns">${btn('space', 'Sort later', 'SPACE')}${btn('del', 'Bin', 'del', true)}</div>`);
     }
     else if (state === 'empty') render('empty', tag('Your desktop') + words('An empty desk. New screenshots go to their own folder now, so it stays that way.') + `<div class="tkw-btns">${btn('space', 'On to Documents', 'SPACE')}</div>`);
     else if (state === 'skipped') render('skipped', tag('Your desktop') + words('Your desktop stays as it is.') + `<div class="tkw-btns">${btn('space', 'Next', 'SPACE')}</div>`);
   }
 
-  /* what happens on the desk */
-  const SHOTS = { x: 654, y: 432 };
-  const at = id => { const f = FILES.find(k => k.id === id); return f ? { x: f.x, y: f.y } : SHOTS; };
-  const BIN = { x: 464, y: 500 }, DOCS = { x: 140, y: 250 };   // the Bin in the Dock; Documents: into Tinko's window
-  function fly(id, to, { scale = .2, arc = 0, dur = 750, fade = true } = {}) {
-    const el = fileEl(id), from = at(id);
+  /* what happens on the screen */
+  function fly(id, to, { scale: sc = .2, arc = 0, dur = 750 } = {}) {
+    const el = fileEl(id);
     if (!el) return Promise.resolve();
     gone.add(id);
+    const r = el.getBoundingClientRect(), m = ms.getBoundingClientRect();
+    const from = { x: (r.left + r.width / 2 - m.left) / scale, y: (r.top + 30 - m.top) / scale };
     const dx = to.x - from.x, dy = to.y - from.y;
-    if (reduce) { el.classList.add('is-gone'); return Promise.resolve(); }
+    if (reduce) { el.classList.add('is-gone'); if (sorted) arrange(); return Promise.resolve(); }
     const a = el.animate([
       { transform: 'translate(0,0) scale(1)', opacity: 1 },
-      { transform: `translate(${dx * .5}px,${dy * .5 - arc}px) scale(${(1 + scale) / 2})`, opacity: 1, offset: .55 },
-      { transform: `translate(${dx}px,${dy}px) scale(${scale})`, opacity: fade ? 0 : 1 },
+      { transform: `translate(${dx * .5}px,${dy * .5 - arc}px) scale(${(1 + sc) / 2})`, opacity: 1, offset: .55 },
+      { transform: `translate(${dx}px,${dy}px) scale(${sc})`, opacity: 0 },
     ], { duration: dur, easing: EASE, fill: 'forwards' });
-    return a.finished.then(() => { el.classList.add('is-gone'); a.cancel(); });
+    return a.finished.then(() => { el.classList.add('is-gone'); a.cancel(); if (sorted) arrange(); });
   }
-  const bump = sel => { const el = host.querySelector(sel); if (el && !reduce) el.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.18)' }, { transform: 'scale(1)' }], { duration: 380, easing: 'ease-out' }); };
-  const select = id => host.querySelectorAll('.ts-file').forEach(el => el.classList.toggle('is-sel', el.dataset.id === id));
+  const bump = el => { if (el && !reduce) el.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-10px)' }, { transform: 'translateY(0)' }], { duration: 420, easing: 'cubic-bezier(.33,1,.68,1)' }); };
+  const select = id => host.querySelectorAll('.ms-file').forEach(el => el.classList.toggle('is-sel', el.dataset.id === id));
+  const trash = () => $('.ms-trash'), finder = () => dockEl('finder');
+  function setTrash(full) { trash().classList.toggle('is-full', full); }
+  // the Dock: decided ones dim during the pass; at the end the unpinned ones leave together (the Dock restarts)
+  function dockDim() { PINS.forEach(a => { const d = dockEl(a.id); if (d) d.classList.toggle('is-going', fate[a.id] === 'unpin'); }); }
+  async function dockUnpin() {
+    const out = PINS.filter(a => fate[a.id] === 'unpin');
+    out.forEach((a, i) => { const d = dockEl(a.id); if (d) setTimeout(() => d.classList.add('is-out'), reduce ? 0 : i * 45); });
+    await wait(reduce ? 0 : out.length * 45 + 300);
+    dockFit();
+    await wait(reduce ? 0 : 500);
+  }
+  function dockRestore() { host.querySelectorAll('.ms-dapp').forEach(d => d.classList.remove('is-out', 'is-going')); dockFit(); }
+  // like macOS: the icons keep their set size (44) unless the Dock would run off the screen, then they all shrink
+  function dockFit() {
+    const n = host.querySelectorAll('.ms-dapp:not(.is-out)').length;
+    ms.style.setProperty('--ds', Math.min(44, Math.floor((W - 40 - 25) / n) - 3) + 'px');
+  }
   async function scan() {
     setMood('working'); select(null);
-    const bar = screen.querySelector('.tkw-progress i'), count = screen.querySelector('.tkw-count'), sweep = host.querySelector('.ts-scan');
-    if (!reduce) sweep.animate([{ transform: 'translateX(0)', opacity: 0 }, { opacity: 1, offset: .1 }, { opacity: 1, offset: .9 }, { transform: 'translateX(200px)', opacity: 0 }], { duration: 2000, easing: 'ease-in-out' });
-    const order = [...FILES].sort((a, b) => a.y - b.y);
+    const bar = screen.querySelector('.tkw-progress i'), count = screen.querySelector('.tkw-count');
+    const order = [...FILES].sort((a, b) => a.at[1] - b.at[1] || a.at[0] - b.at[0]);
     for (let i = 0; i < order.length; i++) {
       const el = fileEl(order[i].id); if (el) { el.classList.add('is-seen'); setTimeout(() => el.classList.remove('is-seen'), 420); }
       if (bar) bar.style.width = ((i + 1) / order.length * 100) + '%';
       if (count) count.textContent = `${i + 1} ${i ? 'THINGS' : 'THING'}`;
-      await wait(reduce ? 0 : 240);
+      await wait(reduce ? 0 : 220);
     }
-    await wait(reduce ? 0 : 420);
+    await wait(reduce ? 0 : 400);
   }
   async function doFixes() {
     setMood('side');
     for (ticks = 0; ticks < 4; ticks++) {
       draw();
-      if (ticks === 0) { fileEl('shots').classList.add('is-in'); bump('.is-folder-shots'); }
+      if (ticks === 0) { fileEl('shots').classList.add('is-in'); }
       if (ticks === 1) {
-        for (const id of ['s1', 's2', 's3', 's4']) { fly(id, SHOTS, { scale: .35, dur: 700 }); await wait(140); }
-        await wait(640); bump('.is-folder-shots');
+        const into = centre(fileEl('shots').querySelector('.ms-art'));
+        for (const id of ['s1', 's3', 's2', 's4']) { fly(id, into, { scale: .3, dur: 700 }); await wait(140); }
+        await wait(640); bump(fileEl('shots'));
       }
+      if (ticks === 3) { sorted = true; arrange(); }
       await wait(reduce ? 0 : 520);
     }
     ticks = 4; draw();
     await wait(reduce ? 0 : 500);
-    // the Screenshots folder goes to Documents
-    await fly('shots', DOCS, { scale: .3, dur: 800, arc: 40 });
+    // the Screenshots folder goes to Documents (into Finder)
+    await fly('shots', centre(finder()), { scale: .25, dur: 850, arc: 40 }); bump(finder());
+  }
+  // where the icons sit: each in its own spot until the desk sorts itself (the last quick fix), then, like Finder's
+  // Sort By Date Added, the ones left close up from the top right, newest first, every time one leaves
+  let sorted = false;
+  function arrange(animate = true) {
+    ms.classList.toggle('is-sorting', animate && !reduce);
+    const all = [SHOTS, ...FILES], live = all.filter(f => !gone.has(f.id) && (f !== SHOTS || fileEl('shots').classList.contains('is-in')));
+    all.forEach(f => {
+      const i = live.indexOf(f), [x, y] = L.spot(sorted && i > -1 ? L.slot(i) : f);
+      Object.assign(fileEl(f.id).style, { left: x - 50 + 'px', top: y + 'px' });
+    });
   }
   function restore(ids) {
     ids.forEach(id => { gone.delete(id); binned.delete(id); const el = fileEl(id); if (el) { el.classList.remove('is-gone'); if (!reduce) el.animate([{ opacity: 0, transform: 'scale(.6)' }, { opacity: 1, transform: 'scale(1)' }], { duration: 420, easing: EASE }); } });
-    host.querySelector('.ts-bin').classList.toggle('is-full', binned.size > 0);
+    setTrash(binned.size > 0);
+    if (sorted) arrange();
   }
   function reset() {
-    gone = new Set(); binned = new Set(); ticks = 0;
-    host.querySelectorAll('.ts-file').forEach(el => el.classList.remove('is-gone', 'is-sel', 'is-in'));
-    host.querySelector('.ts-bin').classList.remove('is-full');
-    if (!reduce) host.querySelectorAll('.ts-file:not(.is-folder-shots)').forEach((el, i) => el.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 500, delay: i * 60, easing: EASE, fill: 'backwards' }));
+    gone = new Set(); binned = new Set(); ticks = 0; fate = {}; pinAt = 0; sorted = false;
+    host.querySelectorAll('.ms-file').forEach(el => el.classList.remove('is-gone', 'is-sel', 'is-in'));
+    arrange(false);
+    setTrash(false); dockRestore();
+    if (!reduce) host.querySelectorAll('.ms-file:not(.is-shots), .ms-dapp').forEach((el, i) => el.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 500, delay: i * 25, easing: EASE, fill: 'backwards' }));
   }
 
   /* the flow: every action is the same whether the autoplay or you do it */
   let busy = false, manual = false, autoT = 0, running = false, visible = false;
   async function go(next) {
     state = next; draw();
+    if (next === 'pinsAsk' || next === 'pin' || next === 'pinsDone' || next === 'dockDone') setMood('down');
     if (next === 'scan') { await scan(); return go('desk'); }
     if (next === 'desk') setMood('side');
-    if (next === 'fixes') { busy = true; await doFixes(); busy = false; return go('moved'); }
+    if (next === 'fixes') { await doFixes(); return go('moved'); }
     if (next === 'leftover') { setMood('side'); select('dmg'); }
     if (next === 'left') { setMood('side'); select(queue[qAt].id); }
     if (next === 'empty') { setMood('cheer'); select(null); }
@@ -428,35 +534,50 @@ function initTinko(host) {
     const b = screen.querySelector(`[data-tk="${key}"]`);
     if (b) { b.classList.add('is-press'); setTimeout(() => b.classList.remove('is-press'), 260); }
     try {
-      if (state === 'desk') { if (key === 'space') { busy = false; return go('fixes'); } if (key === 's') { busy = false; return go('skipped'); } }
-      else if (state === 'moved') { if (key === 'space') { busy = false; return go('leftover'); } if (key === 'undo') { restore(['s1', 's2', 's3', 's4']); fileEl('shots').classList.remove('is-in'); busy = false; return go('desk'); } }
-      else if (state === 'leftover') {
-        if (key === 'del') { select(null); setMood('down'); await fly('dmg', BIN, { scale: .25, arc: 60, dur: 800 }); binned.add('dmg'); host.querySelector('.ts-bin').classList.add('is-full'); bump('.ts-bin'); busy = false; return go('binned'); }
-        if (key === 'space') { select(null); busy = false; return startLeft(); }
+      if (state === 'pinsAsk') { if (key === 'space') { pinAt = 0; return await go('pin'); } }
+      else if (state === 'pin') {
+        if (key === 'space' || key === 'del') {
+          fate[PINS[pinAt].id] = key === 'del' ? 'unpin' : 'kept'; dockDim();
+          pinAt++;
+          if (pinAt < PINS.length) return await go('pin');
+          state = 'pinsDone'; draw(); await dockUnpin();
+          return await go('pinsDone');
+        }
       }
-      else if (state === 'binned') { if (key === 'space') { busy = false; return startLeft(); } if (key === 'undo') { restore(['dmg']); busy = false; return go('leftover'); } }
+      else if (state === 'pinsDone') { if (key === 'space') { return await go('dockDone'); } if (key === 'undo') { dockRestore(); fate = {}; pinAt = 0; return await go('pinsAsk'); } }
+      else if (state === 'dockDone') { if (key === 'space') { return await go('scan'); } }
+      else if (state === 'desk') { if (key === 'space') { return await go('fixes'); } if (key === 's') { return await go('skipped'); } }
+      else if (state === 'moved') { if (key === 'space') { return await go('leftover'); } if (key === 'undo') { sorted = false; gone.delete('shots'); fileEl('shots').classList.remove('is-in', 'is-gone'); restore(['s1', 's2', 's3', 's4']); arrange(); return await go('desk'); } }
+      else if (state === 'leftover') {
+        if (key === 'del') { select(null); setMood('down'); await fly('dmg', centre(trash()), { scale: .2, arc: 60, dur: 850 }); binned.add('dmg'); setTrash(true); bump(trash()); return await go('binned'); }
+        if (key === 'space') { select(null); return await startLeft(); }
+      }
+      else if (state === 'binned') { if (key === 'space') { return await startLeft(); } if (key === 'undo') { restore(['dmg']); return await go('leftover'); } }
       else if (state === 'left') {
         const f = queue[qAt];
         if (key === 'space' || key === 'del') {
           select(null);
-          if (key === 'del') { setMood('down'); await fly(f.id, BIN, { scale: .25, arc: 60, dur: 750 }); binned.add(f.id); host.querySelector('.ts-bin').classList.add('is-full'); bump('.ts-bin'); }
-          else await fly(f.id, DOCS, { scale: .3, arc: 30, dur: 700 });
-          qAt++; busy = false;
-          return qAt < queue.length ? go('left') : go('empty');
+          if (key === 'del') { setMood('down'); await fly(f.id, centre(trash()), { scale: .2, arc: 60, dur: 800 }); binned.add(f.id); setTrash(true); bump(trash()); }
+          else { await fly(f.id, centre(finder()), { scale: .25, arc: 40, dur: 800 }); bump(finder()); }
+          qAt++;
+          return await go(qAt < queue.length ? 'left' : 'empty');
         }
       }
-      else if (state === 'empty' || state === 'skipped') { if (key === 'space') { busy = false; reset(); return go('scan'); } }
+      else if (state === 'empty' || state === 'skipped') { if (key === 'space') { reset(); return await go('pinsAsk'); } }
     } finally { busy = false; }
   }
-  function startLeft() { queue = left(); qAt = 0; return queue.length ? go('left') : go('empty'); }
-  const AUTO = { desk: ['space', 2600], moved: ['space', 2200], leftover: ['del', 2400], binned: ['space', 1500], left: ['space', 1500], empty: ['space', 4200], skipped: ['space', 2000] };
+  function startLeft() { queue = FILES.filter(f => !gone.has(f.id) && f.kind !== 'shot'); qAt = 0; return queue.length ? go('left') : go('empty'); }
+  // what the autoplay presses, and after how long
+  function autoKey() {
+    if (state === 'pin') { const a = PINS[pinAt]; return [a.keep ? 'space' : 'del', pinAt < 3 ? 1200 : 480]; }
+    return ({ pinsAsk: ['space', 2600], pinsDone: ['space', 2800], dockDone: ['space', 2400], desk: ['space', 2400], moved: ['space', 2000], leftover: ['del', 2200], binned: ['space', 1400], left: ['space', 1400], empty: ['space', 4200], skipped: ['space', 2000] })[state];
+  }
   function planAuto() {
     clearTimeout(autoT);
-    const a = AUTO[state];
+    const a = autoKey();
     if (!a || reduce || manual || !visible) return;
     autoT = setTimeout(() => act(a[0]), a[1]);
   }
-  // your own input takes over; leave it alone for a while and it carries on by itself
   let idleT = 0;
   const takeOver = () => { manual = true; clearTimeout(autoT); clearTimeout(idleT); idleT = setTimeout(() => { manual = false; planAuto(); }, 9000); };
   screen.addEventListener('click', e => { const b = e.target.closest('[data-tk]'); if (b) { takeOver(); act(b.dataset.tk); host.focus({ preventScroll: true }); } });
@@ -464,13 +585,11 @@ function initTinko(host) {
     const k = e.key === ' ' ? 'space' : (e.key === 'Backspace' || e.key === 'Delete') ? 'del' : e.key.toLowerCase() === 's' && !e.metaKey ? 's' : (e.key.toLowerCase() === 'z' && (e.metaKey || e.ctrlKey)) ? 'undo' : null;
     if (k) { e.preventDefault(); takeOver(); act(k); }
   });
-  watch(host, on => {
-    visible = on;
-    if (on && !running) { running = true; go(reduce ? 'desk' : 'scan'); }
-    else planAuto();
-  }, '0px 0px -20% 0px');
-  setMood('idle');
-  state = 'desk'; draw();
+  watch(host, on => { visible = on; if (on && !running) { running = true; go('pinsAsk'); } else planAuto(); }, '0px 0px -20% 0px');
+  tilt(host, 2.5, () => visible);
+  fit();
+  setMood('down');
+  draw();
 }
 
 /* ---------------------------------------------------------
@@ -600,47 +719,66 @@ function injectSolCSS() {
 [data-course-demo] [data-player-fullscreen="true"] .bunny-player__video{left:0;top:0;width:100%;height:100%;object-fit:contain}
 .dfs-night [data-course-demo]{background:var(--brand-colors--light-bage);border-color:var(--brand-colors--dark-bage)}
 
-/* Tinko's desktop: a 760 x 560 scene, scaled to the column */
-[data-tinko-demo]{position:relative;width:100%;aspect-ratio:760/560;outline:none;border-radius:8px}
+/* Tinko on a Mac: a 1000 x 650 crop of a screen, framed like the course player */
+[data-tinko-demo]{position:relative;width:100%;aspect-ratio:1000/650;overflow:hidden;outline:none;border:1px solid var(--brand-colors--dark-bage,#dfd5c9);border-radius:4px;background:#e9e4da;box-shadow:rgba(61,58,53,.08) 0 0 0 1px,rgba(61,58,53,.42) 0 40px 80px -30px;transform-style:preserve-3d;will-change:transform;-webkit-user-select:none;user-select:none}
+.dfs-night [data-tinko-demo]{background:#141b2c;box-shadow:rgba(0,0,0,.2) 0 0 0 1px,rgba(0,0,0,.55) 0 40px 80px -30px}
 [data-tinko-demo]:focus-visible{box-shadow:0 0 0 2px var(--brand-colors--blue,#0297db)}
-.ts{position:absolute;left:0;top:0;width:760px;height:560px;transform-origin:0 0;border-radius:10px;overflow:hidden;box-shadow:0 0 0 1px rgba(61,58,53,.18),0 30px 60px -30px rgba(61,58,53,.5);font-family:"Space Mono",var(--_typography---font-styles--body,monospace)}
-.ts-wall{position:absolute;inset:0;background:#e9e3d6 center/cover no-repeat}
-.dfs-night .ts-wall{background-color:#141b2c}
-.ts-bar{position:absolute;left:0;right:0;top:0;height:24px;display:flex;align-items:center;gap:16px;padding:0 14px;background:rgba(251,247,238,.6);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);font:12px/1 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;color:#2b2926;z-index:3}
-.ts-bar b{font-weight:600}.ts-clock{margin-left:auto;font-style:normal}
-.dfs-night .ts-bar{background:rgba(20,27,44,.6);color:#ecebe8}
-.ts-desk{position:absolute;inset:0;z-index:1}
-.ts-file{position:absolute;width:84px;display:grid;justify-items:center;gap:4px;text-align:center}
-.ts-file .ts-art{width:48px;height:44px;display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,.18))}
-.ts-shot{width:52px;height:34px;margin:5px 0;border:2px solid #fff;border-radius:2px;box-shadow:0 2px 5px rgba(0,0,0,.25)}
-.ts-file span{max-width:84px;padding:1px 4px;border-radius:4px;font:10px/1.2 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;color:#2b2926;text-shadow:0 0 6px rgba(255,255,255,.9);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
-.dfs-night .ts-file span{color:#f1ede2;text-shadow:0 1px 4px rgba(0,0,0,.8)}
-.ts-file.is-sel .ts-art,.ts-file.is-sel .ts-shot{outline:3px solid rgba(2,151,219,.35);outline-offset:3px;border-radius:4px}
-.ts-file.is-sel span{background:#0a84ff;color:#fff;text-shadow:none}
-.ts-file.is-seen{filter:drop-shadow(0 0 10px rgba(2,151,219,.8))}
-.ts-file.is-gone{visibility:hidden}
-.ts-file.is-folder-shots{opacity:0;transform:scale(.6);transition:opacity .4s,transform .5s ${EASE}}
-.ts-file.is-folder-shots.is-in{opacity:1;transform:none}
-.ts-file.is-folder-shots.is-gone{transition:none}
-.ts-scan{position:absolute;left:556px;top:30px;bottom:96px;width:2px;background:linear-gradient(transparent,#3fc3ff,transparent);box-shadow:0 0 14px #3fc3ff;opacity:0;z-index:2}
-.ts-dock{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:flex;align-items:flex-end;gap:8px;padding:6px 10px;border-radius:16px;background:rgba(251,247,238,.5);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 0 0 1px rgba(255,255,255,.35),0 10px 24px -12px rgba(0,0,0,.35);z-index:2}
-.dfs-night .ts-dock{background:rgba(30,38,60,.55)}
-.ts-dapp{width:40px;height:40px;display:block;border-radius:10px}
-.ts-dapp.is-finder{display:grid;place-items:center;background:#fbf7ee}.ts-dapp.is-finder .ts-art{width:30px;height:26px}
-.ts-dsep{width:1px;align-self:stretch;margin:2px 2px;background:rgba(61,58,53,.25)}
-.ts-bin svg{width:40px;height:40px;display:block}
-.ts-papers{opacity:0;transition:opacity .3s}.ts-bin.is-full .ts-papers{opacity:1}
-.ts-win{position:absolute;left:28px;top:36px;width:516px;height:454px;z-index:2;border-radius:10px;box-shadow:0 0 0 1px rgba(61,58,53,.2),0 24px 48px -18px rgba(0,0,0,.45)}
-.ts-win .tkw{transform:scale(.84);border-radius:12px;overflow:hidden}
-/* Tinko's window (after the app: Views.swift, Theme.swift) */
-.tkw{--c-card:#fbf7ef;--c-ink:#3d3a36;--c-soft:#7d776f;--c-line:#dfd5ca;--c-calm:#1a97d7;--c-calmsoft:#edf5f9;position:absolute;left:0;top:0;width:614px;height:540px;transform-origin:0 0;background:var(--c-card);color:var(--c-ink);font-family:"Space Mono",monospace;font-size:12px;-webkit-font-smoothing:antialiased}
+.ms{--ds:44px;position:absolute;left:0;top:0;width:1000px;height:650px;transform-origin:0 0;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;color:#1d1d1f}
+.ms-wall{position:absolute;inset:0;background:url(${new URL('./media/mac/wall-day.webp', import.meta.url).href}) 30% 100%/cover no-repeat}
+.dfs-night .ms-wall{background-image:linear-gradient(rgba(12,18,34,.28),rgba(12,18,34,.28)),url(${new URL('../night/HERO_BG_4-night.webp', import.meta.url).href})}
+/* the menu bar (macOS 26: no bar, the wallpaper shows through) */
+.ms-bar{position:absolute;left:0;right:0;top:0;height:24px;display:flex;align-items:center;gap:18px;padding:0 14px 0 16px;font-size:13px;line-height:1;letter-spacing:-.08px;z-index:4;color:rgba(0,0,0,.85)}
+.ms-bar b{font-weight:700}
+.ms-apple{width:14px;height:17px;margin-right:2px}.ms-apple svg{width:14px;height:17px;display:block;margin-top:-2px}
+.ms-gap{flex:1}
+.ms-extra{display:grid;place-items:center;height:24px;margin-left:-4px}.ms-extra svg{height:13px;width:auto;display:block}
+.ms-extra.is-star svg{height:14px}.ms-extra.is-search svg{height:13px}
+.ms.is-phone .ms-bar{gap:15px}.ms.is-phone .ms-extra.is-search,.ms.is-phone .ms-bar>span:nth-of-type(6){display:none}
+.ms-clock{margin-left:-2px;white-space:pre;font-variant-numeric:tabular-nums}
+.dfs-night .ms-bar{color:rgba(255,255,255,.92)}
+/* desktop icons */
+.ms-desk{position:absolute;inset:0;z-index:1}
+.ms-file{position:absolute;width:100px;display:grid;justify-items:center;gap:3px;text-align:center}
+.ms-art{width:64px;height:64px;display:grid;place-items:center;border-radius:5px}
+.ms-ficon{width:64px;height:64px;display:block}
+.ms-thumb{width:62px;height:39px;object-fit:cover;display:block;border-radius:2px;box-shadow:0 0 0 .5px rgba(0,0,0,.18),0 1px 3px rgba(0,0,0,.25)}
+.ms-file span{padding:1px 4px;border-radius:4px;font-size:12px;line-height:15px;color:rgba(0,0,0,.86);white-space:nowrap}
+.dfs-night .ms-file span{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6),0 0 1px rgba(0,0,0,.5)}
+.ms-file.is-sel .ms-art{background:rgba(0,0,0,.18);box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
+.ms-file.is-sel span,.dfs-night .ms-file.is-sel span{background:#0a6cff;color:#fff;text-shadow:none}
+.ms-file.is-seen .ms-art{box-shadow:0 0 0 2px rgba(63,195,255,.7),0 0 18px rgba(63,195,255,.55)}
+.ms-file.is-gone{visibility:hidden}
+.ms-file.is-shots{opacity:0;transform:scale(.6);transition:opacity .4s,transform .5s ${EASE}}
+.ms-file.is-shots.is-in{opacity:1;transform:none}
+.ms-file.is-shots.is-gone{transition:none}
+.ms.is-sorting .ms-file{transition:left .6s ${EASE},top .6s ${EASE},opacity .4s,transform .5s ${EASE}}
+/* the Dock (macOS 26 glass) */
+.ms-dock{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);display:flex;align-items:flex-end;padding:6px 6px 7px;border-radius:calc(var(--ds) * .5 + 6px);background:rgba(255,255,255,.26);-webkit-backdrop-filter:blur(18px) saturate(1.7);backdrop-filter:blur(18px) saturate(1.7);box-shadow:inset 0 0 0 1px rgba(255,255,255,.5),inset 0 1px 1px rgba(255,255,255,.65),inset 0 -1px 1px rgba(255,255,255,.2),0 10px 30px rgba(0,0,0,.14),0 0 0 .5px rgba(0,0,0,.12);z-index:3;transition:border-radius .5s ${EASE}}
+.dfs-night .ms-dock{background:rgba(40,46,64,.35);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18),inset 0 1px 1px rgba(255,255,255,.25),0 10px 30px rgba(0,0,0,.35),0 0 0 .5px rgba(0,0,0,.4)}
+.ms-dapp{position:relative;width:var(--ds);height:var(--ds);margin:0 1.5px;flex:none;transition:width .5s ${EASE},height .5s ${EASE},margin .45s ${EASE},opacity .35s,transform .45s ${EASE}}
+.ms-dapp img{width:100%;height:100%;display:block}
+.ms-dapp i{position:absolute;left:50%;bottom:-5px;width:3px;height:3px;margin-left:-1.5px;border-radius:50%;background:rgba(0,0,0,.6);opacity:0}
+.ms-dapp.is-run i{opacity:1}
+.dfs-night .ms-dapp i{background:rgba(255,255,255,.8)}
+.ms-dapp.is-going{opacity:.38}
+.ms-dapp.is-out{width:0;margin:0;opacity:0;transform:scale(.2)}
+.ms-dsep{width:1px;height:calc(var(--ds) * .8);margin:0 6px;transition:height .5s ${EASE};align-self:center;background:rgba(0,0,0,.18)}
+.dfs-night .ms-dsep{background:rgba(255,255,255,.22)}
+.ms-trash img{position:absolute;inset:0;transition:opacity .3s}.ms-trash .is-full,.ms-trash.is-full .is-empty{opacity:0}.ms-trash.is-full .is-full{opacity:1}
+/* Tinko's window, at its real size (614 x 540) */
+.ms-win{position:absolute;left:44px;top:42px;width:614px;height:540px;z-index:2;border-radius:12px;box-shadow:0 0 0 .5px rgba(0,0,0,.22),0 22px 50px rgba(0,0,0,.24),0 6px 14px rgba(0,0,0,.08)}
+.ms-win .tkw{border-radius:12px;overflow:hidden}
+/* Tinko's window (after the app: Views.swift, Theme.swift, Surface.swift) */
+.tkw{--c-card:#fbf7ef;--c-ink:#3d3a36;--c-soft:#7d776f;--c-line:#dfd5ca;--c-calm:#1a97d7;--c-calmsoft:#edf5f9;position:absolute;left:0;top:0;width:614px;height:540px;background:var(--c-card);color:var(--c-ink);font-family:"Space Mono",monospace;font-size:12px;-webkit-font-smoothing:antialiased}
 .dfs-night .tkw{--c-card:#292724;--c-ink:#fbf7ef;--c-soft:#b3aca2;--c-line:#3d3a36;--c-calm:#1dabfa;--c-calmsoft:#173241}
-.tkw-lights{position:absolute;left:12px;top:9px;display:flex;gap:8px}
-.tkw-lights i{width:12px;height:12px;border-radius:50%;background:#ed6a5e}.tkw-lights i:nth-child(2){background:#f5bf4f}.tkw-lights i:nth-child(3){background:#61c554}
+.tkw-grain{position:absolute;inset:0;pointer-events:none;opacity:.07;mix-blend-mode:multiply;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1.2 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E")}
+.dfs-night .tkw-grain{mix-blend-mode:screen;opacity:.05}
+.tkw-lights{position:absolute;left:9px;top:8px;display:flex;gap:8px;z-index:1}
+.tkw-lights i{width:12px;height:12px;border-radius:50%;background:#ff5f57;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.12)}.tkw-lights i:nth-child(2){background:#febc2e}.tkw-lights i:nth-child(3){background:#28c840}
 .tkw-dash{position:absolute;left:0;right:0;height:1px;background:linear-gradient(90deg,var(--c-line) 50%,transparent 0) 0 0/6px 1px}
 .tkw-col{position:absolute;left:28px;width:558px;top:28px;bottom:28px;border-inline:1px solid var(--c-line);background-image:linear-gradient(color-mix(in srgb,var(--c-ink) 5%,transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in srgb,var(--c-ink) 5%,transparent) 1px,transparent 1px);background-size:32px 32px;background-position:-.5px -.5px}
-.tkw-tools{position:absolute;right:14px;top:14px;display:flex;gap:6px}
-.tkw-tools span{width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--c-line);border-radius:4px;background:var(--c-card)}
+.tkw-tools{position:absolute;right:16px;top:14px;display:flex;gap:8px;z-index:1}
+.tkw-tools span{width:38px;height:38px;box-sizing:border-box;display:grid;place-items:center;border:1px solid var(--c-line);border-radius:4px;background:var(--c-card)}
 .tkw-tools svg{width:13.5px;height:13.5px;display:block;fill:var(--c-ink)}
 .tkw-stage{position:absolute;inset:0;display:grid;justify-items:center;align-content:center;gap:22px}
 .tkw-tinko{width:96px;height:78px;position:relative}
@@ -655,37 +793,46 @@ function injectSolCSS() {
 .tkw-screen.is-swap{opacity:0;transform:translateY(6px);transition:none}
 .tkw-tag{height:20px;margin-bottom:12px;display:flex;align-items:center}
 .tkw-tag span{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--c-calm);background:var(--c-calmsoft);border-radius:2px;padding:3px 7px;line-height:1.2}
-.tkw-words{font-size:13px;line-height:23px;max-width:380px;margin-bottom:22px}
+.tkw-words{font-size:13px;line-height:23px;max-width:380px;margin-bottom:24px}
 .tkw-btns{display:flex;gap:10px;justify-content:center}
 .tkw-btn{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;min-height:38px;box-sizing:border-box;padding:10px 16px;border-radius:4px;font-size:12px;letter-spacing:.6px;text-transform:uppercase;background:var(--c-ink);color:var(--c-card);transition:background .6s ${EASE},transform .2s}
 .tkw-btn.is-light{background:var(--c-card);color:var(--c-ink);box-shadow:inset 0 0 0 1px var(--c-line)}
 .tkw-btn.is-light:hover{box-shadow:inset 0 0 0 2px var(--c-line)}
-.tkw-btn.is-press{transform:scale(.95);background:var(--c-calm);color:#fff}
+.tkw-btn.is-press{transform:scale(.96)}
 .tkw-key{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;box-sizing:border-box;border-radius:3px;box-shadow:inset 0 0 0 1px color-mix(in srgb,currentColor 50%,transparent);font-size:10px;letter-spacing:0}
 .tkw-key.is-del{padding:0}
 .tkw-key svg{width:11px;height:9px;fill:none;stroke:currentColor;stroke-width:1.3}
 .tkw-roll{display:inline-flex;overflow:hidden;height:16px;line-height:16px}
 .tkw-roll b{font-weight:400;display:inline-block;transition:transform .6s ${EASE};text-shadow:0 16px 0 currentColor}
 .tkw-btn:hover .tkw-roll b{transform:translateY(-16px)}
-.tkw-undo{all:unset;cursor:pointer;margin-top:16px;font-size:10px;letter-spacing:1px;color:var(--c-soft);white-space:pre}
-.tkw-progress{width:300px;height:3px;border-radius:2px;background:color-mix(in srgb,var(--c-ink) 12%,transparent);overflow:hidden}
-.tkw-progress i{display:block;height:100%;width:0;background:var(--c-calm);transition:width .24s linear}
+.tkw-undo{all:unset;cursor:pointer;margin-top:18px;font-size:10px;letter-spacing:1px;color:var(--c-soft);white-space:pre}
+.tkw-progress{width:320px;height:3px;border-radius:2px;background:color-mix(in srgb,var(--c-ink) 12%,transparent);overflow:hidden}
+.tkw-progress i{display:block;height:100%;width:0;background:var(--c-calm);transition:width .22s linear}
 .tkw-count{margin-top:12px;font-size:11px;letter-spacing:.8px;color:var(--c-soft)}
-.tkw-stats{display:flex;gap:30px;margin:-4px 0 22px}
+.tkw-stats{display:flex;gap:28px;margin:-4px 0 24px}
 .tkw-stat{display:grid;justify-items:center;gap:2px}
 .tkw-stat b{font-weight:400;font-family:var(--_typography---font-styles--heading,serif);font-size:26px;line-height:1}
 .tkw-stat span{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--c-soft)}
-.tkw-fixes{display:grid;gap:7px;width:360px;margin:-6px 0 20px;padding:10px 12px;border-radius:4px;background:color-mix(in srgb,var(--c-ink) 4%,var(--c-card));text-align:left}
+.tkw-fixes{display:grid;gap:7px;width:360px;margin:-6px 0 22px;padding:10px 12px;border-radius:4px;background:color-mix(in srgb,var(--c-ink) 4%,var(--c-card));text-align:left}
 .tkw-fix{display:flex;align-items:center;gap:10px;font-size:11px}
 .tkw-fix i{width:12px;height:12px;flex:none;border-radius:2px;box-shadow:inset 0 0 0 1px var(--c-line);background:var(--c-card);transition:background .3s}
 .tkw-fix.is-done i{background:var(--c-calm) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.4 2.4L9.6 3.6' fill='none' stroke='white' stroke-width='1.6'/%3E%3C/svg%3E") center/10px no-repeat;box-shadow:none}
 .tkw-fix em{margin-left:auto;font-style:normal;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--c-soft)}
-.tkw-chip{margin:-8px 0 20px;padding:6px 10px;border-radius:4px;background:color-mix(in srgb,var(--c-ink) 6%,var(--c-card));font-size:11px}
-.tkw-file{display:flex;align-items:center;gap:22px;margin:-6px 0 20px;text-align:left}
+.tkw-chip{margin:-8px 0 22px;padding:6px 10px;border-radius:4px;background:color-mix(in srgb,var(--c-ink) 6%,var(--c-card));font-size:11px}
+.tkw-file{display:flex;align-items:center;gap:22px;margin:-6px 0 22px;text-align:left}
 .tkw-file-art{width:78px;height:78px;display:grid;place-items:center}
-.tkw-file-art .ts-art{width:70px;height:70px}.tkw-file-art .ts-shot{width:70px;height:46px}
+.tkw-file-art .ms-ficon{width:76px;height:76px}.tkw-file-art .ms-thumb{width:76px;height:48px}
 .tkw-file b{display:block;font-weight:400;font-family:var(--_typography---font-styles--heading,serif);font-size:22px;line-height:1.1;max-width:240px}
 .tkw-file span{display:block;margin-top:6px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--c-soft)}
+/* the pins row: a window onto the Dock's apps, the current one in the middle */
+.tkw-pins{width:420px;height:44px;margin:-6px 0 22px;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent);mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent)}
+.tkw-pins-in{display:flex;gap:8px;padding-top:4px;transition:transform .45s cubic-bezier(.33,1,.68,1)}
+.tkw-pin{display:grid;justify-items:center;gap:4px;flex:none;width:28px;transition:opacity .35s,transform .35s cubic-bezier(.33,1,.68,1),width .35s,margin .35s}
+.tkw-pin img{width:28px;height:28px;display:block;transition:transform .35s cubic-bezier(.33,1,.68,1),opacity .35s}
+.tkw-pin i{width:4px;height:4px;border-radius:50%;background:var(--c-ink);opacity:0;transition:opacity .35s}
+.tkw-pin.is-now img{transform:scale(1.15)}.tkw-pin.is-now i{opacity:1}
+.tkw-pin.is-kept img{opacity:.3}.tkw-pin.is-wait img{opacity:.6}
+.tkw-pin.is-gone{width:0;margin-inline:-4px;opacity:0;transform:scale(.2)}
 
 /* Rhythms: the moment it keeps your hours */
 [data-sol-rhythms]{position:relative}

@@ -903,7 +903,7 @@ function initFounders(host) {
       const [W, H] = full, w0 = Math.min(W, 250), h0 = 52;
       box.style.width = (w0 + (W - w0) * e).toFixed(1) + 'px';
       box.style.height = (h0 + (H - h0) * e).toFixed(1) + 'px';
-      box.style.borderRadius = (4 + 2 * e).toFixed(1) + 'px';
+      box.style.borderRadius = (h0 / 2 - (h0 / 2 - 20) * e).toFixed(1) + 'px';   // a pill, rounding off into the player's 20px
       box.classList.toggle('is-open', e > .75);
     };
     if (reduce) { open(1); if (rise) rise.classList.add('dive-in'); }
@@ -922,7 +922,8 @@ function initFounders(host) {
         if (Math.abs(e - lastE) > .0005) { lastE = e; open(e); }
         raf = requestAnimationFrame(frame);
       };
-      if (sol) sticky.style.transform = `translate3d(0,${(-.7 * innerHeight).toFixed(1)}px,0)`;
+      // (until the first frame, as if the solutions were still covering it; the frame puts it where it really is)
+      if (sol) sticky.style.transform = lastY = `translate3d(0,${(-.7 * innerHeight).toFixed(1)}px,0)`;
       open(0);
       watch(field, v => { on = v; if (on && !raf) raf = requestAnimationFrame(frame); });
       addEventListener('resize', () => { full = null; lastE = -1; lastY = ''; });
@@ -1249,20 +1250,37 @@ function injectSolCSS() {
    into the player (--open, --dark from the script) */
 [data-found] .found_field-sticky{background:var(--brand-colors--light-bage);will-change:transform}
 [data-found] .found_field-head{opacity:calc(1 - var(--open,0) * 3.5);transform:translateY(calc(var(--open,0) * -4rem));pointer-events:none}
-[data-found] .found_bar-title{font-size:clamp(2.6rem,6vw,5rem)}
+[data-found] .found_bar-title{margin-bottom:0;font-size:clamp(2rem,4.2vw,3.5rem)}
 [data-found] .found_box{width:min(76rem,88vw,calc(78vh * 16 / 9));-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);overflow:hidden}
 [data-found] .found_box::before,[data-found] .found_box::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none}
 [data-found] .found_box::before{background:rgba(241,237,226,.72);box-shadow:inset 0 0 0 1px rgba(61,58,53,.2),inset 0 1px 0 rgba(255,255,255,.55);opacity:calc(1 - var(--dark,0))}
 [data-found] .found_box::after{background:rgba(9,10,13,.86);opacity:var(--dark,0)}
 .dfs-night [data-found] .found_box::before{background:rgba(14,22,40,.62);box-shadow:inset 0 0 0 1px rgba(241,237,226,.18),inset 0 1px 0 rgba(255,255,255,.07)}
-[data-found] .found_box-small{gap:.6rem;color:#3d3a35;opacity:calc(1 - var(--open,0) * 4)}
+[data-found] .found_box-small{gap:.6rem;color:#3d3a35;opacity:calc(1 - var(--open,0) * 4);pointer-events:none}
 .dfs-night [data-found] .found_box-small{color:#f1ede2}
 [data-found] .found_box-player{opacity:0;transition:opacity .5s ease}
 [data-found] .found_box.is-open .found_box-player{opacity:1}
 [data-found] .found_box:not(.is-open) .found_box-player{pointer-events:none}
 @media (max-width:767px){[data-found] .found_box{aspect-ratio:4/5;width:88vw}}
-/* on the dark player the "coming soon" note is light */
-[data-found] .found_box .found_play::after{background:#f1ede2;color:#16181d}
+/* the player: play in the very middle, the words above it, the time bar a rounded track */
+[data-found] .found_box-text{bottom:calc(50% + 2.5rem + 1.75rem)}
+[data-found] .found_box .found_film-line{border-radius:2px}
+/* play as liquid glass (CSS only): a clear lens with a light rim on top, a soft shade at the bottom and a highlight
+   that catches the light; it swells a little under the pointer and gives when pressed */
+[data-found] .found_box .found_play{position:absolute;left:50%;top:50%;width:5rem;height:5rem;margin:-2.5rem 0 0 -2.5rem;border:0;border-radius:50%;
+  background:linear-gradient(180deg,rgba(255,255,255,.24),rgba(255,255,255,.08) 50%,rgba(255,255,255,.14));
+  -webkit-backdrop-filter:blur(6px) saturate(1.8) brightness(1.2);backdrop-filter:blur(6px) saturate(1.8) brightness(1.2);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7),inset 0 -1px 0 rgba(255,255,255,.28),inset 0 0 0 1px rgba(255,255,255,.2),
+    inset 0 12px 18px -10px rgba(255,255,255,.35),inset 0 -10px 18px -12px rgba(0,0,0,.2),0 10px 28px rgba(0,0,0,.25),0 1px 4px rgba(0,0,0,.2);
+  transition:transform .6s ${EASE},box-shadow .4s ease,background .4s ease}
+[data-found] .found_box .found_play::before{content:"";position:absolute;inset:3px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(90% 60% at 32% 6%,rgba(255,255,255,.5),rgba(255,255,255,0) 60%),radial-gradient(70% 45% at 68% 100%,rgba(255,255,255,.2),rgba(255,255,255,0) 70%)}
+[data-found] .found_box .found_play svg{position:relative;width:1.25rem;height:1.4rem;margin-left:5px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))}
+[data-found] .found_box .found_play:hover{transform:scale(1.07);background:linear-gradient(180deg,rgba(255,255,255,.3),rgba(255,255,255,.11) 50%,rgba(255,255,255,.18))}
+[data-found] .found_box .found_play:active{transform:scale(.96);transition-duration:.15s}
+/* on the dark player the "coming soon" note is light, and round like the rest */
+[data-found] .found_box .found_play::after{background:#f1ede2;color:#16181d;border-radius:99px;padding:.45rem .8rem}
+@media (max-width:767px){[data-found] .found_box .found_play{width:4.25rem;height:4.25rem;margin:-2.125rem 0 0 -2.125rem}[data-found] .found_box-text{bottom:calc(50% + 2.125rem + 1.5rem)}}
 /* the play button (everywhere) */
 [data-found] .found_play{color:#fff;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);transition:transform .5s ${EASE},background-color .3s ease,border-color .3s ease;text-decoration:none}
 [data-found] .found_play svg{margin-left:4px}

@@ -850,12 +850,12 @@ function injectSolCSS() {
 /* (.sol_top's small-label look, caps and a faded grey, is for the chip, not the title beside it) */
 [data-sol] .is-sol-meta .sol_top .sol_chips{opacity:.72}
 [data-sol] .is-sol-meta .sol_top .sol_card-title{text-transform:none;letter-spacing:normal}
-/* what Tinko does: there while you watch him, in the same quiet grey as the line above it */
-[data-sol] [data-tinko-list]{margin-top:2.25rem;row-gap:1.25rem;opacity:.62}
-[data-sol] [data-tinko-list] .offer_item{gap:.85rem}
-[data-sol] [data-tinko-list] .icon_diamond{color:inherit;display:flex}[data-sol] [data-tinko-list] .icon_diamond svg{width:10px;height:10px}
-[data-sol] [data-tinko-list] .context_item{color:inherit;font-size:.75rem;line-height:1.2;letter-spacing:.04em}
-[data-sol] [data-tinko-list]+.sol_link{margin-top:2.25rem}
+/* what each one does (the site's diamond list): there while you watch the demo, in the same quiet grey as the line above it */
+[data-sol] .is-sol-meta .list_offer{margin-top:2.25rem;row-gap:1.25rem;opacity:.62}
+[data-sol] .is-sol-meta .list_offer .offer_item{gap:.85rem}
+[data-sol] .is-sol-meta .list_offer .icon_diamond{color:inherit;display:flex}[data-sol] .is-sol-meta .list_offer .icon_diamond svg{width:10px;height:10px}
+[data-sol] .is-sol-meta .list_offer .context_item{color:inherit;font-size:.75rem;line-height:1.2;letter-spacing:.04em}
+[data-sol] .is-sol-meta .list_offer+.sol_link{margin-top:2.25rem}
 /* the homepage's grid (with its blue lines) behind a demo, fading out toward the edges */
 [data-sol] .is-sol-demo{position:relative}
 [data-sol] .is-sol-demo>:not(.grid-background){position:relative;z-index:1}

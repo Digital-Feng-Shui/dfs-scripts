@@ -52,7 +52,8 @@ export function initSolutions(root) {
    and cropped to the slide, without sound (dive/media; the full lessons stay on the course's own video host). It
    starts on the lesson cover with the play button, like the course; at the end of a clip the course's own
    Complete-and-Continue overlay fades in and opens the course in a new tab. Modules open and close.
-   Laid out at a fixed size (1000 wide, the course's own proportions) and scaled to the column, like the Rhythms window; on phones without the list.
+   Laid out at a fixed size (1000 wide, the course's own proportions) and scaled to the column, like the Rhythms window; on phones
+   520 wide, with the module list under the player (a short, scrolling one).
    --------------------------------------------------------- */
 const CLIP = name => new URL(`./media/${name}`, import.meta.url).href;
 const COVER = 'https://cdn.prod.website-files.com/67f2341f69b4c6d58de38b9d/';
@@ -128,9 +129,10 @@ function initCourse(host) {
   v.muted = true; v.defaultMuted = true;   // a preview on the homepage: never with sound
   const ending = on => overlay.classList.toggle('is-on', on);
   const st = (k, val) => player.setAttribute('data-player-' + k, val);
-  // fit: the course's own sizes, scaled to the column; phones get the player and its buttons only
+  // fit: the course's own sizes, scaled to the column; on phones the list goes under the player (a narrower layout,
+  // so the text isn't scaled down as far)
   const fit = () => {
-    const w = host.clientWidth, phone = w < 560, size = phone ? 690 : W;   // phones: the player and its buttons only
+    const w = host.clientWidth, phone = w < 560, size = phone ? 520 : W;
     host.classList.toggle('is-phone', phone);
     cpr.style.transform = `scale(${w / size})`;
     host.style.height = (cpr.offsetHeight * w / size) + 'px';
@@ -796,18 +798,20 @@ function initTinko(host) {
    Rhythms: the moment it keeps your hours
    --------------------------------------------------------- */
 const CALM = 'https://cdn.prod.website-files.com/67f2341f69b4c6d58de38b9d/6ac7e64e4bdd7583341f6ea4_rhythms-calm-mountains.webp';
+const CALM_NIGHT = new URL('./media/rhythms/mountains-night.webp', import.meta.url).href;   // the app's own night mountains (rhythms/Support)
 
 function initRhythms(host) {
   const layer = document.createElement('div');
   layer.className = 'rs-layer'; layer.setAttribute('aria-hidden', 'true');
   layer.innerHTML = `
-    <div class="rs-toast"><span class="rs-tstar">${STAR}</span><div><div class="rs-ttag">Closed by Evenings</div><div class="rs-tmsg">YouTube is resting until tomorrow 07:00.</div></div><span class="rs-tx">✕</span><i class="rs-tbar"></i></div>
+    <div class="rs-toast"><span class="rs-tstar">${STAR}</span><div><div class="rs-ttag">Evenings</div><div class="rs-tmsg">YouTube is resting until tomorrow 07:00.</div></div><span class="rs-tx">✕</span><i class="rs-tbar"></i></div>
     <div class="rs-browser">
       <div class="rs-bbar"><span class="rs-bdots"><i></i><i></i><i></i></span><span class="rs-btab"><span class="rs-bfav">${STAR}</span><span class="rs-btitle">New Tab</span></span><span class="rs-baddr"><span class="rs-btyped"></span><i class="rs-bcaret"></i></span></div>
       <div class="rs-bview"><i class="rs-bprog"></i>
         <div class="rs-bstart"><b>Favorites</b><div>${'<i></i>'.repeat(6)}</div></div>
-        <div class="rs-calm" style="background-image:url(${CALM})"><div class="rs-calm-in"><div class="rs-calm-mark">${STAR}</div><div class="rs-calm-h">Not now.</div>
-          <div class="rs-calm-m">YouTube is resting until 07:00.</div><div class="rs-calm-s">You designed it this way.</div><div class="rs-calm-chip">Blocked by your “Evenings” rhythm</div></div></div>
+        <div class="rs-calm" style="--calm-day:url(${CALM});--calm-night:url(${CALM_NIGHT})"><div class="rs-calm-in"><div class="rs-calm-mark">${STAR}</div><div class="rs-calm-h">Not now.</div>
+          <p class="rs-calm-m">YouTube is resting until 07:00.</p><p class="rs-calm-m is-soft">You designed it this way.</p><span class="rs-calm-chip">Blocked by your “Evenings” rhythm</span>
+          <span class="rs-calm-btn"><span>Close page</span><i>✕</i></span></div></div>
       </div>
     </div>`;
   host.append(layer);
@@ -910,7 +914,7 @@ function initFounders(host) {
       const [W, H] = full, w0 = Math.min(W, 250), h0 = 52;
       box.style.width = (w0 + (W - w0) * e).toFixed(1) + 'px';
       box.style.height = (h0 + (H - h0) * e).toFixed(1) + 'px';
-      box.style.borderRadius = (h0 / 2 - (h0 / 2 - 20) * e).toFixed(1) + 'px';   // a pill, rounding off into the player's 20px
+      box.style.borderRadius = (3 + 17 * e).toFixed(1) + 'px';   // a square button, rounding off into the player's 20px
       box.classList.toggle('is-open', e > .75);
     };
     if (reduce) { open(1); if (rise) rise.classList.add('dive-in'); }
@@ -1067,12 +1071,15 @@ function initClose(host, above) {
    and over the bottom nav; the course page's mountains rise a little slower than the text. Then the site's lines
    come back, drawn in: the side lines and the dashed ones between the columns down from the top edge, the dashed
    one across from the left; then the columns, left to right; a beat later the row under them (the socials and Log
-   in), whose lines run out to the page edge. Log in knows if you're signed in (My courses) and fills like a load.
+   in), whose lines run out to the page edge. On phones it's a list: the brand, then a row per group (title left,
+   links right, split at 40%), then the socials and Log in; the row lines draw in from the left.
+   Log in knows if you're signed in (My courses) and fills like a load.
    Its look is on the Webflow classes (foot_*); the dashes and the motion are here.
    --------------------------------------------------------- */
 function initFooter(host) {
   const ground = host.querySelector('[data-foot-ground]'), frameEl = host.querySelector('[data-foot-frame]');
   const lines = [...host.querySelectorAll('[data-foot-line]')], hline = host.querySelector('[data-foot-hline]');
+  const rules = [...host.querySelectorAll('[data-foot-rule]')];   // the row lines of the phone layout
   const cols = [...host.querySelectorAll('[data-foot-col]')];
   const cells = [...host.querySelectorAll('[data-foot-cell]')].map(c => ({
     lines: [...c.querySelectorAll('[data-foot-cline]')], inner: c.querySelector('[data-foot-in]'), fromRight: c.dataset.footCell === 'left' }));
@@ -1111,6 +1118,7 @@ function initFooter(host) {
     if (ground) ground.style.transform = `translate3d(0,${((1 - p) * 16).toFixed(2)}vh,0)`;
     lines.forEach((l, i) => { l.style.clipPath = `inset(0 0 ${cut(smooth(.35 + i * .03, .85 + i * .03, p))} 0)`; });
     if (hline) hline.style.clipPath = `inset(0 ${cut(smooth(.35, .85, p))} 0 0)`;
+    rules.forEach((r, i) => { r.style.clipPath = `inset(0 ${cut(smooth(.42 + i * .06, .82 + i * .05, p))} 0 0)`; });
     cols.forEach((c, i) => {
       const k = smooth(.6 + i * .05, Math.min(.98, .88 + i * .02), p);
       c.style.opacity = k.toFixed(3); c.style.transform = `translate3d(0,${((1 - k) * 14).toFixed(1)}px,0)`;
@@ -1123,9 +1131,9 @@ function initFooter(host) {
       if (c.inner) { const f = smooth(.8 + i * .03, .97 + i * .01, p); c.inner.style.opacity = f.toFixed(3); c.inner.style.transform = `translate3d(0,${((1 - f) * 10).toFixed(1)}px,0)`; }
     });
   };
-  // on phones the dashed lines between the columns start under the brand row
+  // on phones the dashed line between the two columns starts under the brand row
   const size = () => {
-    const b = cols[0] && frameEl ? cols[0].getBoundingClientRect().bottom - frameEl.getBoundingClientRect().top + 18 : 0;
+    const b = cols[0] && frameEl ? cols[0].getBoundingClientRect().bottom - frameEl.getBoundingClientRect().top : 0;
     if (frameEl) frameEl.style.setProperty('--b', Math.max(0, b).toFixed(0) + 'px');
   };
   size(); addEventListener('resize', size);
@@ -1191,8 +1199,8 @@ function injectSolCSS() {
 [data-course-demo] .c_item[data-l="0.1"],[data-course-demo] .c_item[data-l="0.2"]{cursor:pointer}
 [data-course-demo] .course_module{cursor:pointer}
 [data-course-demo] .course_navigation_bar .cnb_option{border:0;cursor:pointer}
-[data-course-demo].is-phone .cpr{width:690px;grid-template-columns:690px}
-[data-course-demo].is-phone .cpr-right{display:none}
+[data-course-demo].is-phone .cpr{width:520px;grid-template-columns:520px}
+[data-course-demo].is-phone .cpr-right{height:330px;border-left:0;border-top:1px dashed var(--brand-colors--dark-bage,#dfd5c9)}
 [data-course-demo] .bunny-player{overflow:hidden;cursor:pointer}
 [data-course-demo] .bunny-player__video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 [data-course-demo] .bunny-player__placeholder{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
@@ -1383,10 +1391,10 @@ function injectSolCSS() {
 /* Rhythms: the moment it keeps your hours */
 [data-sol-rhythms]{position:relative}
 .rs-layer{position:absolute;inset:0;pointer-events:none;z-index:3;font-size:16px}
-.rs-toast{position:absolute;left:-1em;bottom:2.4em;width:25.5em;display:flex;align-items:center;gap:.8em;padding:.8em .9em .8em 1em;border-radius:.25em;background:var(--brand-colors--light-bage,#fbf7ee);color:var(--brand-colors--dark_gray,#3d3a35);box-shadow:0 0 0 1px var(--brand-colors--dark-bage,#dfd5c9),0 24px 48px -20px rgba(61,58,53,.45);font-family:var(--_typography---font-styles--body,monospace);overflow:hidden;opacity:0;transform:translateY(.8em);transition:opacity .45s,transform .6s ${EASE}}
+.rs-toast{position:absolute;left:-1em;bottom:2.4em;width:25.5em;display:flex;align-items:center;gap:.8em;padding:.8em .9em .8em 1em;border-radius:2px;background:#fbf7ef;color:#3d3a36;box-shadow:0 0 0 1px #dfd5ca,0 24px 48px -20px rgba(61,58,53,.45);font-family:var(--_typography---font-styles--body,monospace);overflow:hidden;opacity:0;transform:translateY(.8em);transition:opacity .45s,transform .6s ${EASE}}
 .rs-layer.is-toast .rs-toast{opacity:1;transform:none}
 .rs-tstar{width:1.25em;height:1.25em;flex:none}.rs-tstar svg{width:100%;height:100%}
-.rs-ttag{font-size:.62em;letter-spacing:.14em;text-transform:uppercase;color:var(--brand-colors--blue,#0297db)}
+.rs-ttag{font-size:.62em;letter-spacing:.14em;text-transform:uppercase;color:#1a97d7}
 .rs-tmsg{margin-top:.2em;font-size:.72em;letter-spacing:.06em;text-transform:uppercase}
 .rs-tx{margin-left:auto;font-size:.7em;opacity:.6}
 .rs-tbar{position:absolute;left:0;bottom:0;height:2px;width:100%;background:radial-gradient(circle,#0297db,#3fc3ff);transform-origin:left;transform:scaleX(1)}
@@ -1407,24 +1415,38 @@ function injectSolCSS() {
 .rs-layer.is-loading .rs-bprog{width:80%;transition:width .6s ease-out}
 .rs-bstart{position:absolute;inset:0;display:grid;align-content:center;justify-items:center;gap:.8em;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;font-size:.65em;color:#2b2926}
 .rs-bstart>div{display:grid;grid-template-columns:repeat(6,2.6em);gap:.7em}.rs-bstart i{aspect-ratio:1;border-radius:.6em;background:#e5e0d6}
-.rs-calm{position:absolute;inset:0;display:grid;place-items:center;background-size:cover;background-position:center;opacity:0;transform:scale(1.02);transition:opacity .9s ${EASE},transform .9s ${EASE};color:#3d3a35}
-.rs-calm::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,rgba(251,247,239,.92),rgba(251,247,239,.25) 60%)}
+/* the blocked page, as Rhythms draws it (BlockServer.swift): the site's grid over the mountains, a glow behind the
+   words, the Keeper in a breathing circle, "Not now." large, the rhythm's tag, Close page. Sizes in the page's own
+   proportions (p = 1em inside .rs-calm-in) */
+.rs-calm{position:absolute;inset:0;display:grid;place-items:center;opacity:0;transform:scale(1.02);transition:opacity .9s ${EASE},transform .9s ${EASE};color:#3d3a36;
+  background:repeating-linear-gradient(to right,rgba(0,0,0,.05) 0 1px,transparent 1px .6em) 0 0/1.2em 1.2em,repeating-linear-gradient(rgba(0,0,0,.05) 0 1px,transparent 1px .6em) 0 0/1.2em 1.2em,#f1ede3 var(--calm-day) center bottom/cover no-repeat}
+.rs-calm::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,rgba(251,247,239,.88),rgba(251,247,239,0) 46%)}
 .rs-layer.is-calm .rs-calm{opacity:1;transform:none}
-.rs-calm-in{position:relative;display:grid;justify-items:center;text-align:center;gap:.35em;font-family:var(--_typography---font-styles--body,monospace)}
-.rs-calm-mark{width:2.4em;height:2.4em;display:grid;place-items:center;border-radius:50%;background:rgba(2,151,219,.1);margin-bottom:.2em}
-.rs-calm-mark svg{width:1em;height:1em}
-.rs-calm-h{font-family:var(--_typography---font-styles--heading,serif);font-size:2em;line-height:1}
-.rs-calm-m{font-size:.55em;letter-spacing:.1em;text-transform:uppercase}
-.rs-calm-s{font-size:.5em;letter-spacing:.1em;text-transform:uppercase;opacity:.6}
-.rs-calm-chip{margin-top:.3em;padding:.35em .6em;font-size:.48em;letter-spacing:.12em;text-transform:uppercase;color:#0297db;background:rgba(2,151,219,.1)}
+.rs-calm-in{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;font-size:.4em;line-height:1.6;font-family:var(--_typography---font-styles--body,monospace)}
+.rs-calm-mark{position:relative;width:8.8em;height:8.8em;margin-bottom:2.7em;display:grid;place-items:center}
+.rs-calm-mark::before{content:"";position:absolute;inset:0;border-radius:50%;background:#edf5f9;opacity:.9;animation:rsBreathe 8s ease-in-out infinite}
+.rs-calm-mark svg{position:relative;width:3.5em;height:3.5em}
+.rs-calm-h{font-family:var(--_typography---font-styles--heading,serif);font-size:6.1em;line-height:1.05;margin-bottom:.28em}
+.rs-calm-m{margin:0;text-transform:uppercase;letter-spacing:.04em}
+.rs-calm-m.is-soft{opacity:.6;margin-top:.5em}
+.rs-calm-chip{margin-top:1.7em;padding:.4em .8em;border-radius:2px;font-size:.8em;letter-spacing:.1em;text-transform:uppercase;color:#1a97d7;background:#edf5f9}
+.rs-calm-btn{margin-top:2.4em;display:flex;align-items:center;gap:.75em;padding:.75em .9em .75em 1em;border-radius:.25em;background:#3d3a36;color:#fbf7ef;font-size:.8em;letter-spacing:.08em;text-transform:uppercase}
+.rs-calm-btn i{display:grid;place-items:center;width:1.2em;height:1.2em;border-radius:.125em;background:#fbf7ef;color:#3d3a36;font-style:normal;font-size:.8em}
+@keyframes rsBreathe{0%,100%{transform:scale(.88)}50%{transform:scale(1.12)}}
+.dfs-night .rs-calm{color:#ddd8cc;background:repeating-linear-gradient(to right,rgba(255,255,255,.035) 0 1px,transparent 1px .6em) 0 0/1.2em 1.2em,repeating-linear-gradient(rgba(255,255,255,.035) 0 1px,transparent 1px .6em) 0 0/1.2em 1.2em,#141e34 var(--calm-night) center bottom/cover no-repeat}
+.dfs-night .rs-calm::before{background:radial-gradient(circle at 50% 50%,rgba(14,22,40,.86),rgba(14,22,40,0) 46%)}
+.dfs-night .rs-calm-mark::before,.dfs-night .rs-calm-chip{background:#11233d}
+.dfs-night .rs-calm-btn{background:#ddd8cc;color:#0e1628}.dfs-night .rs-calm-btn i{background:#0e1628;color:#ddd8cc}
+@media (prefers-reduced-motion:reduce){.rs-calm-mark::before{animation:none}}
 .dfs-night .rs-browser{background:#1b2236}.dfs-night .rs-bbar{background:#232b42;color:#ecebe8;border-color:rgba(255,255,255,.08)}.dfs-night .rs-btab,.dfs-night .rs-baddr{background:#2b3450}.dfs-night .rs-bcaret{background:#ecebe8}.dfs-night .rs-bstart{color:#ecebe8}.dfs-night .rs-bstart i{background:#2b3450}
-.dfs-night .rs-calm{color:#f1ede2}.dfs-night .rs-calm-chip{color:#7fd0ff;background:rgba(29,171,250,.18)}.dfs-night .rs-calm::before{background:radial-gradient(circle at 50% 50%,rgba(14,22,40,.9),rgba(14,22,40,.55) 60%)}
 @media (max-width:767px){.rs-toast{left:0;width:19em;font-size:.9em}.rs-browser{right:0;width:21em}}
 /* Who's behind it, the journal and the close: their look is on their Webflow classes (found_*, journal_*, close_*,
    sol_section found_section / journal_section). Here only what the Designer can't hold: what the script moves
    (--open, --dark, --settle and the is-open / dive-in states), ::before / ::after, the night versions of those,
    hovers that change a child, and the Webflow form's own inner parts. */
 [data-found] .found_field-head{opacity:calc(1 - var(--open,0) * 3.5);transform:translateY(calc(var(--open,0) * -4rem))}
+/* (on phones the player is a 16:9 strip, so the heading stays above it instead of making room) */
+@media (max-width:767px){[data-found] .found_field-head{opacity:1;transform:none}}
 [data-found] .found_box::before,[data-found] .found_box::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none}
 [data-found] .found_box::before{background:rgba(241,237,226,.72);box-shadow:inset 0 0 0 1px rgba(61,58,53,.2),inset 0 1px 0 rgba(255,255,255,.55);opacity:calc(1 - var(--dark,0))}
 [data-found] .found_box::after{background:rgba(9,10,13,.86);opacity:var(--dark,0)}
@@ -1459,7 +1481,7 @@ function injectSolCSS() {
 /* the footer: the dashes (Webflow can't hold a dashed gradient with a colour variable), the night mountains,
    the login cell's hover and load */
 [data-foot] .foot_line.is-dash{background-image:repeating-linear-gradient(to bottom,var(--brand-colors--dark-bage) 0 4px,transparent 4px 8px)}
-[data-foot] .foot_hline,[data-foot] .foot_cline{background-image:repeating-linear-gradient(to right,var(--brand-colors--dark-bage) 0 4px,transparent 4px 8px)}
+[data-foot] .foot_hline,[data-foot] .foot_cline,[data-foot] .foot_rule{background-image:repeating-linear-gradient(to right,var(--brand-colors--dark-bage) 0 4px,transparent 4px 8px)}
 [data-foot] .foot_col,[data-foot] .foot_cell-in{will-change:opacity,transform}
 .dfs-night [data-foot] .foot_mtn{filter:contrast(1.45) invert(1) sepia(.55) hue-rotate(178deg) saturate(1.5) brightness(.95);mix-blend-mode:screen}
 [data-foot] .foot_login-load{background:color-mix(in srgb,var(--brand-colors--blue) 12%,var(--brand-colors--light-bleu))}

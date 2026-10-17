@@ -12,7 +12,7 @@
                                         reaches 21:30, Evenings switches on, the toast says what closed, and a browser
                                         that tries YouTube gets the calm page instead. Pauses while you use the app.
    And the sections after it: Who's behind it ([data-found], see initFounders), the journal ([data-journal], see
-   initJournal) and the close ([data-close], see initClose).
+   initJournal), the close ([data-close], see initClose) and the footer ([data-foot], see initFooter).
 
    Everything only runs while it's on screen. With reduced motion nothing plays by itself.
    ========================================================= */
@@ -40,6 +40,8 @@ export function initSolutions(root) {
   if (journal) initJournal(journal);
   const close = document.querySelector('[data-close]');
   if (close) initClose(close, journal);
+  const foot = document.querySelector('[data-foot]');
+  if (foot) initFooter(foot);
 }
 
 /* ---------------------------------------------------------
@@ -1016,7 +1018,9 @@ function initJournal(host) {
 function initClose(host, above) {
   const sticky = host.querySelector('[data-close-sticky]'), pin = host.querySelector('[data-close-pin]') || host;
   const shader = host.querySelector('[data-close-shader]'), rise = host.querySelector('[data-close-rise]');
-  const kicker = host.querySelector('[data-close-kicker]');
+  const kicker = host.querySelector('[data-close-kicker]'), foot = document.querySelector('[data-foot]');
+  let shade = null;
+  if (foot && !reduce) { shade = document.createElement('div'); shade.className = 'close-shade'; shade.setAttribute('aria-hidden', 'true'); sticky.append(shade); }
   if (rise) riseWords(rise);
   if (kicker) riseWords(kicker);
   // the dive's own colours
@@ -1040,8 +1044,11 @@ function initClose(host, above) {
     const vh = innerHeight, r = pin.getBoundingClientRect();
     // the hand-over: while the journal's bottom edge crosses the screen this lags behind, at a third of the scroll
     const ab = above ? Math.max(0, Math.min(vh, above.getBoundingClientRect().bottom)) : 0;
-    const ty = ab > 0 ? `translate3d(0,${(-.7 * ab).toFixed(1)}px,0)` : '';
+    // and at the end the footer slides up over it: it stays behind at a third of the scroll, a little dimmer
+    const fo = foot ? Math.max(0, Math.min(vh, vh - foot.getBoundingClientRect().top)) : 0;
+    const ty = ab > 0 ? `translate3d(0,${(-.7 * ab).toFixed(1)}px,0)` : fo > 0 ? `translate3d(0,${(.67 * fo).toFixed(1)}px,0)` : '';
     if (ty !== lastY) { lastY = ty; sticky.style.transform = ty; }
+    if (shade) shade.style.opacity = (fo / vh * .28).toFixed(3);
     // (the question comes in as the journal's last edge goes, the answer as it settles)
     if (kicker) kicker.classList.toggle('dive-in', ab < vh * .25);
     // then, while it holds still, it settles: done at 75% through
@@ -1053,6 +1060,97 @@ function initClose(host, above) {
   settle(0);
   watch(host, v => { on = v; if (on && !raf) raf = requestAnimationFrame(frame); });
   addEventListener('resize', () => { lastY = ''; lastE = -1; });
+}
+
+/* ---------------------------------------------------------
+   The footer ([data-foot]): the ground comes up. It slides up over the close (which stays behind, see initClose)
+   and over the bottom nav; the course page's mountains rise a little slower than the text. Then the site's lines
+   come back, drawn in: the side lines and the dashed ones between the columns down from the top edge, the dashed
+   one across from the left; then the columns, left to right; a beat later the row under them (the socials and Log
+   in), whose lines run out to the page edge. Log in knows if you're signed in (My courses) and fills like a load.
+   Its look is on the Webflow classes (foot_*); the dashes and the motion are here.
+   --------------------------------------------------------- */
+function initFooter(host) {
+  const ground = host.querySelector('[data-foot-ground]'), frameEl = host.querySelector('[data-foot-frame]');
+  const lines = [...host.querySelectorAll('[data-foot-line]')], hline = host.querySelector('[data-foot-hline]');
+  const cols = [...host.querySelectorAll('[data-foot-col]')];
+  const cells = [...host.querySelectorAll('[data-foot-cell]')].map(c => ({
+    lines: [...c.querySelectorAll('[data-foot-cline]')], inner: c.querySelector('[data-foot-in]'), fromRight: c.dataset.footCell === 'left' }));
+  const nav = document.querySelector('[data-bottom-nav-init]');
+
+  // the links that go somewhere on this page, and the ones that have nowhere to go yet
+  host.querySelectorAll('[data-foot-to]').forEach(a => a.addEventListener('click', e => {
+    const to = document.querySelector(a.dataset.footTo); if (!to) return;
+    e.preventDefault();
+    const y = to.getBoundingClientRect().top + scrollY - innerHeight * .12;
+    window.lenis ? window.lenis.scrollTo(y, { duration: 1.6 }) : scrollTo({ top: y, behavior: reduce ? 'auto' : 'smooth' });
+  }));
+  host.querySelectorAll('[data-foot-soon]').forEach(a => a.addEventListener('click', e => e.preventDefault()));
+
+  // Log in, or My courses when you're signed in (Memberstack if it's on the page, otherwise its token)
+  const login = host.querySelector('[data-foot-login]'), loginText = host.querySelector('[data-foot-login-text]');
+  if (login) {
+    const signedIn = () => {
+      try { if (localStorage.getItem('_ms-mid')) return true; } catch (e) {}
+      return /(?:^|;\s*)_ms-mid=/.test(document.cookie);
+    };
+    const mark = yes => { if (!yes) return; login.setAttribute('href', '/dashboard'); if (loginText) loginText.textContent = 'My courses'; };
+    mark(signedIn());
+    if (window.$memberstackDom) window.$memberstackDom.getCurrentMember().then(r => mark(!!(r && r.data))).catch(() => {});
+    login.addEventListener('click', e => {
+      if (reduce || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
+      e.preventDefault();
+      login.classList.add('is-loading');
+      setTimeout(() => { location.href = login.getAttribute('href'); }, 650);
+    });
+    addEventListener('pageshow', () => login.classList.remove('is-loading'));
+  }
+
+  const cut = k => ((1 - k) * 100).toFixed(2) + '%';
+  const draw = p => {
+    if (ground) ground.style.transform = `translate3d(0,${((1 - p) * 16).toFixed(2)}vh,0)`;
+    lines.forEach((l, i) => { l.style.clipPath = `inset(0 0 ${cut(smooth(.35 + i * .03, .85 + i * .03, p))} 0)`; });
+    if (hline) hline.style.clipPath = `inset(0 ${cut(smooth(.35, .85, p))} 0 0)`;
+    cols.forEach((c, i) => {
+      const k = smooth(.6 + i * .05, Math.min(.98, .88 + i * .02), p);
+      c.style.opacity = k.toFixed(3); c.style.transform = `translate3d(0,${((1 - k) * 14).toFixed(1)}px,0)`;
+    });
+    cells.forEach((c, i) => {
+      c.lines.forEach((l, j) => {
+        const k = smooth(.66 + i * .04 + j * .03, .9 + i * .03 + j * .02, p);
+        l.style.clipPath = c.fromRight ? `inset(0 0 0 ${cut(k)})` : `inset(0 ${cut(k)} 0 0)`;
+      });
+      if (c.inner) { const f = smooth(.8 + i * .03, .97 + i * .01, p); c.inner.style.opacity = f.toFixed(3); c.inner.style.transform = `translate3d(0,${((1 - f) * 10).toFixed(1)}px,0)`; }
+    });
+  };
+  // on phones the dashed lines between the columns start under the brand row
+  const size = () => {
+    const b = cols[0] && frameEl ? cols[0].getBoundingClientRect().bottom - frameEl.getBoundingClientRect().top + 18 : 0;
+    if (frameEl) frameEl.style.setProperty('--b', Math.max(0, b).toFixed(0) + 'px');
+  };
+  size(); addEventListener('resize', size);
+  if (reduce) { draw(1); return; }
+
+  let on = false, raf = 0, last = -1, lastNav = '';
+  const frame = () => {
+    raf = 0; if (!on) return;
+    const vh = innerHeight, top = host.getBoundingClientRect().top;
+    const p = Math.max(0, Math.min(vh, vh - top)) / vh;
+    if (Math.abs(p - last) > .0005) { last = p; draw(p); }
+    // the bottom nav goes behind the footer: cut away whatever the footer covers
+    if (nav) {
+      const nb = nav.getBoundingClientRect().bottom, c = Math.max(0, nb - top);
+      const clip = c > 0 ? `inset(0 0 ${c.toFixed(1)}px 0)` : '';
+      if (clip !== lastNav) { lastNav = clip; nav.style.clipPath = clip; }
+    }
+    raf = requestAnimationFrame(frame);
+  };
+  draw(0);
+  watch(host, v => {
+    on = v; if (on && !raf) raf = requestAnimationFrame(frame);
+    if (!v && nav && lastNav) { lastNav = ''; nav.style.clipPath = ''; }
+  });
+  addEventListener('resize', () => { last = -1; });
 }
 
 /* ---------------------------------------------------------
@@ -1356,6 +1454,21 @@ function injectSolCSS() {
 [data-close] .close_door:hover .close_door-arrow{transform:translateX(4px)}
 [data-close] .close_form form{display:flex;justify-content:center}
 [data-close] .close_input:-webkit-autofill,[data-close] .close_input:-webkit-autofill:focus{-webkit-text-fill-color:var(--dive-text);-webkit-box-shadow:0 0 0 100px var(--dive-back) inset;caret-color:var(--dive-text)}
+/* the close stays behind the footer, a little dimmer */
+[data-close] .close-shade{position:absolute;inset:0;z-index:3;background:#05070d;opacity:0;pointer-events:none}
+/* the footer: the dashes (Webflow can't hold a dashed gradient with a colour variable), the night mountains,
+   the login cell's hover and load */
+[data-foot] .foot_line.is-dash{background-image:repeating-linear-gradient(to bottom,var(--brand-colors--dark-bage) 0 4px,transparent 4px 8px)}
+[data-foot] .foot_hline,[data-foot] .foot_cline{background-image:repeating-linear-gradient(to right,var(--brand-colors--dark-bage) 0 4px,transparent 4px 8px)}
+[data-foot] .foot_col,[data-foot] .foot_cell-in{will-change:opacity,transform}
+.dfs-night [data-foot] .foot_mtn{filter:contrast(1.45) invert(1) sepia(.55) hue-rotate(178deg) saturate(1.5) brightness(.95);mix-blend-mode:screen}
+[data-foot] .foot_login-load{background:color-mix(in srgb,var(--brand-colors--blue) 12%,var(--brand-colors--light-bleu))}
+[data-foot] .foot_cell.is-login:hover .foot_login-fill,[data-foot] .foot_cell.is-login:focus-visible .foot_login-fill,[data-foot] .foot_cell.is-login.is-loading .foot_login-fill{opacity:1}
+[data-foot] .foot_cell.is-login.is-loading .foot_login-load{transform:scaleX(1);transition:transform .65s cubic-bezier(.625,.05,0,1)}
+[data-foot] .foot_cell.is-login:hover .foot_login-label,[data-foot] .foot_cell.is-login:focus-visible .foot_login-label{color:var(--brand-colors--blue)}
+[data-foot] .foot_cell.is-login:hover .foot_login-arrow{transform:translateX(4px)}
+[data-foot] .foot_cell.is-login:focus-visible{outline:2px solid var(--brand-colors--blue);outline-offset:-2px}
+[data-foot] a:focus-visible{outline:2px solid var(--brand-colors--blue);outline-offset:3px}
 [data-close] .w-form-done,[data-close] .w-form-fail{margin-top:.25rem;padding:0;background:none;color:inherit;font-size:.82rem;text-align:center}
 /* (night.css styles every Webflow field at night and loads after the Webflow classes; the close's field keeps its own) */
 .dfs-night [data-close] .close_input{color:var(--dive-text);background-color:var(--dive-glass);border-color:var(--dive-nav-line);border-right-width:0}

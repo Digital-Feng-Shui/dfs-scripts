@@ -1933,7 +1933,14 @@
     // e.g., /courses/fundamentals → "fundamentals"
     const currentCourse = window.location.pathname.split('/courses/')[1]?.split('/')[0] ||
       'fundamentals';
-    const lessons = [
+    // V2 (/courses/fundamentals-v2): the lesson list comes from the menu itself, so slots can be added
+    // in Webflow without touching this file. data-lesson-extra marks a lesson outside the progress bar
+    // (optional lessons, Why, Bonus). Progress is saved under courses['fundamentals-v2'], never under 1.0.
+    const lessons = (opts && opts.lessonsFromMenu)
+      ? Array.from(document.querySelectorAll('.c_item[id^="lesson-"]')).map(el => ({
+          id: el.id, complete: false, extra: el.hasAttribute('data-lesson-extra')
+        }))
+      : [
       { id: "lesson-0.1", complete: false },
       { id: "lesson-0.2", complete: false },
       // extra: an add-on lesson (Tinko). Prev/Next pass through it, but it doesn't count towards
@@ -6783,6 +6790,11 @@
     dfsCourse();
     dfsFormValidation();
     if (document.querySelector('[data-helper-connect]')) dfsHelper();   // lesson 0.3: Tinko
+  } else if (path === '/courses/fundamentals-v2') {
+    // Fundamentals 2.0 build (staging): same player, lessons read from the menu, own progress key
+    dfsCourse({ lessonsFromMenu: true });
+    dfsFormValidation();
+    if (document.querySelector('[data-helper-connect]')) dfsHelper();   // lesson 0.2: Meet Tinko
   } else if (path === '/dashboard') {
     dfsDashboard();
     if (document.querySelector('[data-helper-connect]')) dfsHelper();   // Tools: Tinko install + connect

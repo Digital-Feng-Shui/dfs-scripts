@@ -896,24 +896,23 @@ html:not([data-tinko="owned"]) .tinko-gate_content{filter:blur(6px);opacity:.6;u
 @media (prefers-reduced-motion:reduce){.dash-card_arrows{transition:none}}
 
 /* BLOG — /resources topic filter + the article's "On this page" (main.js dfsFilter / dfsToc, Osmo Supply).
-   Lo-fi prototype: the layout is on Webflow's filter-* / toc-* / res_* / post_* classes. Here only what the
-   Designer can't hold: the data-attribute states and the article text inside the rich text. */
-.filter-btn,.reset-btn{font-family:inherit;line-height:inherit}
-.filter-btn[data-filter-status="active"]{background-color:#131313;color:#EFEEEC}
+   The look is on Webflow's filter-* / toc-* / res_* / feat_* / post_* classes (site variables, so night mode
+   comes along). Here only what the Designer can't hold: the data-attribute states and the article text
+   inside the rich text. */
+.filter-btn,.reset-btn{line-height:1.3}
+.filter-btn[data-filter-status="active"]{background-color:var(--brand-colors--dark_gray);border-color:var(--brand-colors--dark_gray);color:var(--brand-colors--light-bage)}
 .reset-btn[data-filter-status="active"]{opacity:1;visibility:visible}
 .filter-list__item[data-filter-status="active"]{transition:opacity .6s cubic-bezier(.625,.05,0,1),transform .6s cubic-bezier(.625,.05,0,1);transform:scale(1) rotate(.001deg);opacity:1;visibility:visible;position:relative}
 .filter-list__item[data-filter-status="transition-out"]{transition:opacity .45s cubic-bezier(.625,.05,0,1),transform .45s cubic-bezier(.625,.05,0,1);transform:scale(.9) rotate(.001deg);opacity:0;visibility:visible}
 .filter-list__item[data-filter-status="not-active"]{transform:scale(.9) rotate(.001deg);opacity:0;visibility:hidden;position:absolute}
-.dfs-night .filter-btn{background-color:rgba(241,237,226,.08);color:inherit}
-.dfs-night .filter-btn[data-filter-status="active"]{background-color:#EFEEEC;color:#131313}
-[data-toc-item][data-toc-status="active"]{color:#635bff;border-color:#635bff}
+[data-toc-item][data-toc-status="active"]{color:var(--brand-colors--blue);border-color:var(--brand-colors--blue)}
 [data-toc-item][data-toc-depth="3"]{padding-left:2.5em;font-size:.75em}
 [data-toc-content] h2:first-child{margin-top:0;padding-top:0}
-.toc-article h2{letter-spacing:-.01em;margin-top:2em;margin-bottom:.75em;font-size:2em;font-weight:500;line-height:1.2}
-.toc-article h3{margin-top:2em;margin-bottom:.75em;font-size:1.25em;font-weight:500}
-.toc-article p{margin-bottom:1.5em;font-size:.9375em;line-height:1.5}
-.toc-article blockquote{color:#30557a;border-left-width:2px;border-left-color:#6961fe;font-size:1.125em;font-weight:400;line-height:1.4}
-.dfs-night .toc-article blockquote{color:inherit}
-.toc-article code{background-color:#dae3ee;border-radius:.25em;padding:.1em .4em .15em;font-size:.9em;display:inline-block}
+.toc-article h2,.toc-article h3{font-family:var(--_typography---font-styles--heading);font-weight:400;color:var(--brand-colors--dark_gray)}
+.toc-article h2{letter-spacing:-.01em;margin-top:2em;margin-bottom:.75em;font-size:2em;line-height:1.2}
+.toc-article h3{margin-top:2em;margin-bottom:.75em;font-size:1.4em;line-height:1.3}
+.toc-article p{margin-bottom:1.5em;font-size:.9375em;line-height:1.7}
+.toc-article blockquote{color:var(--brand-colors--dark_gray);border-left-width:2px;border-left-color:var(--brand-colors--blue);font-size:1.125em;font-weight:400;line-height:1.5}
+.toc-article code{background-color:var(--brand-colors--bage);border-radius:.25em;padding:.1em .4em .15em;font-size:.9em;display:inline-block}
 .toc-article ul{margin-bottom:0;padding-left:2em}
-.toc-article li{margin-bottom:1em;font-size:.9375em;line-height:1.5}
+.toc-article li{margin-bottom:1em;font-size:.9375em;line-height:1.7}

@@ -6783,6 +6783,309 @@
   }
 
   // =========================================================
+  // BLOG: TABLE OF CONTENTS — article pages (/blog/…)
+  // Osmo Supply's "Table of Contents for Article", as it came (only the plugin registration is
+  // guarded and it starts from the router below). [data-toc-wrap] holds the list
+  // ([data-toc-list] with one [data-toc-link] template link) and the rich text ([data-toc-content]).
+  // One link per H2/H3; the heading you're reading gets data-toc-status="active" (styles.css).
+  // {skip} in a heading leaves it out of the list. The click scrolls through Lenis.
+  // =========================================================
+  function dfsToc() {
+    if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') gsap.registerPlugin(ScrollTrigger);
+
+    document.querySelectorAll('[data-toc-wrap]').forEach(root => {
+      const contentEl = root.querySelector('[data-toc-content]');
+      const listEl = root.querySelector('[data-toc-list]');
+      const templateLink = listEl?.querySelector('[data-toc-link]');
+      if (!contentEl || !listEl || !templateLink) return;
+
+      const levels = (root.getAttribute('data-toc-levels') || 'h2,h3').split(',').map(l => l.trim().toLowerCase()).filter(l => /^h[1-6]$/.test(l));
+      const levelSelector = levels.join(', ');
+      if (!levelSelector) return;
+
+      const offset = parseInt(root.getAttribute('data-toc-offset')) || 50;
+      const marker = '{skip}';
+
+      const slugCounts = new Map();
+
+      function slugify(text) {
+        let slug = text.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+        if (!slug) slug = 'section';
+
+        const count = slugCounts.get(slug) || 0;
+        slugCounts.set(slug, count + 1);
+        return count === 0 ? slug : slug + '-' + (count + 1);
+      }
+
+      function stripMarker(el) {
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        let node;
+        while ((node = walker.nextNode())) {
+          if (node.textContent.includes(marker)) {
+            node.textContent = node.textContent.replace(marker, '').trim();
+          }
+        }
+      }
+
+      const allHeadings = Array.from(contentEl.querySelectorAll(levelSelector));
+      const headings = [];
+
+      allHeadings.forEach(heading => {
+        if (heading.hasAttribute('data-toc-ignore')) return;
+        if (heading.textContent.includes(marker)) {
+          stripMarker(heading);
+          return;
+        }
+        const text = heading.textContent.trim();
+        if (!text) return;
+        headings.push(heading);
+      });
+
+      if (!headings.length) return;
+
+      headings.forEach(heading => {
+        if (!heading.id) {
+          heading.id = slugify(heading.textContent.trim());
+        }
+      });
+
+      const tocLinks = [];
+
+      headings.forEach(heading => {
+        const clone = templateLink.cloneNode(true);
+        const textTarget = clone.querySelector('[data-toc-text]') || clone;
+        textTarget.textContent = heading.textContent.trim();
+
+        clone.href = '#' + heading.id;
+        clone.removeAttribute('data-toc-link');
+        clone.setAttribute('data-toc-item', '');
+
+        const level = heading.tagName.charAt(1);
+        clone.setAttribute('data-toc-depth', level);
+
+        listEl.appendChild(clone);
+        tocLinks.push(clone);
+      });
+
+      listEl.querySelectorAll('[data-toc-link]').forEach(el => el.remove());
+
+      // Active state tracking via ScrollTrigger
+      if (typeof ScrollTrigger !== 'undefined') {
+        function setActive(index) {
+          tocLinks.forEach(link => link.setAttribute('data-toc-status', ''));
+          if (tocLinks[index]) tocLinks[index].setAttribute('data-toc-status', 'active');
+        }
+
+        headings.forEach((heading, i) => {
+          const nextHeading = headings[i + 1];
+
+          ScrollTrigger.create({
+            trigger: heading,
+            start: 'top ' + (offset + 1) + 'px',
+            endTrigger: nextHeading || contentEl,
+            end: nextHeading ? 'top ' + (offset + 1) + 'px' : 'bottom top',
+            onToggle: self => {
+              if (self.isActive) setActive(i);
+            }
+          });
+        });
+
+        if (window.scrollY <= headings[0].getBoundingClientRect().top + window.scrollY - offset) {
+          setActive(0);
+        }
+      }
+
+      // Click handler with smooth scroll
+      listEl.addEventListener('click', e => {
+        const link = e.target.closest('[data-toc-item]');
+        if (!link) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const id = link.getAttribute('href')?.slice(1);
+        const target = document.getElementById(id);
+        if (!target) return;
+
+        if (typeof lenis !== 'undefined' && typeof lenis.scrollTo === 'function') {
+          lenis.scrollTo(target, { offset: -offset });
+        } else {
+          const y = target.getBoundingClientRect().top + window.scrollY - offset;
+          window.scrollTo({ top: y, behavior: 'smooth' });
+        }
+      });
+    });
+  }
+
+  // =========================================================
+  // BLOG: TOPIC FILTER — /resources
+  // Osmo Supply's "Multi Filter Setup (Multi Match)", as it came (it starts from the router below).
+  // The topic buttons ([data-filter-target] = the topic slug) come from the Topics collection; each
+  // article card collects its topics from the [data-filter-name-collect] chips inside it. Several
+  // topics can be on at once and an article shows when it has any of them
+  // (data-filter-name-match="multi" on the group; "single" = it must have all of them).
+  // The states (active / transition-out / not-active) are styled in styles.css.
+  // =========================================================
+  function dfsFilter() {
+
+    const transitionDelay = 300;
+    const groups = [...document.querySelectorAll('[data-filter-group]')];
+
+    groups.forEach(group => {
+      const targetMatch = (group.getAttribute('data-filter-target-match') || 'multi').trim().toLowerCase(); // 'single' | 'multi'
+      const nameMatch   = (group.getAttribute('data-filter-name-match')   || 'multi').trim().toLowerCase(); // 'single' | 'multi'
+
+      const buttons = [...group.querySelectorAll('[data-filter-target]')];
+      const items   = [...group.querySelectorAll('[data-filter-name]')];
+
+      // Collect tokens from children if present
+      items.forEach(item => {
+        const collectors = item.querySelectorAll('[data-filter-name-collect]');
+        if (!collectors.length) return;
+        const seen = new Set(), tokens = [];
+        collectors.forEach(c => {
+          const v = (c.getAttribute('data-filter-name-collect') || '').trim().toLowerCase();
+          if (v && !seen.has(v)) {
+            seen.add(v);
+            tokens.push(v);
+          }
+        });
+        if (tokens.length) item.setAttribute('data-filter-name', tokens.join(' '));
+      });
+
+      // Cache item tokens
+      const itemTokens = new Map();
+      items.forEach(el => {
+        const raw = (el.getAttribute('data-filter-name') || '').trim().toLowerCase();
+        const tokens = raw ? raw.split(/\s+/).filter(Boolean) : [];
+        itemTokens.set(el, new Set(tokens));
+      });
+
+      const setItemState = (el, on) => {
+        const next = on ? 'active' : 'not-active';
+        if (el.getAttribute('data-filter-status') !== next) {
+          el.setAttribute('data-filter-status', next);
+          el.setAttribute('aria-hidden', on ? 'false' : 'true');
+        }
+      };
+
+      const setButtonState = (btn, on) => {
+        const next = on ? 'active' : 'not-active';
+        if (btn.getAttribute('data-filter-status') !== next) {
+          btn.setAttribute('data-filter-status', next);
+          btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        }
+      };
+
+      // Active tags model
+      let activeTags = targetMatch === 'single' ? null : new Set(['all']);
+
+      const hasRealActive = () => {
+        if (targetMatch === 'single') return activeTags !== null;
+        return activeTags.size > 0 && !activeTags.has('all');
+      };
+
+      const resetAll = () => {
+        if (targetMatch === 'single') {
+          activeTags = null;
+        } else {
+          activeTags.clear();
+          activeTags.add('all');
+        }
+      };
+
+      // Matching logic
+      const itemMatches = (el) => {
+        if (!hasRealActive()) return true;
+        const tokens = itemTokens.get(el);
+
+        if (targetMatch === 'single') {
+          return tokens.has(activeTags);
+        } else {
+          const selected = [...activeTags];
+          if (nameMatch === 'single') {
+            // AND logic: must contain all selected
+            for (let i = 0; i < selected.length; i++) {
+              if (!tokens.has(selected[i])) return false;
+            }
+            return true;
+          } else {
+            // OR logic: must contain any selected
+            for (let i = 0; i < selected.length; i++) {
+              if (tokens.has(selected[i])) return true;
+            }
+            return false;
+          }
+        }
+      };
+
+      const paint = (rawTarget) => {
+        const target = (rawTarget || '').trim().toLowerCase();
+        if ((target === 'all' || target === 'reset') && !hasRealActive()) return;
+
+        if (target === 'all' || target === 'reset') {
+          resetAll();
+        } else if (targetMatch === 'single') {
+          activeTags = target;
+        } else {
+          if (activeTags.has('all')) activeTags.delete('all');
+          if (activeTags.has(target)) activeTags.delete(target);
+          else activeTags.add(target);
+          if (activeTags.size === 0) resetAll();
+        }
+
+        // Update items
+        items.forEach(el => {
+          if (el._ft) clearTimeout(el._ft);
+          const next = itemMatches(el);
+          const cur = el.getAttribute('data-filter-status');
+          if (cur === 'active' && transitionDelay > 0) {
+            el.setAttribute('data-filter-status','transition-out');
+            el._ft = setTimeout(() => { setItemState(el, next); el._ft = null; }, transitionDelay);
+          } else if (transitionDelay > 0) {
+            el._ft = setTimeout(() => { setItemState(el, next); el._ft = null; }, transitionDelay);
+          } else {
+            setItemState(el, next);
+          }
+        });
+
+        // Update buttons
+        buttons.forEach(btn => {
+          const t = (btn.getAttribute('data-filter-target') || '').trim().toLowerCase();
+          let on = false;
+          if (t === 'all') on = !hasRealActive();
+          else if (t === 'reset') on = hasRealActive();
+          else on = targetMatch === 'single' ? activeTags === t : activeTags.has(t);
+          setButtonState(btn, on);
+        });
+      };
+
+      group.addEventListener('click', e => {
+        const btn = e.target.closest('[data-filter-target]');
+        if (btn && group.contains(btn)) paint(btn.getAttribute('data-filter-target'));
+      });
+
+      paint('all');
+    });
+  }
+
+  // =========================================================
+  // BLOG: MORE ARTICLES — under an article ([data-blog-more] collection list)
+  // The list shows the newest four; this takes out the article you're on and keeps three.
+  // =========================================================
+  function dfsBlogMore() {
+    document.querySelectorAll('[data-blog-more]').forEach(function (list) {
+      var here = location.pathname.replace(/\/+$/, '');
+      var shown = 0;
+      [].slice.call(list.querySelectorAll('.w-dyn-item')).forEach(function (item) {
+        var a = item.querySelector('a[href]');
+        var isHere = a && a.pathname.replace(/\/+$/, '') === here;
+        if (isHere || shown >= 3) item.style.display = 'none';
+        else shown++;
+      });
+    });
+  }
+
+  // =========================================================
   // Run
   // Page sections run straight away, like the old Slater page scripts did.
   // Global + Home wait for the whole page, like their old "defer" tags.
@@ -6850,6 +7153,9 @@
     if (document.querySelector('[data-tinko-gate], [data-lesson-stage], [data-tinko-show]')) dfsTinko();
     if (document.querySelector('[data-tinko-mascot]')) dfsTinkoMascot();
     if (document.querySelector('[data-helper-copy]')) dfsHelperCopy();
+    if (document.querySelector('[data-toc-wrap]')) dfsToc();                 // blog article: On this page
+    if (document.querySelector('[data-filter-group]')) dfsFilter();          // /resources: topic filter
+    if (document.querySelector('[data-blog-more]')) dfsBlogMore();           // blog article: More articles
     if (path === '/'|| path === '/course' || path === '/test-zone') dfsHome();
   });
 

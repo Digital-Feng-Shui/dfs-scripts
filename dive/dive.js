@@ -47,6 +47,18 @@ if (missionRoot) initMission(missionRoot);
 const solRoot = document.querySelector('[data-sol]');
 if (solRoot) initSol(solRoot);
 
+/* sound: Timer's rule, sound means something answered you (sound/sound.js; off until the visitor turns it on).
+   Mostly hover (Rim: you don't click often, and a click is usually a link): point = soft tick on hover,
+   do = soft tick on hover and the press on click. The time story's clear ticks come from initTime. */
+const SOUNDS = {
+  '[data-dive-cue], .bottom-nav__link, .bottom-nav__toggle, .bottom-nav__logo, .dfs-night-toggle, [data-sound-toggle]': 'point',
+  '.sol_link, .cnb_option, .lesson-complete_overlay, [data-player-control], .c_item, [data-accordion-toggle]': 'point',
+  '.rhythms-app_icon-btn, .rhythms-app_add-time, .rhythms-app_set-link, .rhythms-app_kind': 'point',
+  '.journal_card, .foot_brand, .foot_link, .foot_social, .foot_base-link, .foot_cell.is-login': 'point',
+  '.close_door, .close_submit, .found_play, .rhythms-app_save, [data-tk], .tk-reset': 'do',
+};
+import('../sound/sound.js').then(() => window.dfsSound && window.dfsSound.map(SOUNDS)).catch(e => console.warn('[sound] did not load', e));
+
 function init(root) {
   const q = sel => root.querySelector(sel);
   const el = {
@@ -618,6 +630,7 @@ function initTime(root) {
   // the year fills with the scroll: every bit of scroll adds days (and the odometer rolls with them), a little
   // smoothed so a fast flick doesn't jump; scrolling back takes them away again
   let fillT = 0;
+  let soundLit = null, soundWeek = null;   // for the ticks: hours lit, weeks filled
   let visible = false, p = 0, lastSpeed = -1, lastHole = -1, lastShape = 2, lastBack = '', bgOn = null;
   let orangeNow = 0, blueNow = 0, heatNow = 0;
   new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(root);
@@ -686,6 +699,10 @@ function initTime(root) {
       fillT = reduce ? target : fillT + (target - fillT) * .2;
       if (Math.abs(target - fillT) < .0005) fillT = target;
       const shown = shrink < 1 ? 0 : Math.max(1, Math.round(fillT * 365));
+      // sound: a clear tick for each hour that lights up, then for each week as the year fills (silent while sound is off)
+      const week = Math.ceil(shown / 7);
+      if (soundLit !== null && (litN !== soundLit || week !== soundWeek)) window.dfsSound?.look();
+      soundLit = litN; soundWeek = week;
       rollCount(p >= .45);
       const orange = sm(.62, .7, p), blue = sm(.8, .92, p);
       const heat = orange * (1 - blue) * P.calmTo;         // how hectic it is right now (a little softer at night)

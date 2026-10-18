@@ -57,12 +57,8 @@ const SOUNDS = {
   '.journal_card, .foot_brand, .foot_link, .foot_social, .foot_base-link, .foot_cell.is-login': 'point',
   '.close_door, .close_submit, .found_play, .rhythms-app_save, [data-tk], .tk-reset': 'do',
 };
-// ambience: the wind-and-water bed made in the browser, a stand-in until Rim's recorded loop (then { src: url })
-import('../sound/sound.js').then(() => {
-  if (!window.dfsSound) return;
-  window.dfsSound.map(SOUNDS);
-  window.dfsSound.ambience({ wind: true });
-}).catch(e => console.warn('[sound] did not load', e));
+// no ambience for now: Rim didn't like the wind (18 Oct); a bed that follows the sections is being explored
+import('../sound/sound.js').then(() => window.dfsSound && window.dfsSound.map(SOUNDS)).catch(e => console.warn('[sound] did not load', e));
 
 function init(root) {
   const q = sel => root.querySelector(sel);

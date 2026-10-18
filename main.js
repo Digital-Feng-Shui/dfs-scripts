@@ -7086,19 +7086,115 @@
   }
 
   // =========================================================
-  // BLOG: MORE ARTICLES — under an article ([data-blog-more] collection list)
-  // The list shows the newest four; this takes out the article you're on and keeps three.
+  // BLOG: RECOMMENDED — under an article ([data-blog-more] collection list)
+  // The list fetches the newest four; its last card is hidden by its class (post_more-item, last-child), so three
+  // show, in the Designer too. When the article you're on is one of the first three, it goes and the fourth fills in.
   // =========================================================
   function dfsBlogMore() {
     document.querySelectorAll('[data-blog-more]').forEach(function (list) {
       var here = location.pathname.replace(/\/+$/, '');
-      var shown = 0;
-      [].slice.call(list.querySelectorAll('.w-dyn-item')).forEach(function (item) {
+      var items = [].slice.call(list.querySelectorAll('.w-dyn-item'));
+      var current = items.filter(function (item) {
         var a = item.querySelector('a[href]');
-        var isHere = a && a.pathname.replace(/\/+$/, '') === here;
-        if (isHere || shown >= 3) item.style.display = 'none';
-        else shown++;
+        return a && a.pathname.replace(/\/+$/, '') === here;
+      })[0];
+      if (!current) return;
+      current.style.display = 'none';
+      var last = items[items.length - 1];
+      if (last !== current) last.style.display = 'block';
+    });
+  }
+
+  // =========================================================
+  // FOOTER (NEW) — the "Footer (new)" component ([data-foot]), from the test homepage
+  // The ground (mountains) comes up and the lines draw in as the footer scrolls into view; Log in says My courses
+  // when you're signed in and fills like a load on click; [data-foot-to] links scroll to that part of the page
+  // when it's there (otherwise they follow their own link). The dashes and the night mountains are in the
+  // component's own embed. On the test homepage dive/solutions.js runs this footer itself, so not there.
+  // =========================================================
+  function dfsFooter() {
+    if (document.querySelector('[data-dive]')) return;
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var smooth = function (a, b, x) { var t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
+    document.querySelectorAll('[data-foot]').forEach(function (host) {
+      var ground = host.querySelector('[data-foot-ground]'), frameEl = host.querySelector('[data-foot-frame]');
+      var lines = [].slice.call(host.querySelectorAll('[data-foot-line]')), hline = host.querySelector('[data-foot-hline]');
+      var rules = [].slice.call(host.querySelectorAll('[data-foot-rule]'));
+      var cols = [].slice.call(host.querySelectorAll('[data-foot-col]'));
+      var cells = [].slice.call(host.querySelectorAll('[data-foot-cell]')).map(function (c) {
+        return { lines: [].slice.call(c.querySelectorAll('[data-foot-cline]')), inner: c.querySelector('[data-foot-in]'), fromRight: c.dataset.footCell === 'left' };
       });
+
+      host.querySelectorAll('[data-foot-to]').forEach(function (a) {
+        a.addEventListener('click', function (e) {
+          var to = document.querySelector(a.dataset.footTo); if (!to) return;
+          e.preventDefault();
+          var y = to.getBoundingClientRect().top + scrollY - innerHeight * .12;
+          window.lenis ? window.lenis.scrollTo(y, { duration: 1.6 }) : scrollTo({ top: y, behavior: reduce ? 'auto' : 'smooth' });
+        });
+      });
+      host.querySelectorAll('[data-foot-soon]').forEach(function (a) { a.addEventListener('click', function (e) { e.preventDefault(); }); });
+
+      var login = host.querySelector('[data-foot-login]'), loginText = host.querySelector('[data-foot-login-text]');
+      if (login) {
+        var signedIn = function () {
+          try { if (localStorage.getItem('_ms-mid')) return true; } catch (e) {}
+          return /(?:^|;\s*)_ms-mid=/.test(document.cookie);
+        };
+        var mark = function (yes) { if (!yes) return; login.setAttribute('href', '/dashboard'); if (loginText) loginText.textContent = 'My courses'; };
+        mark(signedIn());
+        whenMemberstackReady(function () {
+          window.$memberstackDom.getCurrentMember().then(function (r) { mark(!!(r && r.data)); }).catch(function () {});
+        });
+        login.addEventListener('click', function (e) {
+          if (reduce || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
+          e.preventDefault();
+          login.classList.add('is-loading');
+          setTimeout(function () { location.href = login.getAttribute('href'); }, 650);
+        });
+        addEventListener('pageshow', function () { login.classList.remove('is-loading'); });
+      }
+
+      var cut = function (k) { return ((1 - k) * 100).toFixed(2) + '%'; };
+      var draw = function (p) {
+        if (ground) ground.style.transform = 'translate3d(0,' + ((1 - p) * 16).toFixed(2) + 'vh,0)';
+        lines.forEach(function (l, i) { l.style.clipPath = 'inset(0 0 ' + cut(smooth(.35 + i * .03, .85 + i * .03, p)) + ' 0)'; });
+        if (hline) hline.style.clipPath = 'inset(0 ' + cut(smooth(.35, .85, p)) + ' 0 0)';
+        rules.forEach(function (r, i) { r.style.clipPath = 'inset(0 ' + cut(smooth(.42 + i * .06, .82 + i * .05, p)) + ' 0 0)'; });
+        cols.forEach(function (c, i) {
+          var k = smooth(.6 + i * .05, Math.min(.98, .88 + i * .02), p);
+          c.style.opacity = k.toFixed(3); c.style.transform = 'translate3d(0,' + ((1 - k) * 14).toFixed(1) + 'px,0)';
+        });
+        cells.forEach(function (c, i) {
+          c.lines.forEach(function (l, j) {
+            var k = smooth(.66 + i * .04 + j * .03, .9 + i * .03 + j * .02, p);
+            l.style.clipPath = c.fromRight ? 'inset(0 0 0 ' + cut(k) + ')' : 'inset(0 ' + cut(k) + ' 0 0)';
+          });
+          if (c.inner) { var f = smooth(.8 + i * .03, .97 + i * .01, p); c.inner.style.opacity = f.toFixed(3); c.inner.style.transform = 'translate3d(0,' + ((1 - f) * 10).toFixed(1) + 'px,0)'; }
+        });
+      };
+      // on phones the dashed line between the two columns starts under the brand row
+      var size = function () {
+        var b = cols[0] && frameEl ? cols[0].getBoundingClientRect().bottom - frameEl.getBoundingClientRect().top : 0;
+        if (frameEl) frameEl.style.setProperty('--b', Math.max(0, b).toFixed(0) + 'px');
+      };
+      size(); addEventListener('resize', size);
+      if (reduce) { draw(1); return; }
+
+      var on = false, raf = 0, last = -1;
+      var frame = function () {
+        raf = 0; if (!on) return;
+        var vh = innerHeight, top = host.getBoundingClientRect().top;
+        var p = Math.max(0, Math.min(vh, vh - top)) / vh;
+        if (Math.abs(p - last) > .0005) { last = p; draw(p); }
+        raf = requestAnimationFrame(frame);
+      };
+      draw(0);
+      new IntersectionObserver(function (es) {
+        on = es[0].isIntersecting; if (on && !raf) raf = requestAnimationFrame(frame);
+      }).observe(host);
+      addEventListener('resize', function () { last = -1; });
     });
   }
 
@@ -7172,7 +7268,8 @@
     if (document.querySelector('[data-helper-copy]')) dfsHelperCopy();
     if (document.querySelector('[data-toc-wrap]')) dfsToc();                 // blog article: On this page
     if (document.querySelector('[data-filter-group]')) dfsFilter();          // /resources: topic filter
-    if (document.querySelector('[data-blog-more]')) dfsBlogMore();           // blog article: More articles
+    if (document.querySelector('[data-blog-more]')) dfsBlogMore();           // blog article: Recommended
+    if (document.querySelector('[data-foot]')) dfsFooter();                  // the new footer (component)
     if (path === '/'|| path === '/course' || path === '/test-zone') dfsHome();
   });
 

@@ -891,6 +891,8 @@ html:not([data-tinko="owned"]) .tinko-gate_content{filter:blur(6px);opacity:.6;u
    solid on this page (the dashed ones read wrong next to the lesson box). */
 .next_lesson_container:has(.v2-card.is-active) .bunny-player{visibility:hidden}
 html[data-wf-page="6ad4b2a25ceae8fe2c8c8d7e"] .accordion-css__item.is-course{border-left-style:solid;border-right-style:solid}
+/* Tinko stage cards: the "not installed yet" line stays hidden until a click on Open Tinko goes nowhere (main.js dfsTinko) */
+[data-tinko-fallback]:not(.is-shown){display:none}
 
 /* Lesson texts that aren't open don't animate (the welcome lesson's bouncing heart kept ticking while hidden) */
 .course_content:not(.is-active) *{animation-play-state:paused}

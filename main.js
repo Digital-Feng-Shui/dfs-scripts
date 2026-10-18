@@ -6496,6 +6496,21 @@
       event.preventDefault();
       event.stopPropagation();
       window.location.href = 'dfshelper://stage/' + button.getAttribute('data-tinko-stage');
+      // A page can't ask the Mac whether Tinko is installed. If the link opened him, this tab loses focus;
+      // if nothing happened within 1.5 s, the card's [data-tinko-fallback] line shows (install him in 0.2).
+      var card = button.closest('[data-lesson-stage]') || document;
+      var note = card.querySelector('[data-tinko-fallback]');
+      if (!note) return;
+      note.classList.remove('is-shown');
+      var left = false;
+      function gone() { left = true; }
+      window.addEventListener('blur', gone, { once: true });
+      document.addEventListener('visibilitychange', gone, { once: true });
+      setTimeout(function () {
+        window.removeEventListener('blur', gone);
+        document.removeEventListener('visibilitychange', gone);
+        if (!left && document.hasFocus()) note.classList.add('is-shown');
+      }, 1500);
     }, true);
 
     window.addEventListener('click', function (event) {

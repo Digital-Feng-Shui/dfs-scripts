@@ -2315,6 +2315,23 @@
         console.error('❌ Error saving progress:', error);
       }
     }
+    // [data-go-lesson="lesson-0.2"] (V2: "Not installed yet? Meet Tinko" on a Tinko step): opens that lesson
+    // through its menu row and glides to its install block, if it has one.
+    document.addEventListener('click', (e) => {
+      const link = e.target.closest && e.target.closest('[data-go-lesson]');
+      if (!link) return;
+      e.preventDefault();
+      const item = document.getElementById(link.getAttribute('data-go-lesson'));
+      if (!item) return;
+      item.click();
+      const target = document.querySelector('[data-tinko-gate]');
+      if (!target) return;
+      setTimeout(() => {
+        if (window.lenis && typeof window.lenis.scrollTo === 'function') window.lenis.scrollTo(target, { offset: -96 });
+        else target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 80);
+    });
+
     // ---- VIDEO PLAYER ----
     // Get the finish link block element (available globally)
     var finishLinkBlock = document.getElementById('finish_video');

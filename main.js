@@ -6470,6 +6470,17 @@
       });
     }
 
+    // [data-tinko-stage="N"] buttons (the Fundamentals V2 course): open that stage in the app.
+    // Webflow forces https:// onto custom-scheme links, so the link itself is "#" and this opens
+    // dfshelper://stage/N (a route Tinko still has to add; until then nothing happens).
+    window.addEventListener('click', function (event) {
+      var button = event.target.closest && event.target.closest('[data-tinko-stage]');
+      if (!button) return;
+      event.preventDefault();
+      event.stopPropagation();
+      window.location.href = 'dfshelper://stage/' + button.getAttribute('data-tinko-stage');
+    }, true);
+
     window.addEventListener('click', function (event) {
       var link = event.target.closest && event.target.closest('[data-tinko-scroll]');
       if (!link) return;

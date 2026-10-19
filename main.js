@@ -7362,128 +7362,344 @@
   }
 
   // =========================================================
-  // BLOG: COVERS — one look for every picture
-  // Every cover is drawn as a two-colour dither of its picture (4×4 Bayer, in the palette of the article's
-  // "Dither cover" option: the homepage journal's three), so any image gets the same feel. It renders in
-  // steps from chunky pixels to the fine dither (after Osmo's Pixelate Image Render): when a card first
-  // scrolls into view, quickly again on hover, and the article's own cover (.post_cover) once on load.
-  // Also measures --ex per card (the excerpt + gap): at rest the picture is taller and the excerpt waits
-  // below; on hover the picture gives that room back and the excerpt slides in ("Blog card styles").
+  // BLOG: COVERS — drawn dither scenes, no pictures
+  // Rim, 19 Oct: turning photos into dither went nowhere; use the dither the simple way the homepage does,
+  // one small drawn scene per article that tells its idea as a joke (the junk drawer's hundred little lights).
+  // Each cover with [data-art] (the article's "Art" option) gets one of ART's ten scenes: two colours, an
+  // 8×8 Bayer pattern, 2px dots. It comes into focus from big pixels when it scrolls in, moves slowly, and
+  // plays faster while its card is hovered. All ten side by side: claude.ai/artifact/XRdsFAzdTiENGRKzMCh2Jk
+  // Also measures --ex per card (the excerpt + gap): at rest the scene is taller and the excerpt waits below;
+  // on hover the scene gives that room back and the excerpt comes in ("Blog card styles" component).
   // =========================================================
-  function dfsBlogCovers() {
-    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var canHover = window.matchMedia('(hover: hover)').matches;
-    var BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
-    var PAL = { // [day, night], each [back, front], as the homepage journal covers
-      stack: [['#16181d', '#e9e3d6'], ['#16181d', '#c9c3b6']],
-      flow: [['#e3dccf', '#0297db'], ['#1b2236', '#1dabfa']],
-      sun: [['#0e1628', '#7f90bb'], ['#0e1628', '#8a9bc6']]
+  // Dither art: small drawn scenes in two colours, read through an 8x8 Bayer pattern (as the homepage's
+  // Paper Shaders dither). Each motif is a tone field: 0 = the back colour, 1 = the front, anything between
+  // comes out as dots. Coordinates are in cover heights from the middle (X across, Y down), so a scene keeps
+  // its size on any cover. ART.mount(host, name, opts) draws one into host and returns { hover(on), stop() }.
+  var ART = (function () {
+    var B8 = [0, 32, 8, 40, 2, 34, 10, 42, 48, 16, 56, 24, 50, 18, 58, 26, 12, 44, 4, 36, 14, 46, 6, 38, 60, 28, 52, 20, 62, 30, 54, 22,
+      3, 35, 11, 43, 1, 33, 9, 41, 51, 19, 59, 27, 49, 17, 57, 25, 15, 47, 7, 39, 13, 45, 5, 37, 63, 31, 55, 23, 61, 29, 53, 21];
+    for (var b = 0; b < 64; b++) B8[b] = (B8[b] + .5) / 64;
+    var PAL = { // [day, night], each [back, front]: the homepage journal's colours
+      ink: [['#16181d', '#e9e3d6'], ['#16181d', '#c9c3b6']],
+      sea: [['#e3dccf', '#0297db'], ['#1b2236', '#1dabfa']],
+      dusk: [['#0e1628', '#7f90bb'], ['#0e1628', '#8a9bc6']],
+      paper: [['#e3dccf', '#3d3a35'], ['#1f2024', '#c9c3b6']]
     };
-    var DITHER = 3; // css px per dither cell when it's fine
-    var isNight = function () { return document.documentElement.classList.contains('dfs-night'); };
-    var hex = function (h) { var n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
-    var lum = function (c) { return .299 * c[0] + .587 * c[1] + .114 * c[2]; };
-    var states = [];
+    var PI = Math.PI;
+    function cl(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+    function ss(a, b, x) { var k = cl((x - a) / (b - a)); return k * k * (3 - 2 * k); }
+    function fr(v) { return v - Math.floor(v); }
+    function h1(n) { return fr(Math.sin(n * 127.1 + 311.7) * 43758.5453); }
+    function out3(k) { k = 1 - cl(k); return 1 - k * k * k; }
+    function seg(px, py, ax, ay, bx, by) {
+      var dx = bx - ax, dy = by - ay, k = cl(((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy));
+      return Math.hypot(px - ax - dx * k, py - ay - dy * k);
+    }
+    function box(px, py, hw, hh, r) { // rounded box: < 0 inside
+      var qx = Math.abs(px) - hw + r, qy = Math.abs(py) - hh + r;
+      return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r;
+    }
+    function line(s) { return Math.max(.0065, s.u * 1.05); } // a stroke at least one dot wide
 
-    function measure(st) {
-      if (!st.card) return;
-      var ex = 0, p = st.card.querySelector('.res_excerpt');
-      if (canHover && p) ex = p.offsetHeight + (parseFloat(getComputedStyle(st.card).rowGap) || 0);
-      st.card.style.setProperty('--ex', ex + 'px');
-    }
-    function size(st) {
-      var r = st.cv.getBoundingClientRect();
-      st.dpr = Math.min(2, window.devicePixelRatio || 1);
-      st.W = Math.max(1, Math.round(r.width * st.dpr));
-      st.H = Math.max(1, Math.round(r.height * st.dpr));
-      st.cv.width = st.W; st.cv.height = st.H;
-      st.fine = Math.max(8, Math.round(r.width / DITHER));
-    }
-    // draw the dither at a given number of columns (few = chunky, st.fine = the resting look)
-    function draw(st, cols) {
-      if (!st.ready || !st.W) return;
-      st.cols = cols;
-      var cw = Math.max(1, Math.round(cols)), ch = Math.max(1, Math.round(cols * st.H / st.W));
-      var iw = st.img.naturalWidth, ih = st.img.naturalHeight, s = Math.max(st.W / iw, st.H / ih);
-      var sw = st.W / s, sh = st.H / s;
-      st.small.width = cw; st.small.height = ch;
-      st.sctx.imageSmoothingEnabled = true;
-      st.sctx.drawImage(st.img, (iw - sw) / 2, (ih - sh) / 2, sw, sh, 0, 0, cw, ch);
-      var pair = (PAL[st.art] || PAL.flow)[isNight() ? 1 : 0].map(hex);
-      var dark = lum(pair[0]) < lum(pair[1]) ? pair[0] : pair[1], light = dark === pair[0] ? pair[1] : pair[0];
-      var d = st.sctx.getImageData(0, 0, cw, ch), a = d.data, lo = 255, hi = 0, sum = 0, j, v;
-      // each picture on its own range, its average pulled toward the middle: a pale misty one still shows
-      // its shapes and a dark one doesn't go solid
-      for (j = 0; j < a.length; j += 4) { v = .299 * a[j] + .587 * a[j + 1] + .114 * a[j + 2]; sum += v; if (v < lo) lo = v; if (v > hi) hi = v; }
-      var span = Math.max(24, hi - lo), shift = ((sum / (a.length / 4) - lo) / span - .5) * .5;
-      for (var y = 0; y < ch; y++) {
-        for (var x = 0; x < cw; x++) {
-          var i = (y * cw + x) * 4;
-          var l = Math.min(1, Math.max(0, ((.299 * a[i] + .587 * a[i + 1] + .114 * a[i + 2] - lo) / span - shift - .5) * 1.2 + .5));
-          var c = l > (BAYER[(y & 3) * 4 + (x & 3)] + .5) / 16 ? light : dark;
-          a[i] = c[0]; a[i + 1] = c[1]; a[i + 2] = c[2]; a[i + 3] = 255;
+    var M = {};
+
+    // Your Dock Is A Junk Drawer: a hundred little things, a few of them still blinking
+    M.junk = { pal: 'ink', px: function (X, Y, s) {
+      var g = 1 / 7.5, i = Math.round(X / g), j = Math.round(Y / g), k = i * 31 + j * 57;
+      if (h1(k) < .09) return 0;
+      var cx = i * g + (h1(k + 1) - .5) * .24 * g, cy = j * g + (h1(k + 2) - .5) * .24 * g;
+      var r = g * (.12 + .12 * h1(k + 3)), on = .5 + .5 * h1(k + 4);
+      if (h1(k + 5) < .2) on *= .15 + .85 * Math.pow(.5 + .5 * Math.sin(s.t * (1.4 + 2.2 * h1(k + 6)) + h1(k + 7) * 40), 4);
+      var d = ((X - cx) * (X - cx) + (Y - cy) * (Y - cy)) / (r * r);
+      return on * (Math.exp(-d * 1.1) + (d < .3 ? .7 : 0));
+    } };
+
+    // What A Notification Costs You: one ping drops in, the rings keep going long after
+    M.ripple = { pal: 'dusk', frame: function (s) {
+      var P = 7, n = Math.floor(s.t / P); s.d = [];
+      for (var m = n - 1; m <= n; m++) s.d.push({ a: s.t - m * P, x: (h1(m) - .5) * s.A * .6, y: (h1(m + .37) - .5) * .14 + .04 });
+    }, px: function (X, Y, s) {
+      var v = 0, w = Math.max(.015, s.u * 1.8);
+      for (var q = 0; q < s.d.length; q++) {
+        var d = s.d[q], fall = .8;
+        if (d.a < fall) { // the drop on its way down
+          var k = d.a / fall, dy = d.y - (1 - k * k) * .75;
+          if ((X - d.x) * (X - d.x) + (Y - dy) * (Y - dy) * .45 < .02 * .02) return 1;
+          continue;
+        }
+        var a = d.a - fall, dist = Math.hypot(X - d.x, (Y - d.y) * 1.9), fade = Math.exp(-a * .2);
+        if (a < .3 && dist < .045 * (1 - a / .3)) return 1; // the splash
+        for (var j = 0; j < 4; j++) { // four rings, each a little behind and weaker
+          var R = a * .26 - j * .075;
+          if (R <= 0) break;
+          var e = (dist - R) / w;
+          v += Math.exp(-e * e) * fade * (1 - j * .2);
         }
       }
-      st.sctx.putImageData(d, 0, 0);
-      st.ctx.imageSmoothingEnabled = false;
-      st.ctx.drawImage(st.small, 0, 0, cw, ch, 0, 0, st.W, st.H);
-    }
-    // render in steps from `from` columns to the fine dither, `ms` per step (Osmo's stepped render)
-    function render(st, from, steps, ms) {
-      cancelAnimationFrame(st.anim);
-      if (reduce || steps < 2) { draw(st, st.fine); return; }
-      var list = [], ratio = Math.pow(st.fine / from, 1 / (steps - 1)), shown = -1, t0 = 0;
-      for (var i = 0; i < steps; i++) list.push(Math.round(from * Math.pow(ratio, i)));
-      list[steps - 1] = st.fine;
-      (function step(now) {
-        if (!t0) t0 = now;
-        var k = Math.max(0, Math.min(steps - 1, Math.floor((now - t0) / ms))); // a frame's time can be a hair before t0
-        if (k !== shown) { shown = k; draw(st, list[k]); }
-        if (k < steps - 1) st.anim = requestAnimationFrame(step);
-      })(performance.now());
+      return v;
+    } };
+
+    // The Defaults You Never Chose: a paper boat carried along by a current it never picked
+    M.drift = { pal: 'sea', frame: function (s) {
+      var t = s.t;
+      s.surf = function (x) { return .1 + .065 * Math.sin(x * 5 - t * 1.1) + .022 * Math.sin(x * 11.3 + t * 1.7); };
+      var L = 2 * s.A + .5, e = .01;
+      s.bx = -s.A - .25 + fr(t * .045) * L; s.by = s.surf(s.bx);
+      var ang = Math.atan2(s.surf(s.bx + e) - s.surf(s.bx - e), 2 * e) * .9;
+      s.c = Math.cos(ang); s.sn = Math.sin(ang);
+    }, px: function (X, Y, s) {
+      var dx = X - s.bx, dy = Y - s.by + .012, lx = dx * s.c + dy * s.sn, ly = -dx * s.sn + dy * s.c;
+      if (ly <= .01 && ly >= -.045 && Math.abs(lx) < .062 + .05 * (.01 - ly) / .055) return 1; // hull
+      if (ly < -.05 && ly > -.2 && lx > -.004 && lx < .1 * (ly + .2) / .15) return 1; // sail
+      if (Math.abs(lx) < .006 && ly < -.04 && ly > -.215) return 1; // mast
+      var ys = s.surf(X);
+      return ss(ys - .1, ys + .24, Y);
+    } };
+
+    // Design Over Willpower: shape the ground and the ball finds the bottom by itself
+    M.valley = { pal: 'paper', frame: function (s) {
+      var P = 9, n = Math.floor(s.t / P), tau = s.t - n * P, A = s.A;
+      s.g = function (x) { return .2 - .5 * (x / A) * (x / A); };
+      var x0 = (n % 2 ? 1 : -1) * A * .8;
+      s.r = .055; s.fade = 1 - ss(7.8, 8.8, tau);
+      if (tau < .6) { var k = tau / .6; s.bx = x0; s.by = s.g(x0) - s.r - (1 - k * k) * .9; }
+      else { var a = tau - .6; s.bx = x0 * Math.cos(a * 2) * Math.exp(-a * .5); s.by = s.g(s.bx) - s.r; }
+    }, px: function (X, Y, s) {
+      var gy = s.g(X);
+      if (Y > gy) return .4 + .6 * ss(gy, gy + .22, Y);
+      var nx = (X - s.bx) / s.r, ny = (Y - s.by) / s.r;
+      if (nx * nx + ny * ny < 1) return s.fade * (1 - .8 * Math.exp(-((nx + .35) * (nx + .35) + (ny + .4) * (ny + .4)) * 5));
+      return 0;
+    } };
+
+    // A Calm Phone Home Screen: twenty-four apps leave one by one until one is left
+    var ORDER = [];
+    (function () { var k, a = []; for (k = 0; k < 24; k++) if (k !== 13) a.push(k); a.sort(function (p, q) { return h1(p * 3.1) - h1(q * 3.1); }); for (k = 0; k < a.length; k++) ORDER[a[k]] = k; })();
+    M.calm = { pal: 'ink', frame: function (s) { s.tau = fr(s.t / 10) * 10; }, px: function (X, Y, s) {
+      var d = box(X, Y, .17, .32, .045);
+      if (Math.abs(d) < line(s)) return 1; // the phone
+      if (d > 0) return 0;
+      var sp = .072, oy = -.015, i = Math.round(X / sp + 1.5), j = Math.round((Y - oy) / sp + 2.5);
+      if (i < 0 || i > 3 || j < 0 || j > 5) return 0;
+      if (box(X - (i - 1.5) * sp, Y - oy - (j - 2.5) * sp, .023, .023, .009) > 0) return 0;
+      var k = j * 4 + i;
+      if (k === 13) return 1; // the one that stays
+      var go = 1 + ORDER[k] * .22, back = 8.6 + h1(k * 7);
+      return 1 - ss(go, go + .5, s.tau) + ss(back, back + .3, s.tau);
+    } };
+
+    // Rhythms Alpha: the sun goes over, then the moon, stars in between
+    M.day = { pal: 'dusk', frame: function (s) {
+      var tau = fr(s.t / 16) * 16, sun = tau < 10, k = sun ? tau / 10 : (tau - 10) / 6, ph = -.15 + k * (PI + .3);
+      s.sun = sun; s.up = Math.sin(ph);
+      s.sx = -Math.cos(ph) * s.A * .62; s.sy = .2 - s.up * .38;
+      s.dark = sun ? 1 - ss(-.05, .3, s.up) : 1; s.glow = sun ? Math.max(0, s.up) : 0;
+    }, px: function (X, Y, s) {
+      var hz = .2;
+      if (Y > hz) return 0;
+      var dx = X - s.sx, dy = Y - s.sy, d = Math.hypot(dx, dy);
+      if (s.sun ? d < .075 : d < .055 && Math.hypot(dx - .025, dy + .015) > .05) return 1; // sun, or a crescent moon
+      var v = (s.sun ? .75 * Math.pow(1 - ss(0, .32, d), 2) : 0) + .3 * s.glow * Math.exp(-(hz - Y) * 4);
+      if (s.dark > 0) {
+        var g = .055, i = Math.floor(X / g), j = Math.floor(Y / g), q = i * 13 + j * 71;
+        if (h1(q) < .22) {
+          var cx = (i + .2 + .6 * h1(q + 1)) * g, cy = (j + .2 + .6 * h1(q + 2)) * g;
+          if (Math.abs(X - cx) < s.u * .6 && Math.abs(Y - cy) < s.u * .6) v = Math.max(v, s.dark * (.65 + .35 * Math.sin(s.t * 2 + q)));
+        }
+      }
+      return v;
+    } };
+
+    // Your Inbox Is Not A To-Do List: letters land on the desk until there's no desk, then get swept off
+    M.pile = { pal: 'paper', frame: function (s) {
+      var P = 14, n = Math.floor(s.t / P), tau = s.t - n * P, every = .45, N = Math.min(26, Math.floor(tau / every) + 1);
+      var sw = ss(12.2, 13.2, tau); sw *= sw;
+      s.L = [];
+      for (var k = 0; k < N; k++) {
+        var h = n * 100 + k, a = (h1(h + .25) - .5) * 1.1;
+        s.L.push({ x: (h1(h) - .5) * s.A * 1.05 - sw * s.A * 2.6, y: (h1(h + .5) - .5) * .42 + sw * .3,
+          c: Math.cos(a), sn: Math.sin(a), sc: 1 + (1 - out3((tau - k * every) / .35)) * .6 });
+      }
+    }, px: function (X, Y, s) {
+      for (var k = s.L.length - 1; k >= 0; k--) {
+        var e = s.L[k], dx = (X - e.x) / e.sc, dy = (Y - e.y) / e.sc;
+        var lx = dx * e.c + dy * e.sn, ly = -dx * e.sn + dy * e.c, hw = .12, hh = .075;
+        if (Math.abs(lx) > hw || Math.abs(ly) > hh) continue;
+        var w = line(s) / e.sc;
+        if (hw - Math.abs(lx) < w || hh - Math.abs(ly) < w) return 1; // edge
+        if (seg(lx, ly, -hw, -hh, 0, .015) < w * .8 || seg(lx, ly, hw, -hh, 0, .015) < w * .8) return 1; // flap
+        return 0;
+      }
+      return .24; // the desk
+    } };
+
+    // The Feed Has No Bottom: posts keep coming up
+    M.feed = { pal: 'sea', frame: function (s) { s.off = s.t * .09; }, px: function (X, Y, s) {
+      var hw = .2;
+      if (Math.abs(X) > hw) return 0;
+      var pitch = .36, yy = Y + s.off, k = Math.floor(yy / pitch), ly = yy - k * pitch, w = line(s), v = 0;
+      if (ly < .045) { // who posted
+        var ax = -hw + .02;
+        if ((X - ax) * (X - ax) + (ly - .022) * (ly - .022) < .018 * .018) v = 1;
+        else if (X > ax + .03 && X < ax + .13 + .08 * h1(k) && Math.abs(ly - .022) < w) v = 1;
+      } else if (ly > .055 && ly < .255) { // the picture: a few kinds
+        var ix = (X + hw) / (2 * hw), iy = (ly - .055) / .2, kind = Math.floor(h1(k + .3) * 4);
+        v = kind === 0 ? .92 : kind === 1 ? cl(iy * .9 + .05) : kind === 2 ? (Math.hypot(ix - .65, iy - .4) < .2 ? 1 : .18)
+          : cl(.15 + .7 * (.5 + .5 * Math.sin(ix * 9 + h1(k) * 6)) * (1 - iy * .5));
+      } else if (Math.abs(ly - .275) < w && X < hw - .02 - .05 * h1(k + .7)) v = 1; // caption
+      else if (Math.abs(ly - .3) < w && X < -hw + .1 + .15 * h1(k + .9)) v = 1;
+      return v * (1 - ss(.22, .48, Math.abs(Y)));
+    } };
+
+    // Where The Hours Went: the sand runs through, the glass flips, it runs again
+    M.hourglass = { pal: 'dusk', frame: function (s) {
+      var tau = fr(s.t / 11) * 11; s.p = cl(tau / 9.2); s.ang = ss(9.6, 10.6, tau) * PI;
+      s.c = Math.cos(s.ang); s.sn = Math.sin(s.ang);
+    }, px: function (X0, Y0, s) {
+      var X = X0 * s.c + Y0 * s.sn, Y = -X0 * s.sn + Y0 * s.c, hh = .3, W = .16, n = .013, w = line(s);
+      if (Math.abs(Math.abs(Y) - hh - .02) < .018 && Math.abs(X) < W + .045) return 1; // the ends
+      if (Math.abs(Y) > hh) return 0;
+      var wy = n + (W - n) * Math.pow(Math.sin(Math.abs(Y) / hh * PI / 2), .7);
+      if (Math.abs(Math.abs(X) - wy) < w) return 1; // the glass
+      if (Math.abs(X) > wy) return 0;
+      var p = s.p, xr = Math.abs(X) / W;
+      if (Y < 0) return p < 1 && Y > -hh * .8 * Math.pow(1 - p, .55) + .05 * p * (1 - xr) ? .85 : .06;
+      if (Y > hh - hh * .8 * Math.pow(p, .7) * (1 - .55 * xr * xr)) return .85;
+      if (Math.abs(X) < s.u * .8 && p > 0 && p < 1 && h1(Math.floor((Y - s.t * .9) * 70)) > .3) return 1; // the stream
+      return .06;
+    } };
+
+    // Forty Open Tabs: tabs keep opening until each one is a sliver, then the window gives up
+    M.tabs = { pal: 'ink', frame: function (s) {
+      var tau = fr(s.t / 10) * 10;
+      s.n = Math.max(1, Math.floor(1 + Math.pow(tau / 8, 2.2) * 90)); s.gone = ss(8.8, 9.6, tau);
+    }, px: function (X, Y, s) {
+      var hw = Math.min(.62, s.A * .82), top = -.27, bar = .07, w = line(s), v = 0;
+      var d = box(X, Y, hw, .27, .02);
+      if (Math.abs(d) < w) v = 1;
+      else if (d < 0) {
+        if (Y < top + bar) { // the tab strip: the others filled, the newest one open onto the page
+          var tw = (2 * hw - .04) / s.n, x = X + hw - .02, i = Math.floor(x / tw), lx = x - i * tw;
+          if (i >= 0 && i < s.n && Y > top + .016) {
+            var gap = Math.max(s.u * .5, Math.min(.007, tw * .22)), last = i === s.n - 1, inTab = lx > gap && lx < tw - gap;
+            var icon = tw > .045 && lx > gap + .012 && lx < gap + .028 && Math.abs(Y - (top + bar / 2 + .008)) < .008;
+            if (inTab) v = last ? (lx < gap + w || lx > tw - gap - w || Y < top + .016 + w || icon ? 1 : 0) : (icon ? 0 : 1);
+          }
+        } else if (Math.abs(Y - top - bar) < w) v = 1;
+        else { // the page
+          var ly = Y - top - bar - .05, row = Math.floor(ly / .05);
+          if (row >= 0 && row < 7 && ly - row * .05 < .016 && X < -hw + .06 + (2 * hw - .12) * (.4 + .6 * h1(row))) v = .3;
+        }
+      }
+      return v * (1 - s.gone);
+    } };
+
+    function rgba(hex) { // as one 32-bit pixel (little-endian ABGR)
+      var n = parseInt(hex.slice(1), 16);
+      return (255 << 24 | (n & 255) << 16 | (n >> 8 & 255) << 8 | n >> 16) >>> 0;
     }
 
-    function setup(cover, card) {
-      var tag = cover.querySelector('img');
-      if (!tag || tag.classList.contains('w-dyn-bind-empty') || !tag.getAttribute('src')) return;
+    // opts: night() → bool, fine (css px per dot, 2), coarse (14), rest / hover speeds, reduce (no motion), className
+    function mount(host, name, o) {
+      var m = M[name]; if (!m) return null;
+      o = o || {};
+      var fine = o.fine || 2, coarse = o.coarse || 14, rest = o.rest == null ? .35 : o.rest, fast = o.hover || 1.1;
       var cv = document.createElement('canvas');
-      cv.className = 'res_cover-fx';
-      cv.setAttribute('aria-hidden', 'true');
-      cover.appendChild(cv);
-      tag.style.opacity = '0'; // the filter is the look; the real <img> stays for its alt text and as the fallback
-      var st = { cover: cover, card: card, cv: cv, ctx: cv.getContext('2d'), small: document.createElement('canvas'),
-        img: new Image(), anim: 0, ready: false, art: cover.getAttribute('data-journal-art') || 'flow' };
-      st.sctx = st.small.getContext('2d', { willReadFrequently: true });
-      states.push(st);
-      measure(st);
-      st.img.crossOrigin = 'anonymous';
-      st.img.onload = function () {
-        st.ready = true; size(st);
-        if (!card) { render(st, 12, 12, 70); return; } // the article's own cover: renders in once
-        draw(st, 12); // chunky until it scrolls in
-        var seen = new IntersectionObserver(function (es) {
-          if (!es[0].isIntersecting) return;
-          seen.disconnect();
-          render(st, 12, 12, 70);
-        }, { rootMargin: '0px 0px -15% 0px', threshold: .25 });
-        seen.observe(cover);
-        if (canHover) card.addEventListener('pointerenter', function () { render(st, 16, 6, 45); });
+      cv.className = o.className || 'dfs-art'; cv.setAttribute('aria-hidden', 'true');
+      cv.style.imageRendering = 'pixelated';
+      host.appendChild(cv);
+      var ctx = cv.getContext('2d'), img = null, px = null, W = 0, H = 0, cell = o.reduce ? fine : coarse;
+      var s = { t: h1(name.length * 9.7 + (o.seed || 0)) * 40 }, speed = rest, target = rest, seen = false, inView = false, live = false, raf = 0, last = 0, f0 = 0;
+
+      function size() {
+        var r = host.getBoundingClientRect(); W = r.width; H = r.height;
+      }
+      function paint() {
+        if (!W || !H) return;
+        var cols = Math.ceil(W / cell), rows = Math.ceil(H / cell);
+        if (cv.width !== cols || cv.height !== rows) {
+          cv.width = cols; cv.height = rows; img = ctx.createImageData(cols, rows); px = new Uint32Array(img.data.buffer);
+          cv.style.width = cols * cell + 'px'; cv.style.height = rows * cell + 'px';
+        }
+        var pal = PAL[m.pal][o.night && o.night() ? 1 : 0], bk = rgba(pal[0]), fg = rgba(pal[1]);
+        s.A = W / H / 2; s.u = cell / H;
+        if (m.frame) m.frame(s);
+        var x, y, i = 0, X0 = (cell / 2 - W / 2) / H, Y0 = (cell / 2 - H / 2) / H, du = cell / H;
+        for (y = 0; y < rows; y++) {
+          var Y = Y0 + y * du, br = (y & 7) * 8;
+          for (x = 0; x < cols; x++, i++) px[i] = m.px(X0 + x * du, Y, s) > B8[br + (x & 7)] ? fg : bk;
+        }
+        ctx.putImageData(img, 0, 0);
+      }
+      function tick(now) {
+        raf = 0;
+        if (!live) return;
+        raf = requestAnimationFrame(tick);
+        if (now - last < 30) return; // ~30 frames a second is plenty for a slow scene
+        var dt = Math.min(.1, (now - (last || now)) / 1000); last = now;
+        if (f0) { // coming into focus: big pixels shrink to the fine dither
+          var k = (now - f0) / 700; cell = k >= 1 ? fine : coarse + (fine - coarse) * out3(k);
+          if (k >= 1) f0 = 0;
+        }
+        speed += (target - speed) * Math.min(1, dt * 4); s.t += dt * speed;
+        paint();
+      }
+      function run(on) {
+        live = on && !o.reduce && !document.hidden;
+        if (live && !raf) { last = 0; raf = requestAnimationFrame(tick); }
+      }
+      size(); paint();
+      var io = new IntersectionObserver(function (es) {
+        var on = inView = es[es.length - 1].isIntersecting;
+        if (on && !seen) { seen = true; if (!o.reduce) f0 = performance.now() + (o.delay || 0); }
+        run(on);
+      }, { rootMargin: '0px 0px -10% 0px' });
+      io.observe(host);
+      var ro = new ResizeObserver(function () { size(); if (!live) paint(); });
+      ro.observe(host);
+      function vis() { run(inView); }
+      document.addEventListener('visibilitychange', vis);
+      return {
+        el: cv,
+        hover: function (on) { target = on ? fast : rest; },
+        redraw: function () { if (!live) paint(); },
+        again: function () { if (!o.reduce) { f0 = performance.now(); cell = coarse; run(inView); } }, // into focus once more
+        stop: function () { live = false; io.disconnect(); ro.disconnect(); document.removeEventListener('visibilitychange', vis); }
       };
-      st.img.onerror = function () { cv.remove(); tag.style.opacity = ''; };
-      st.img.src = tag.currentSrc || tag.src;
     }
+    return { mount: mount, names: Object.keys(M), motifs: M };
+  })();
 
-    document.querySelectorAll('.res_card .res_cover').forEach(function (cover) { setup(cover, cover.closest('.res_card')); });
-    document.querySelectorAll('.post_cover').forEach(function (cover) { setup(cover, null); });
-
-    var t;
-    window.addEventListener('resize', function () {
-      clearTimeout(t);
-      t = setTimeout(function () { states.forEach(function (st) { measure(st); if (st.ready) { size(st); draw(st, st.fine); } }); }, 150);
+  function dfsBlogArt() {
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var canHover = window.matchMedia('(hover: hover)').matches;
+    var night = function () { return document.documentElement.classList.contains('dfs-night'); };
+    var arts = [];
+    function measure(card) {
+      var ex = 0, p = card.querySelector('.res_excerpt');
+      if (canHover && p) ex = p.offsetHeight + (parseFloat(getComputedStyle(card).rowGap) || 0);
+      card.style.setProperty('--ex', ex + 'px');
+    }
+    document.querySelectorAll('[data-art]').forEach(function (cover, n) {
+      var name = cover.getAttribute('data-art'), card = cover.closest('.res_card'), host = cover;
+      if (!name || !ART.motifs[name]) return;
+      if (card) { // the card's scene sits in its own layer, taller than the cover by --ex
+        host = document.createElement('div');
+        host.className = 'res_cover-fx';
+        cover.appendChild(host);
+        measure(card);
+        var p = card.querySelector('.res_excerpt'); // the webfont or a narrower card can change its height
+        if (p && window.ResizeObserver) new ResizeObserver(function () { measure(card); }).observe(p);
+      }
+      var art = ART.mount(host, name, { night: night, reduce: reduce, delay: (n % 3) * 120 });
+      if (card && canHover) {
+        card.addEventListener('pointerenter', function () { art.hover(true); });
+        card.addEventListener('pointerleave', function () { art.hover(false); });
+      }
+      arts.push(art);
     });
-    new MutationObserver(function () {
-      states.forEach(function (st) { if (st.ready) draw(st, st.cols || st.fine); });
-    }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    new MutationObserver(function () { arts.forEach(function (a) { a.redraw(); }); })
+      .observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
   }
 
   // =========================================================
@@ -7655,7 +7871,7 @@
     if (document.querySelector('[data-filter-group]')) dfsFilter();          // /resources: topic filter
     if (document.querySelector('[data-blog-more]')) dfsBlogMore();           // blog article: Recommended
     if (document.querySelector('[data-foot]')) dfsFooter();                  // the new footer (component)
-    if (document.querySelector('.res_cover img, .post_cover img')) dfsBlogCovers(); // blog cards: dither → picture
+    if (document.querySelector('[data-art]')) dfsBlogArt(); // blog covers: drawn dither scenes
     if (path === '/'|| path === '/course' || path === '/test-zone') dfsHome();
   });
 

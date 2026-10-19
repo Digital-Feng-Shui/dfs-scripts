@@ -7461,31 +7461,51 @@
       var P = 9, n = Math.floor(s.t / P), tau = s.t - n * P, A = s.A;
       s.g = function (x) { return .2 - .5 * (x / A) * (x / A); };
       var x0 = (n % 2 ? 1 : -1) * A * .8;
-      s.r = .055; s.fade = 1 - ss(7.8, 8.8, tau);
+      s.r = .055;
       if (tau < .6) { var k = tau / .6; s.bx = x0; s.by = s.g(x0) - s.r - (1 - k * k) * .9; }
-      else { var a = tau - .6; s.bx = x0 * Math.cos(a * 2) * Math.exp(-a * .5); s.by = s.g(s.bx) - s.r; }
+      else { var a = Math.min(tau, 7.6) - .6; s.bx = x0 * Math.cos(a * 2) * Math.exp(-a * .5); s.by = s.g(s.bx) - s.r; }
+      if (tau > 7.6) { var u = cl((tau - 7.6) / .9); s.by -= u * u * 1.1; } // lifted out, to drop in on the other side
     }, px: function (X, Y, s) {
       var gy = s.g(X);
       if (Y > gy) return .4 + .6 * ss(gy, gy + .22, Y);
       var nx = (X - s.bx) / s.r, ny = (Y - s.by) / s.r;
-      if (nx * nx + ny * ny < 1) return s.fade * (1 - .8 * Math.exp(-((nx + .35) * (nx + .35) + (ny + .4) * (ny + .4)) * 5));
+      if (nx * nx + ny * ny < 1) return (1 - .8 * Math.exp(-((nx + .35) * (nx + .35) + (ny + .4) * (ny + .4)) * 5));
       return 0;
     } };
 
-    // A Calm Phone Home Screen: twenty-four apps leave one by one until one is left
+    // A Calm Phone Home Screen: the apps fall out one by one until one is left, glowing; then they pop back
     var ORDER = [];
     (function () { var k, a = []; for (k = 0; k < 24; k++) if (k !== 13) a.push(k); a.sort(function (p, q) { return h1(p * 3.1) - h1(q * 3.1); }); for (k = 0; k < a.length; k++) ORDER[a[k]] = k; })();
-    M.calm = { pal: 'ink', frame: function (s) { s.tau = fr(s.t / 10) * 10; }, px: function (X, Y, s) {
-      var d = box(X, Y, .17, .32, .045);
+    function backOut(k) { var c = 1.70158; k -= 1; return 1 + (c + 1) * k * k * k + c * k * k; }
+    M.calm = { pal: 'ink', frame: function (s) {
+      var tau = fr(s.t / 10) * 10, sp = .058, oy = .045;
+      s.I = [];
+      for (var k = 0; k < 24; k++) {
+        var x = ((k % 4) - 1.5) * sp, y = oy - .01 + (Math.floor(k / 4) - 2.5) * sp, sc = 1, ang = 0;
+        if (k !== 13) {
+          var go = .6 + ORDER[k] * .23, back = 8.4 + h1(k * 7) * 1.1, a = tau - go;
+          if (tau >= back) { var q = (tau - back) / .3; if (q < 1) sc = Math.max(0, backOut(q)); } // pops back in
+          else if (a > 0) { // falls out, tumbling
+            y += 1.7 * a * a; x += (h1(k + .5) - .5) * .2 * a; ang = a * (h1(k + .9) - .5) * 7;
+            if (y > .7) continue;
+          }
+          if (sc <= 0) continue;
+        }
+        s.I.push({ x: x, y: y, sc: sc, c: Math.cos(ang), sn: Math.sin(ang) });
+      }
+      s.alone = ss(6.2, 6.9, tau) * (1 - ss(8.2, 8.45, tau));
+      s.kx = (1 - 1.5) * sp; s.ky = oy - .01 + (3 - 2.5) * sp; s.oy = oy;
+    }, px: function (X, Y, s) {
+      for (var q = s.I.length - 1; q >= 0; q--) { // the apps, falling ones drawn over everything
+        var e = s.I[q], dx = X - e.x, dy = Y - e.y;
+        if (dx > .04 || dx < -.04 || dy > .04 || dy < -.04) continue;
+        if (box((dx * e.c + dy * e.sn) / e.sc, (-dx * e.sn + dy * e.c) / e.sc, .019, .019, .007) < 0) return 1;
+      }
+      var d = box(X, Y - s.oy, .135, .235, .038);
       if (Math.abs(d) < line(s)) return 1; // the phone
       if (d > 0) return 0;
-      var sp = .072, oy = -.015, i = Math.round(X / sp + 1.5), j = Math.round((Y - oy) / sp + 2.5);
-      if (i < 0 || i > 3 || j < 0 || j > 5) return 0;
-      if (box(X - (i - 1.5) * sp, Y - oy - (j - 2.5) * sp, .023, .023, .009) > 0) return 0;
-      var k = j * 4 + i;
-      if (k === 13) return 1; // the one that stays
-      var go = 1 + ORDER[k] * .22, back = 8.6 + h1(k * 7);
-      return 1 - ss(go, go + .5, s.tau) + ss(back, back + .3, s.tau);
+      if (s.alone > 0) { var gx = X - s.kx, gy = Y - s.ky; return s.alone * .5 * Math.exp(-(gx * gx + gy * gy) / .0045) * (.8 + .2 * Math.sin(s.t * 1.7)); }
+      return 0;
     } };
 
     // Rhythms Alpha: the sun goes over, then the moon, stars in between
@@ -7556,7 +7576,7 @@
       var tau = fr(s.t / 11) * 11; s.p = cl(tau / 9.2); s.ang = ss(9.6, 10.6, tau) * PI;
       s.c = Math.cos(s.ang); s.sn = Math.sin(s.ang);
     }, px: function (X0, Y0, s) {
-      var X = X0 * s.c + Y0 * s.sn, Y = -X0 * s.sn + Y0 * s.c, hh = .3, W = .16, n = .013, w = line(s);
+      var Yc = Y0 - .025, X = X0 * s.c + Yc * s.sn, Y = -X0 * s.sn + Yc * s.c, hh = .27, W = .15, n = .012, w = line(s);
       if (Math.abs(Math.abs(Y) - hh - .02) < .018 && Math.abs(X) < W + .045) return 1; // the ends
       if (Math.abs(Y) > hh) return 0;
       var wy = n + (W - n) * Math.pow(Math.sin(Math.abs(Y) / hh * PI / 2), .7);
@@ -7608,7 +7628,7 @@
       cv.className = o.className || 'dfs-art'; cv.setAttribute('aria-hidden', 'true');
       cv.style.imageRendering = 'pixelated';
       host.appendChild(cv);
-      var ctx = cv.getContext('2d'), img = null, px = null, W = 0, H = 0, cell = o.reduce ? fine : coarse;
+      var ctx = cv.getContext('2d'), img = null, px = null, W = 0, H = 0, cell = o.reduce ? fine : coarse, drawn = '';
       var s = { t: h1(name.length * 9.7 + (o.seed || 0)) * 40 }, speed = rest, target = rest, seen = false, inView = false, live = false, raf = 0, last = 0, f0 = 0;
 
       function size() {
@@ -7619,8 +7639,8 @@
         var cols = Math.ceil(W / cell), rows = Math.ceil(H / cell);
         if (cv.width !== cols || cv.height !== rows) {
           cv.width = cols; cv.height = rows; img = ctx.createImageData(cols, rows); px = new Uint32Array(img.data.buffer);
-          cv.style.width = cols * cell + 'px'; cv.style.height = rows * cell + 'px';
         }
+        if (drawn !== cell + 'x' + cols + 'x' + rows) { drawn = cell + 'x' + cols + 'x' + rows; cv.style.width = cols * cell + 'px'; cv.style.height = rows * cell + 'px'; }
         var pal = PAL[m.pal][o.night && o.night() ? 1 : 0], bk = rgba(pal[0]), fg = rgba(pal[1]);
         s.A = W / H / 2; s.u = cell / H;
         if (m.frame) m.frame(s);

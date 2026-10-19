@@ -41,6 +41,18 @@ import { ShaderMount, ditheringFragmentShader, getShaderColorFromString as col }
 let arrive;
 const arrived = new Promise(r => { arrive = r; });
 const idle = f => (window.requestIdleCallback ? requestIdleCallback(f, { timeout: 1500 }) : setTimeout(f, 200));
+/* Paper's dithering with a reveal, for the arrival: a dot comes in when its tone passes the dither threshold, so with the
+   tone scaled by u_reveal the dots arrive in the dither's own order (darkest first) and every frame stays crisp two-colour
+   pixels, never the greys of an opacity fade. u_spread is a frontier (in 1000s of CSS px from the middle: GPUs often run
+   this shader at half precision, where a distance in pixels squared overflows) with a soft edge (u_edge) inside which
+   the tones develop; u_reveal 1 and a far frontier = Paper's shader exactly. */
+const RES = 'float res = step(.5, shape + dithering);';
+const revealShader = ditheringFragmentShader.includes(RES) && ditheringFragmentShader.includes('uniform float u_type;')
+  ? ditheringFragmentShader
+    .replace('uniform float u_type;', 'uniform float u_type;\nuniform float u_reveal;\nuniform float u_spread;\nuniform float u_edge;')
+    .replace(RES, 'float far = length(canvasPixelizedUV / (u_pixelRatio * 1000.));\n  float local = clamp((u_spread - far) / max(u_edge, .001), 0., 1.);\n  float res = step(.5, shape * u_reveal * local + dithering);')
+  : null;
+const FAR = 100;   // 100,000 px: everything
 
 const root = document.querySelector('[data-dive]');
 if (root) init(root); else arrive();
@@ -97,17 +109,19 @@ function init(root) {
   injectCSS();
 
   /* ---- shader ---- */
-  // the arrival plays when the page opens at the top (see below); then the swirl starts invisible (front = back)
-  const VARIANT = (new URLSearchParams(location.search).get('intro') || 'tune').toLowerCase();
+  // the arrival plays when the page opens at the top (see below); then the swirl starts with nothing developed
+  const VARIANT = (new URLSearchParams(location.search).get('intro') || 'develop').toLowerCase();
   const atTop = (() => { const r = root.getBoundingClientRect(); return -r.top < 8; })();
   const willArrive = atTop && !reduce && VARIANT !== 'off';
   const sizing = { u_fit: 0, u_scale: 1, u_rotation: 0, u_offsetX: 0, u_offsetY: 0, u_originX: .5, u_originY: .5, u_worldWidth: 0, u_worldHeight: 0 };
   let mount = null;
   try {
     const p = PAL[isNight() ? 'night' : 'day'];
-    mount = new ShaderMount(el.canvas, ditheringFragmentShader, {
-      ...sizing, u_colorBack: col(p.back), u_colorFront: col(willArrive ? p.back : p.front), u_shape: 6, u_type: S.type, u_pxSize: S.px, u_scale: S.scale0,
-    }, undefined, reduce ? 0 : S.speed, 0);
+    const start = willArrive ? { fade: [0, FAR], opacity: [1, FAR] }[VARIANT] || [1, 0] : [1, FAR];
+    mount = new ShaderMount(el.canvas, revealShader || ditheringFragmentShader, {
+      ...sizing, u_colorBack: col(p.back), u_colorFront: col(p.front), u_shape: 6, u_type: S.type, u_pxSize: S.px, u_scale: S.scale0,
+      ...(revealShader ? { u_reveal: start[0], u_spread: start[1], u_edge: .4 } : {}),
+    }, undefined, reduce || willArrive ? 0 : S.speed, 0);
   } catch (e) { console.warn('[dive] shader did not start', e); }
 
   /* ---- the star + Keeper tick (ring +45°, inner star -45°, every 4.4 s, Osmo curve) ---- */
@@ -184,12 +198,10 @@ function init(root) {
     const key = p.toFixed(4) + P.back + (A.on ? A.n : '');
     if (mount && key !== lastKey) {
       lastKey = key;
-      const front = lerp(P.front, P.end, drain);
       mount.setUniforms({
-        u_scale: (S.scale0 + z * S.zoom) * (A.on ? A.scale : 1), u_rotation: z * S.spin + (A.on ? A.rot : 0),
-        u_pxSize: A.on && A.px ? A.px : S.px + Math.round(z * S.pxGrow), u_type: A.on && A.type ? A.type : S.type,
-        u_offsetX: A.on ? A.jx : 0, u_offsetY: A.on ? A.jy : 0,
-        u_colorBack: col(P.back), u_colorFront: col(A.on && A.contrast < 1 ? lerp(P.back, front, A.contrast) : front),
+        u_scale: S.scale0 + z * S.zoom, u_rotation: z * S.spin, u_pxSize: S.px + Math.round(z * S.pxGrow),
+        u_colorBack: col(P.back), u_colorFront: col(lerp(P.front, P.end, drain)),
+        ...(revealShader ? { u_reveal: A.on ? A.reveal : 1, u_spread: A.on ? A.spread : FAR, u_edge: A.edge } : {}),
       });
     }
     if (el.logo) {
@@ -442,73 +454,68 @@ function init(root) {
     }
   }
 
-  /* ---- the arrival (Rim, 19 Oct 2026: "now we just land on it", and a heavier page loaded with flashes) ----
+  /* ---- the arrival (Rim, 19 Oct 2026: "now we just land on it"; the glitchy first take "doesn't represent the calm
+     energy": the dither should come in soothingly, with the look it has once it's there) ----
      The first paint is the still star on the page's own colour (page head CSS, before any script runs), so a slow load
-     waits on something calm instead of a blank or a navy flash. Once the swirl can draw, it comes together around the
-     star; the star ticks as it locks; then the cue rises in and the corner buttons fade in (html.dive-shown). Only then
-     do the heavier parts load (sound, the solutions demos, the time story's dither). Variants to compare, ?intro=
-       tune   (default) restless static, big pixels and a jitter, that comes together in steps: random → 2x2 → 4x4
-       spin   a wild spin from far out that winds down into place
-       still  the star alone, one tick, and the swirl opens out from it
-       off    no arrival, the swirl fades in
-     Skipped when the page opens scrolled down, a fade with reduced motion; a scroll, key or tap plays the rest fast. */
-  const A = { on: false, n: 0, contrast: 1, rot: 0, scale: 1, px: 0, type: 0, jx: 0, jy: 0 };
-  const ease3 = x => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
-  // per variant: when the cue comes in (done) and when the star's tick starts (its turn lands about .45 s later)
-  const BEATS = { tune: { done: 1250, tick: 420 }, spin: { done: 1650, tick: 820 }, still: { done: 1500, tick: 0 } };
-  const beats = BEATS[VARIANT] || BEATS.tune;
-  function arrivalAt(t) {   // the swirl at t ms; px/type 0 = its own
-    if (VARIANT === 'spin') {
-      const k = ease3(t / 1500);
-      return { contrast: sm(0, 260, t), rot: -720 * (1 - k), scale: .18 + .82 * k, px: Math.max(S.px, Math.round(2 + 10 * (1 - k))),
-        type: t < 700 ? 1 : 0, speed: S.speed + 3 * (1 - k), jitter: .045 * (1 - sm(0, 900, t)) };
-    }
-    if (VARIANT === 'still') {
-      return { contrast: 1, rot: 30 * (1 - ease3((t - 350) / 1100)), scale: 1, px: 0, type: 0,
-        speed: S.speed + 2.5 * (1 - sm(350, 1400, t)), jitter: 0, reveal: sm(350, 1450, t) };
-    }
-    const steps = [[200, 28], [380, 16], [540, 9], [700, 5], [860, 3]];
-    return { contrast: sm(0, 160, t), rot: 45 * (1 - ease3(t / 1100)), scale: 1, px: (steps.find(st => t < st[0]) || [0, 0])[1],
-      type: t < 540 ? 1 : t < 860 ? 2 : 0, speed: S.speed + 4.5 * (1 - sm(0, 1150, t)), jitter: .05 * (1 - sm(0, 950, t)) };
+     waits on something calm instead of a blank or a navy flash. The star ticks once; the swirl then develops around it,
+     dot by dot in the dither's own order (revealShader), and starts to flow, from still to its own pace. Then the cue
+     rises in and the corner buttons fade in (html.dive-shown), and only then do the heavier parts load (sound, the
+     solutions demos, the time story's dither). Variants to compare, ?intro=
+       develop  (default) the dots come in from the star outwards, a soft dithered edge spreading like ink in water
+       fade     the same dot-by-dot development, everywhere at once
+       opacity  a plain opacity fade, for comparison
+       off      none
+     Skipped when the page opens scrolled down, a short fade with reduced motion; a scroll, key or tap plays the rest
+     fast. */
+  const A = { on: false, n: 0, reveal: 1, spread: FAR, edge: .4 };
+  const easeIO = x => { x = Math.min(1, Math.max(0, x)); return .5 - .5 * Math.cos(Math.PI * x); };
+  // per variant: how long it takes (the cue comes in at done)
+  const DONE = { develop: 2400, fade: 1800, opacity: 1300 };
+  const done = DONE[VARIANT] || DONE.develop;
+  function arrivalAt(t) {
+    // the flow starts from still and eases into its own pace as the swirl comes in
+    const speed = S.speed * Math.pow(easeIO((t - 150) / (done - 250)), 1.5);
+    if (VARIANT === 'opacity' || !revealShader) return { reveal: 1, spread: FAR, speed, opacity: easeIO(t / 1100) };
+    if (VARIANT === 'fade') return { reveal: easeIO((t - 150) / 1500), spread: FAR, speed };
+    // develop: like ink in water, the frontier leaves the star as its tick turns, quick through the swirl's empty
+    // middle, slowing as it reaches the corners; behind it the tones keep deepening, so it never has a hard edge
+    const half = Math.hypot(innerWidth, innerHeight) / 2000, edge = half * .7;   // in 1000s of px, as the shader
+    const k = Math.min(1, Math.max(0, (t - 200) / 2000)), out = 1 - Math.pow(1 - k, 3);
+    return { reveal: .5 + .5 * easeIO((t - 200) / 2100), spread: .15 + (half + edge - .15) * out, edge, speed };
   }
   let shown = false;
   function show(quiet) {
     if (shown) return; shown = true;
     document.documentElement.classList.add('dive-shown');
     if (el.cue && !quiet && el.cue.animate) {
-      el.cue.animate([{ opacity: 0, translate: '0 .9rem' }, { opacity: 1, translate: '0 0' }], { duration: 750, easing: 'cubic-bezier(.625,.05,0,1)' });
+      el.cue.animate([{ opacity: 0, translate: '0 .9rem' }, { opacity: 1, translate: '0 0' }], { duration: 900, easing: 'cubic-bezier(.625,.05,0,1)' });
     }
     arrive();
   }
   function arrival() {
-    let t = 0, last = 0, fast = false, jt = 0;
+    let t = 0, last = 0, fast = false;
     const hurry = () => { fast = true; };
     const INPUT = ['wheel', 'touchstart', 'keydown', 'pointerdown'];
     INPUT.forEach(e => addEventListener(e, hurry, { passive: true }));
     const finish = () => {
       A.on = false; INPUT.forEach(e => removeEventListener(e, hurry));
-      el.canvas.style.webkitMaskImage = el.canvas.style.maskImage = '';
+      el.canvas.style.opacity = '';
       if (mount) mount.setSpeed(S.speed);
       lastKey = ''; render(); show();
     };
     const step = now => {
-      if (!last) { last = now; t0 = now + beats.tick - 3600; }   // the star's next tick: at beats.tick
-      t += (now - last) * (fast ? 5 : 1); last = now;
-      if (t >= beats.done) { finish(); return; }
+      if (!last) { last = now; t0 = now - 3600; }   // the star's tick starts now; its turn lands as the swirl starts to come in
+      t += (now - last) * (fast ? 4 : 1); last = now;
+      if (t >= done) { finish(); return; }
       const st = arrivalAt(t);
-      A.n++; A.contrast = st.contrast; A.rot = st.rot; A.scale = st.scale; A.px = st.px; A.type = st.type;
-      if (!st.jitter) A.jx = A.jy = 0;
-      else if (now - jt > 45) { jt = now; A.jx = (Math.random() * 2 - 1) * st.jitter; A.jy = (Math.random() * 2 - 1) * st.jitter; }
+      A.n++; A.reveal = st.reveal; A.spread = st.spread; if (st.edge) A.edge = st.edge;
+      if (st.opacity !== undefined) el.canvas.style.opacity = st.opacity.toFixed(3);
       if (mount) mount.setSpeed(st.speed);
-      if (st.reveal !== undefined) {
-        const R = st.reveal * Math.hypot(innerWidth, innerHeight) * .55, m = `radial-gradient(circle at 50% 50%,#000 ${R.toFixed(1)}px,transparent ${(R + 90 * st.reveal).toFixed(1)}px)`;
-        el.canvas.style.webkitMaskImage = el.canvas.style.maskImage = m;
-      }
       render();
       requestAnimationFrame(step);
     };
-    A.on = true; Object.assign(A, arrivalAt(0)); A.jx = A.jy = 0;
-    if (VARIANT === 'still') el.canvas.style.webkitMaskImage = el.canvas.style.maskImage = 'radial-gradient(circle,#000 0,transparent 0)';
+    A.on = true; Object.assign(A, arrivalAt(0)); delete A.speed; delete A.opacity;
+    if (arrivalAt(0).opacity !== undefined) el.canvas.style.opacity = '0';
     requestAnimationFrame(step);
   }
 

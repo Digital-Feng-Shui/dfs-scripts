@@ -1009,11 +1009,23 @@ const DEMO_CSS = `
 .dfs-night .tkd-ba .tkd-wall{background-color:#0e1628}
 .tkd-scene.is-ba:not(.is-tall) .tkd-dock{--ds:32px}
 .tkb-badge{position:absolute;top:calc(var(--ds) * -.12);right:calc(var(--ds) * -.2);min-width:calc(var(--ds) * .46);height:calc(var(--ds) * .46);padding:0 calc(var(--ds) * .13);box-sizing:border-box;border-radius:calc(var(--ds) * .23);background:#ff453a;color:#fff;font-weight:600;font-size:calc(var(--ds) * .3);line-height:calc(var(--ds) * .46);text-align:center;white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,.2)}
-.tkb-note{position:absolute;z-index:5;display:flex;align-items:center;gap:10px;box-sizing:border-box;padding:10px 54px 10px 12px;border-radius:14px;background:rgba(246,246,246,.8);-webkit-backdrop-filter:blur(20px) saturate(1.6);backdrop-filter:blur(20px) saturate(1.6);box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 8px 24px rgba(0,0,0,.16);font-size:11px;line-height:1.35;color:#1d1d1f}
-.dfs-night .tkb-note{background:rgba(44,44,48,.78);color:#ececec;box-shadow:0 0 0 .5px rgba(255,255,255,.12),0 8px 24px rgba(0,0,0,.4)}
+.tkb-dl svg{position:absolute;left:28%;top:34%;width:44%;height:44%;color:rgba(14,76,150,.7)}
+.tkb-note{position:absolute;z-index:5;display:flex;align-items:center;gap:10px;box-sizing:border-box;padding:10px 54px 10px 12px;border-radius:14px;background:rgba(246,246,246,.82);-webkit-backdrop-filter:blur(20px) saturate(1.6);backdrop-filter:blur(20px) saturate(1.6);box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 8px 24px rgba(0,0,0,.16);font-size:11px;line-height:1.35;color:#1d1d1f}
+.dfs-night .tkb-note{background:rgba(44,44,48,.8);color:#ececec;box-shadow:0 0 0 .5px rgba(255,255,255,.12),0 8px 24px rgba(0,0,0,.4)}
 .tkb-note img{width:30px;height:30px;flex:none}.tkb-note b{display:block;font-size:11.5px}.tkb-note span{display:block;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tkb-note em{position:absolute;right:12px;top:10px;font-style:normal;font-size:10px;opacity:.5}
-.tkb-mail{z-index:2}.tkb-finder{z-index:3}
+.tkb-st{display:flex;align-items:center;gap:12px}.tkb-st svg{height:14px;width:auto;display:block}
+.tkb-rec{display:grid;place-items:center;width:28px;height:16px;border-radius:8px;background:#ff9f0a;color:#fff}.tkb-rec svg{height:11px}
+.tkb-timer{display:flex;align-items:center;gap:4px;font-variant-numeric:tabular-nums}.tkb-timer svg{height:12px}
+/* on a phone the menus go (as in the demos), the status items stay: the busy ones fewer */
+.tkd.tkd-ba .tkd-scene.is-ba.is-tall .tkd-bar span.tkb-st{display:flex;gap:9px}.tkd.tkd-ba .tkd-scene.is-tall .tkd-bar span.tkb-rec{display:grid}.tkd.tkd-ba .tkd-scene.is-tall .tkd-bar span.tkb-timer{display:flex}
+.tkd-scene.is-before.is-tall .tkb-st>:nth-child(n+4):nth-child(-n+8){display:none!important}
+.tkb-desk{position:absolute;inset:0;z-index:1}
+.tkb-ic{position:absolute;width:52px;display:grid;justify-items:center;gap:2px;text-align:center}
+.tkb-ic i{width:36px;height:34px;display:grid;place-items:center}
+.tkb-ic img{display:block;max-width:36px;max-height:34px;box-shadow:0 0 0 .5px rgba(0,0,0,.22),0 1px 2px rgba(0,0,0,.22)}
+.tkb-ic span{max-width:50px;overflow:hidden;font-size:6.4px;line-height:7.8px;white-space:nowrap;letter-spacing:-.1px;color:rgba(0,0,0,.86);text-shadow:0 0 4px rgba(255,255,255,.75)}
+.dfs-night .tkb-ic span{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.7)}
 .tkd-your{margin-top:12px;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--c-calm)}
 .tkd-key{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;box-sizing:border-box;border-radius:3px;box-shadow:inset 0 0 0 1px color-mix(in srgb,currentColor 50%,transparent);font-size:10px;letter-spacing:0}
 .tkd-key svg{width:11px;height:9px;fill:none;stroke:currentColor;stroke-width:1.3}
@@ -1113,55 +1125,68 @@ const DEMO_CSS = `
 `;
 
 /* ---------- before and after (Osmo's Before/After Split Slider, built in Webflow): the same Mac twice ----------
-   [data-tinko-ba="before"]: a Mac after a few busy years: files piled on the desk, Downloads open in Finder with Mail
-   behind it, a 24-app Dock with badges, three banners. [data-tinko-ba="after"]: the same Mac after Tinko: an empty desk,
-   no windows, a Dock of daily drivers (Raycast from the setup), Mail at 37 unread, Messages still 2 (people can reach
-   you), the Bin full (he moves things to the Bin; nothing is deleted). Wide 3:2 on a desktop, tall 4:5 on a phone
-   (picked by the slider's own shape). Demo files and numbers. */
-const BA_FILES = [   // id, kind, image, name, where on the wide Mac, where on the tall one (null: not on the phone)
-  ['shot', 'shot-1', 'Screenshot 2026-10-12 at 09.41.22', [862, 248], [436, 206]], ['folder', 'file-folder', 'Old stuff', [770, 240], [352, 206]],
-  ['dmg', 'file-dmg', 'zoomusInstallerFull.dmg', [866, 344], [268, 206]], ['shot', 'shot-2', 'Screenshot 2026-10-13 at 16.07.51', [776, 338], [184, 206]],
-  ['zip', 'file-zip', 'photos-export.zip', [684, 252], [100, 206]], ['shot', 'shot-3', 'Screenshot 2026-10-14 at 11.22.09', [860, 440], [16, 206]],
-  ['txt', 'file-txt', 'Notes for Monday.txt', [772, 436], [436, 534]], ['png', 'file-png', 'IMG_2041.png', [688, 350], [352, 534]],
-  ['zip', 'file-zip', 'Archive.zip', [598, 262], [268, 534]], ['folder', 'file-folder', 'untitled folder', [682, 446], [184, 534]],
-  ['shot', 'shot-4', 'Screenshot 2026-10-15 at 22.51.40', [598, 452], [100, 534]], ['dmg', 'file-dmg', 'Figma-old.dmg', [40, 452], [16, 534]],
-  ['png', 'file-png', 'IMG_2047.png', [132, 468], null], ['txt', 'file-txt', 'todo FINAL final.txt', [222, 455], null], ['shot', 'shot-1', 'Screenshot 2026-10-16 at 08.02.13', [312, 470], null],
-];
+   Rim, 20 Oct: crazier before, a calm after. [data-tinko-ba="before"]: the desk packed with screenshots the way macOS
+   piles them (columns from the top right, about three times his own 64; the thumbnails are real screenshots of the
+   DFS site, meet/media/shots), a busy menu bar, three banners in the corner, a 24-app Dock with badges.
+   [data-tinko-ba="after"]: the same Mac after Tinko: nothing on the desk, his own cleaned-up menu bar (•••, the Timer
+   diamond, battery, Control Center), a Dock of Finder, Arc and Raycast, then Downloads and the Bin (full: he moves
+   things to the Bin, nothing is deleted). No badges. Wide 3:2 on a desktop, tall 4:5 on a phone (by the slider's shape). */
+const SHOT = n => new URL(`./media/shots/s${String(n).padStart(2, '0')}.webp`, import.meta.url).href;
+const G = (d, w = 16) => `<svg viewBox="0 0 ${w} 16" aria-hidden="true">${d}</svg>`;
+const ST = {   // menu bar status items, drawn like SF Symbols (currentColor)
+  rec: `<span class="tkb-rec">${G('<path d="M8 2.2a2 2 0 0 1 2 2v3.6a2 2 0 0 1-4 0V4.2a2 2 0 0 1 2-2zM4.6 7.6a3.4 3.4 0 0 0 6.8 0M8 11v2.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>')}</span>`,
+  video: G('<rect x="1.5" y="4.5" width="9" height="7" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M10.5 7.2l4-2v5.6l-4-2z" fill="currentColor"/>'),
+  cloud: G('<path d="M4.6 12.4h6.9a2.9 2.9 0 0 0 .3-5.8 3.9 3.9 0 0 0-7.5 1 2.4 2.4 0 0 0 .3 4.8z" fill="none" stroke="currentColor" stroke-width="1.3"/>'),
+  note: G('<path d="M6 12.4V3.6l7-1.4v8.9" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="4.4" cy="12.4" r="1.8" fill="currentColor"/><circle cx="11.4" cy="11.1" r="1.8" fill="currentColor"/>'),
+  plus: G('<rect x="2.5" y="2.5" width="11" height="11" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 5.2v5.6M5.2 8h5.6" stroke="currentColor" stroke-width="1.3"/>'),
+  timer: `<span class="tkb-timer">${G('<path d="M8 2.4l5.2 5.6L8 13.6 2.8 8z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>')}0:00</span>`,
+  diamond: G('<path d="M8 2.4l5.2 5.6L8 13.6 2.8 8z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>'),
+  bt: G('<path d="M5 5.2l6 5.6-3 2.6V2.6l3 2.6-6 5.6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>'),
+  wifi: G('<path d="M2 6.6a9 9 0 0 1 12 0M4.2 8.9a6 6 0 0 1 7.6 0M6.4 11.1a3 3 0 0 1 3.2 0" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="13.1" r="1" fill="currentColor"/>'),
+  battery: G('<rect x="1" y="4.8" width="15" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".55"/><rect x="2.5" y="6.3" width="9" height="4" rx="1" fill="currentColor"/><path d="M17.4 7v3" stroke="currentColor" stroke-width="1.3" opacity=".55"/>', 19),
+  search: G('<circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M10.2 10.2L13.8 13.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'),
+  cc: G('<rect x="1.5" y="2.8" width="13" height="4.6" rx="2.3" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="12.2" cy="5.1" r="1.4" fill="currentColor"/><rect x="1.5" y="8.6" width="13" height="4.6" rx="2.3" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="3.8" cy="10.9" r="1.4" fill="currentColor"/>'),
+  siri: G('<circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4.6 8.4c1.4-2 2.4 2 3.4 0s2-2 3.4 0" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>'),
+  dots: G('<circle cx="3" cy="8" r="1.5" fill="currentColor"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/><circle cx="13" cy="8" r="1.5" fill="currentColor"/>'),
+  link: G('<path d="M6.6 9.4l2.8-2.8M5.3 7.6L4 8.9a2.3 2.3 0 0 0 3.2 3.2l1.3-1.3M10.7 8.4L12 7.1a2.3 2.3 0 0 0-3.2-3.2L7.5 5.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>'),
+};
+const BA_BAR = { before: ['rec', 'video', 'cloud', 'note', 'plus', 'timer', 'bt', 'wifi', 'battery', 'search', 'cc', 'siri'], after: ['dots', 'diamond', 'link', 'battery', 'cc'] };
 const BA_NOTES = [['slack', 'Slack', '#general · 3 new messages', 'now'], ['news', 'News', 'Top stories for you', '2m ago'], ['appstore', 'App Store', '12 updates available', '5m ago']];
 const BA_BEFORE = [['finder', 1], ['safari'], ['messages', 0, 2], ['mail', 1, '8,214'], ['maps'], ['photos'], ['facetime'], ['calendar'], ['contacts'], ['reminders'], ['notes'], ['tv'], ['music'], ['news', 0, 5], ['appstore', 0, 12], ['settings', 0, 1], ['arc', 1], ['figma', 1], ['claude', 1], ['slack', 1, 3], ['chrome', 1], ['spotify', 1], ['zoom'], ['tinko', 1]];
-const BA_AFTER = [['finder', 1], ['messages', 0, 2], ['mail', 1, 37], ['calendar'], ['notes'], ['arc', 1], ['figma', 1], ['claude', 1], ['spotify', 1], ['raycast']];
-const baDock = (apps, full) => `<div class="tkd-dock">${apps.map(([id, run, badge]) => `<div class="tkd-dapp${run ? ' is-run' : ''}"><img src="${MAC(id)}" alt="">${badge ? `<b class="tkb-badge">${badge}</b>` : ''}<i></i></div>`).join('')}<b class="tkd-dsep"></b><div class="tkd-dapp tkd-trash"><img src="${MAC(full ? 'trash-full' : 'trash-empty')}" alt=""></div></div>`;
+const BA_AFTER = [['finder', 1], ['arc', 1], ['raycast']];
+const DL_ARROW = G('<path d="M8 4.2v6.6M5.2 8.2L8 11l2.8-2.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>');
+const baDock = (apps, full) => `<div class="tkd-dock">${apps.map(([id, run, badge]) => `<div class="tkd-dapp${run ? ' is-run' : ''}"><img src="${MAC(id)}" alt="">${badge ? `<b class="tkb-badge">${badge}</b>` : ''}<i></i></div>`).join('')}<b class="tkd-dsep"></b><div class="tkd-dapp tkb-dl"><img src="${MAC('file-folder')}" alt="">${DL_ARROW}</div><div class="tkd-dapp tkd-trash"><img src="${MAC(full ? 'trash-full' : 'trash-empty')}" alt=""></div></div>`;
+// the desk, the way macOS piles it: columns from the top right, each one full before the next
+const BA_GRID = { wide: { W: 960, cols: 18, rows: 10, n: 176 }, tall: { W: 520, cols: 9, rows: 10, n: 86 } };
+const PITCH = [52, 56], SHOTS = 18;
+const baDesk = L => { const g = BA_GRID[L]; let h = '', seed = 7;
+  // a shuffled order of the thumbnails, so no two neighbours repeat in stripes (a fixed Park-Miller sequence: the same pile every visit)
+  const pick = Array.from({ length: g.n }, () => (seed = seed * 16807 % 2147483647) % SHOTS);
+  for (let k = 0; k < g.n; k++) {
+    const c = Math.floor(k / g.rows), r = k % g.rows, x = g.W - 6 - (c + 1) * PITCH[0], y = 28 + r * PITCH[1];
+    const time = `${(k * 7 + 2) % 10}.${String((k * 37 + 11) % 60).padStart(2, '0')}`;
+    h += `<div class="tkb-ic" style="left:${x}px;top:${y}px"><i><img src="${SHOT(pick[k] + 1)}" alt="" loading="lazy"></i><span>Screenshot<br>2026…${time}.png</span></div>`;
+  }
+  return h; };
 
 function initBA(host) {
   const after = host.dataset.tinkoBa === 'after';
-  host.innerHTML = `<div class="tkd tkd-ba" aria-hidden="true"><div class="tkd-scene is-ba">
+  const bar = BA_BAR[after ? 'after' : 'before'].map(k => ST[k]).join('');
+  host.innerHTML = `<div class="tkd tkd-ba" aria-hidden="true"><div class="tkd-scene is-ba is-${after ? 'after' : 'before'}">
     <div class="tkd-wall"></div>
-    <div class="tkd-bar"><span class="tkd-apple">${APPLE}</span><b class="tkd-app">Finder</b><span>File</span><span>Edit</span><span>View</span><span>Go</span><span>Window</span><span>Help</span><i></i><span class="tkd-clock">Mon 10:24</span></div>
+    <div class="tkd-bar"><span class="tkd-apple">${APPLE}</span><b class="tkd-app">Finder</b><span>File</span><span>Edit</span><span>View</span><span>Go</span><span>Window</span><span>Help</span><i></i><span class="tkb-st">${bar}</span><span class="tkd-clock">Tue 20 Oct  10:24</span></div>
     <div class="tkd-ctx"></div>
   </div></div>`;
   host.setAttribute('role', 'img');
-  host.setAttribute('aria-label', after ? 'The same Mac after Tinko: an empty desktop, no windows, a Dock of ten apps, 37 unread mails and the Bin full.' : 'A cluttered Mac: files all over the desktop, Downloads and Mail open, a Dock of 24 apps with badges and three notifications.');
+  host.setAttribute('aria-label', after ? 'The same Mac after Tinko: nothing on the desktop, a quiet menu bar, a Dock of Finder, Arc and Raycast, Downloads and a full Bin.' : 'A cluttered Mac: the desktop packed with screenshots, a busy menu bar, three notifications and a Dock of 24 apps with badges.');
   const scene = host.querySelector('.tkd-scene'), ctx = host.querySelector('.tkd-ctx');
-  if (after) ctx.innerHTML = baDock(BA_AFTER, true);
-  else {
-    const mails = [['Weekly Wins', 'Your 5 wins for the week'], ['Shop Daily', 'Last chance: 40% off everything'], ['Deal Radar', 'Prices dropped on 12 items'], ['App Digest', 'New this week in apps'], ['Studio Notes', 'What we learned building in public'], ['Shop Daily', 'Your cart misses you'], ['The Long Read', 'Sunday edition'], ['Weekly Wins', 'Your 5 wins for the week'], ['Deal Radar', 'Flash sale ends tonight'], ['App Digest', 'Five apps worth a look']];
-    ctx.innerHTML = `${BA_NOTES.map(([id, app, line, when]) => `<div class="tkb-note"><img src="${MAC(id)}" alt=""><div><b>${app}</b><span>${line}</span></div><em>${when}</em></div>`).join('')}
-      ${macWin('is-mail tkb-mail', 'Inbox', `<div class="tkd-mail-head"><b>Inbox</b><span class="tkd-unread">8,214 unread</span></div><div class="tkd-mails">${mails.map(([n, t]) => `<div class="tkd-mrow"><i></i><b>${n}</b><span>${t}</span></div>`).join('')}</div>`)}
-      ${macWin('is-finder tkb-finder', 'Downloads', `<div class="tkd-fside"></div><div class="tkd-list"><div class="tkd-lhead"><span>Name</span><span>Size</span></div>${DEMOS.files.rows.map(([k, n, sz]) => `<div class="tkd-lrow"><span><img src="${MAC(k === 'part' ? 'file-txt' : 'file-' + k)}" alt="">${n}</span><span>${sz}</span></div>`).join('')}</div>`)}
-      <div class="tkd-desk">${BA_FILES.map(([kind, img, name]) => `<div class="tkd-file is-${kind}">${kind === 'shot' ? `<img class="tkd-thumb" src="${MAC(img)}" alt="">` : `<img class="tkd-ficon" src="${MAC(img)}" alt="">`}<span>${name.length > 22 ? name.slice(0, 11) + '…' + name.slice(-8) : name}</span></div>`).join('')}</div>
-      ${baDock(BA_BEFORE, false)}`;
-  }
-  const place = tall => {
-    if (after) return;
-    ctx.querySelectorAll('.tkd-file').forEach((f, i) => { const at = BA_FILES[i][tall ? 4 : 3]; f.style.display = at ? '' : 'none'; if (at) Object.assign(f.style, { left: at[0] + 'px', top: at[1] + 'px' }); });
-    ctx.querySelectorAll('.tkb-note').forEach((n, i) => { n.style.display = tall && i > 1 ? 'none' : ''; Object.assign(n.style, tall ? { left: '12px', right: '12px', width: 'auto', top: 86 + i * 58 + 'px' } : { left: 'auto', right: '12px', width: '268px', top: 32 + i * 66 + 'px' }); });
-    Object.assign(ctx.querySelector('.tkb-mail').style, tall ? { left: '16px', top: '300px', width: '300px', height: '190px' } : { left: '30px', top: '74px', width: '420px', height: '300px' });
-    Object.assign(ctx.querySelector('.tkb-finder').style, tall ? { left: '170px', top: '330px', width: '334px', height: '196px' } : { left: '210px', top: '152px', width: '400px', height: '296px' });
-  };
   let L = '';
   const fit = () => {
     const tall = host.clientHeight > host.clientWidth, W = tall ? 520 : 960, H = tall ? 650 : 640;
-    if ((tall ? 'tall' : 'wide') !== L) { L = tall ? 'tall' : 'wide'; scene.classList.toggle('is-tall', tall); place(tall); }
+    if ((tall ? 'tall' : 'wide') !== L) {
+      L = tall ? 'tall' : 'wide'; scene.classList.toggle('is-tall', tall);
+      ctx.innerHTML = after ? baDock(BA_AFTER, true) : `${BA_NOTES.slice(0, tall ? 2 : 3).map(([id, app, line, when], i) => `<div class="tkb-note" style="${tall ? `left:12px;right:12px;top:${86 + i * 58}px` : `right:12px;width:268px;top:${32 + i * 66}px`}"><img src="${MAC(id)}" alt=""><div><b>${app}</b><span>${line}</span></div><em>${when}</em></div>`).join('')}<div class="tkb-desk">${baDesk(L)}</div>${baDock(BA_BEFORE, false)}`;
+    }
     scene.style.width = W + 'px'; scene.style.height = H + 'px'; scene.style.transform = `scale(${host.clientWidth / W})`;
   };
   new ResizeObserver(fit).observe(host); fit();

@@ -5,8 +5,11 @@
    [data-tinko-stage]: Tinko large, in his own window, on his real first screen (tinko Views.swift, step .hello).
    He is drawn and moves the way the app has him (tinko Tinko.swift): one outline whose edges drift (the morph),
    a slow sway, blinks, a goof now and then, eyes that follow the pointer, the click "bwoop" (eyes big, then out,
-   never touching) and the cheer (happy slits, a double hop). He wakes up the first time he's seen: the pixels
-   come in, the eyes open. Space (or the button) is his "Take a look": he cheers and the page moves on.
+   never touching) and the cheer (happy slits, a double hop). On the first screen at load he gets an intro: alone
+   and larger in the middle, his pixels come in, he wakes, then glides into place while his box opens around
+   him and the title rises (any scroll, click or key skips it). Further down the page he wakes when he's seen.
+   Space (or the button) is his "Take a look": he cheers and the page moves on. The moon / sun in his toolbar
+   is the site's own day/night switch.
    [data-tinko-title]: the hero title's lines rise in; [data-tinko-intro] follow.
    [data-tinko-demo="dock|desk|files|apps|settings|inbox|setup"]: one row each under "What he does". A small Mac
    (wallpaper, menu bar, Dock) with his window on it, playing that part with his real lines (from the app's
@@ -68,7 +71,7 @@ const GOOFS = [
 ];
 const CHEER = [E(-1.6, -1, 1.8, .5), E(1.6, -1, 1.8, .5)];
 
-function makeTinko(host) {
+function makeTinko(host, shared) {
   host.innerHTML = `<div class="tkh-sway"><div class="tkh-jig"><div class="tkh-blob">
     <svg class="tkh-svg" viewBox="-1 -1 ${COLS + 2} ${ROWS + 2}" aria-hidden="true">
       <g class="tkh-cells">${BITMAP.map((r, y) => [...r].map((c, x) => c === '#' ? `<rect x="${x}" y="${y}" width="1.02" height="1.02"/>` : '').join('')).join('')}</g>
@@ -80,7 +83,9 @@ function makeTinko(host) {
 
   // the morph: four drifted outlines and back to the first, 11 s round, eased per leg (body.add(morph))
   const base = outline();
-  const variants = [deformed(base), deformed(base), deformed(base), deformed(base)]; variants.push(variants[0]);
+  const variants = shared?.variants || [deformed(base), deformed(base), deformed(base), deformed(base)];
+  if (variants.length === 4) variants.push(variants[0]);
+  if (shared && !shared.variants) shared.variants = variants;
   const morphAt = t => {
     const leg = Math.min(3, Math.floor(t * 4)), k = inOut(t * 4 - leg), a = variants[leg], b = variants[leg + 1];
     return a.map((p, i) => [p[0] + (b[i][0] - p[0]) * k, p[1] + (b[i][1] - p[1]) * k]);
@@ -102,10 +107,10 @@ function makeTinko(host) {
   drawEyes();
 
   // one frame loop while he's on screen: the morph and any eye move
-  let raf = 0, visible = false, t0 = performance.now();
+  let raf = 0, visible = false; const t0 = shared?.t0 ?? (shared ? (shared.t0 = performance.now()) : performance.now());
   function frame(now) {
     raf = 0;
-    if (!reduce) body.setAttribute('d', pathOf(morphAt(((now - t0) / 11000) % 1)));
+    if (!reduce) body.setAttribute('d', pathOf(morphAt((((now - t0) / 11000) % 1 + 1) % 1)));   // a frame's time can be a hair before t0
     if (tween) {
       const k = Math.min(1, (now - tween.t0) / tween.dur), f = tween.ease(k);
       eyes = tween.from.map((a, i) => { const b = tween.to[i]; return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, w: a.w + (b.w - a.w) * f, h: a.h + (b.h - a.h) * f }; });
@@ -205,29 +210,41 @@ function makeTinko(host) {
     cells.forEach(c => c.classList.remove('is-in'));
     eyes = HOME.map(e => ({ ...e, y: e.y + .8, h: .25 })); tween = null; drawEyes();
   }
-  function wakeUp() {
+  // k < 1 runs it faster (the page-load intro)
+  function wakeUp(k = 1) {
     return new Promise(done => {
-      if (reduce) { host.classList.remove('is-asleep'); host.classList.add('is-awake'); mood = 'idle'; set({ ...HOME[0] }, { ...HOME[1] }, .1); return done(); }
+      if (reduce) { awakeNow(); return done(); }
       const order = cells.map((c, i) => [c, Math.random() + (Math.abs(i % 14 - 7) / 30)]).sort((a, b) => a[1] - b[1]);
-      order.forEach(([c], i) => later(() => c.classList.add('is-in'), 40 + i * (520 / order.length)));
-      later(() => { host.classList.remove('is-asleep'); host.classList.add('is-awake'); }, 640);
-      later(() => set(E(-1.5, -.6, 1, 2.1), E(1.5, -.6, 1, 2.1), .16, 'out'), 1000);
-      later(() => { blinking = false; blink(); }, 1450);
-      later(() => set(E(-1.5, -.7, 1.4, 2.2), E(1.5, -.7, 1.4, 2.2), .3, 'out'), 1800);
-      later(() => { mood = 'idle'; nextGoof = performance.now() + 7000; gaze = { x: 9, y: 9 }; done(); }, 2500);
+      order.forEach(([c], i) => later(() => c.classList.add('is-in'), (40 + i * (520 / order.length)) * k));
+      later(() => { host.classList.remove('is-asleep'); host.classList.add('is-awake'); }, 640 * k);
+      later(() => set(E(-1.5, -.6, 1, 2.1), E(1.5, -.6, 1, 2.1), .16, 'out'), 1000 * k);
+      later(() => { blinking = false; blink(); }, 1450 * k);
+      later(() => set(E(-1.5, -.7, 1.4, 2.2), E(1.5, -.7, 1.4, 2.2), .3, 'out'), 1800 * k);
+      later(() => { mood = 'idle'; nextGoof = performance.now() + 7000; gaze = { x: 9, y: 9 }; done(); }, 2500 * k);
     });
   }
+  // straight to awake, eyes home (the hand-over at the end of the intro)
+  function awakeNow() {
+    timers.forEach(clearTimeout); timers.clear(); goofing = blinking = false;
+    cells.forEach(c => c.classList.add('is-in')); host.classList.remove('is-asleep'); host.classList.add('is-awake');
+    eyes = HOME.map(e => ({ ...e })); tween = null; drawEyes();
+    mood = 'idle'; nextGoof = performance.now() + 7000; gaze = { x: 9, y: 9 };
+  }
+  function home(dur = .3) { if (mood !== 'asleep') set({ ...HOME[0] }, { ...HOME[1] }, dur); }
 
   svg.addEventListener('click', bwoop);
-  return { show, sleep, wakeUp, cheer, squint, bwoop, get mood() { return mood; } };
+  return { show, sleep, wakeUp, awakeNow, home, cheer, squint, bwoop, get mood() { return mood; } };
 }
 
 /* ---------- the hero window: his first screen ---------- */
 
 const DEL = '<svg viewBox="0 0 22 18" aria-hidden="true"><path d="M7 2h13v14H7L1 9z"/><path d="M11 6l6 6M17 6l-6 6"/></svg>';
 const MENU = '<svg viewBox="0 0 9 9" shape-rendering="crispEdges" aria-hidden="true"><rect x="0" y="1" width="9" height="1"/><rect x="0" y="4" width="9" height="1"/><rect x="0" y="7" width="9" height="1"/></svg>';
-// Start over: Rim's pixel arrow (ResetIcon, the 9×9 one in the app's toolbar)
-const RESET = '<svg viewBox="0 0 9 9" shape-rendering="crispEdges" aria-hidden="true"><rect x="3" y="0" width="4" height="1"/><rect x="1" y="1" width="3" height="1"/><rect x="0" y="2" width="3" height="5"/><rect x="1" y="7" width="3" height="1"/><rect x="3" y="8" width="4" height="1"/><rect x="4" y="7" width="3" height="1"/></svg>';
+// Day / night: the site's own pixel moon and sun (night.js), so it reads as what it does: it switches the page
+const px = rows => `<svg viewBox="0 0 9 9" shape-rendering="crispEdges" aria-hidden="true">${rows.map((r, y) => [...r].map((c, x) => c === 'X' ? `<rect x="${x}" y="${y}" width="1" height="1"/>` : '').join('')).join('')}</svg>`;
+const MOON = px(['...XXXX..', '.XXXX....', '.XXX.....', 'XXX......', 'XXX......', 'XXX......', '.XXX.....', '.XXXX....', '...XXXX..']);
+const SUN = px(['....X....', '.X.....X.', '...XXX...', '..XXXXX..', 'X.XXXXX.X', '..XXXXX..', '...XXX...', '.X.....X.', '....X....']);
+const isNight = () => document.documentElement.classList.contains('dfs-night');
 const roll = t => `<span class="tkh-roll">${[...t.toUpperCase()].map(c => `<b>${c === ' ' ? '&nbsp;' : c}</b>`).join('')}</span>`;
 
 function initStage(host) {
@@ -236,7 +253,7 @@ function initStage(host) {
     <div class="tkh-lights" aria-hidden="true"><i></i><i></i><i></i></div>
     <div class="tkh-dash is-top"></div><div class="tkh-dash is-bottom"></div>
     <div class="tkh-col">
-      <div class="tkh-tools"><span aria-hidden="true">${MENU}</span><button type="button" class="tkh-tool" data-tkh="again" title="Start over" aria-label="Start over">${RESET}</button></div>
+      <div class="tkh-tools"><span aria-hidden="true">${MENU}</span><button type="button" class="tkh-tool" data-tkh="theme"><span class="tkh-moon">${MOON}</span><span class="tkh-sun">${SUN}</span></button></div>
       <div class="tkh-stage">
         <div class="tkh-tinko" role="img" aria-label="Tinko, a white pixel creature with two eyes. Click him."></div>
         <div class="tkh-screen">
@@ -248,17 +265,69 @@ function initStage(host) {
     </div>
   </div></div></div>`;
   const win = host.querySelector('.tkh-win'), screen = host.querySelector('.tkh-screen'), btn = host.querySelector('[data-tkh="look"]');
-  const tinko = makeTinko(host.querySelector('.tkh-tinko'));
+  const tinkoEl = host.querySelector('.tkh-tinko'), shared = {};
+  const tinko = makeTinko(tinkoEl, shared);
+  const swayBorn = performance.now();
 
   // the window comes in with the hero (as soon as any of it shows, after the title); he wakes up the first
-  // time it's well in view, and his screen follows him in
+  // time it's well in view, and his screen follows him in. On the first screen at load: the intro instead.
   let started = false, shown = false;
   tinko.sleep(); screen.classList.add('is-hidden');
+  const r0 = win.getBoundingClientRect();
+  if (!reduce && scrollY < 40 && r0.top < innerHeight * .92 && r0.bottom > 0) { started = shown = true; intro(); }
+  else heroTitle.play(120);
   const born = performance.now();
   function appear() {
     if (shown) return; shown = true;
     setTimeout(() => win.classList.add('is-on'), reduce ? 0 : Math.max(0, 900 - (performance.now() - born)));
   }
+  /* The page-load intro (Rim, 19 Oct): Tinko on his own in the middle of the screen, larger. His pixels come in,
+     he wakes up and says hello, then he glides down to his place while his box opens out around him and the
+     title rises. Any scroll, click or key skips to the end. */
+  function intro() {
+    const cell = tinkoEl.offsetWidth / 16;
+    const ov = document.createElement('div'); ov.className = 'tkh-intro'; ov.innerHTML = '<div class="tkh-tinko"></div>';
+    ov.style.setProperty('--tkh-cell', cell + 'px');
+    document.body.append(ov);
+    const it = ov.firstChild, twin = makeTinko(it, shared);
+    it.querySelector('.tkh-sway').style.animationDelay = `-${((performance.now() - swayBorn) / 1000).toFixed(3)}s`;
+    twin.sleep(); twin.show(true);
+    tinkoEl.style.visibility = 'hidden';
+    const BIG = Math.max(1.2, Math.min(1.6, innerWidth / 3.2 / it.offsetWidth + .4));
+    it.style.transform = `scale(${BIG})`;
+    win.classList.add('is-on', 'is-boxed'); win.style.transition = 'none';
+    const anims = [], timers = [], at = (ms, fn) => timers.push(setTimeout(fn, ms));
+    let done = false;
+    function finish() {
+      if (done) return; done = true;
+      timers.forEach(clearTimeout); anims.forEach(a => { try { a.finish(); } catch (e) {} });
+      removeEventListener('wheel', skip); removeEventListener('touchstart', skip); removeEventListener('keydown', skip, true); removeEventListener('pointerdown', skip, true);
+      win.style.clipPath = ''; win.classList.remove('is-boxed', 'is-clipping'); win.style.opacity = ''; win.style.transition = '';
+      tinkoEl.style.visibility = ''; tinko.awakeNow(); tinko.show(true); twin.show(false); ov.remove();
+      heroTitle.play(0, true);
+      screen.classList.remove('is-hidden');
+    }
+    const skip = () => finish();
+    addEventListener('wheel', skip, { passive: true }); addEventListener('touchstart', skip, { passive: true });
+    addEventListener('keydown', skip, true); addEventListener('pointerdown', skip, true);
+    twin.wakeUp(.62);
+    // the glide down into his place, with the box opening out from around him
+    at(1250, () => {
+      twin.home(.35);
+      const a = it.getBoundingClientRect(), b = tinkoEl.getBoundingClientRect();
+      const dx = (b.left + b.width / 2) - (a.left + a.width / 2), dy = (b.top + b.height / 2) - (a.top + a.height / 2);
+      anims.push(it.animate([{ transform: `translate(0,0) scale(${BIG})` }, { transform: `translate(${dx}px,${dy}px) scale(1)` }], { duration: 1050, easing: 'cubic-bezier(.625,.05,0,1)', fill: 'forwards' }));
+      heroTitle.play(150);
+    });
+    at(1650, () => {
+      const w = win.getBoundingClientRect(), b = tinkoEl.getBoundingClientRect(), pad = cell * 1.2;
+      const from = `inset(${b.top - w.top - pad}px ${w.right - b.right - pad}px ${w.bottom - b.bottom - pad}px ${b.left - w.left - pad}px round 8px)`;
+      win.classList.add('is-clipping'); win.style.opacity = '1';
+      anims.push(win.animate([{ clipPath: from, opacity: 0 }, { clipPath: from, opacity: 1, offset: .12 }, { clipPath: 'inset(0px 0px 0px 0px round 14px)', opacity: 1 }], { duration: 1150, easing: 'cubic-bezier(.625,.05,0,1)', fill: 'forwards' }));
+    });
+    at(2350, () => finish());
+  }
+
   async function start() {
     started = true; appear();
     await new Promise(r => setTimeout(r, reduce ? 0 : Math.max(450, 1300 - (performance.now() - born))));
@@ -288,11 +357,14 @@ function initStage(host) {
     await hop; looking = false;
   }
   btn.addEventListener('click', look);
-  host.querySelector('[data-tkh="again"]').addEventListener('click', async () => {
-    if (tinko.mood === 'asleep') return;
-    screen.classList.add('is-hidden'); tinko.sleep();
-    await new Promise(r => setTimeout(r, 500));
-    await tinko.wakeUp(); screen.classList.remove('is-hidden');
+  // day / night: the site's own switch (so the choice is remembered), and he blinks at the change
+  const themeBtn = host.querySelector('[data-tkh="theme"]');
+  const label = () => { const t = isNight() ? 'Switch to day mode' : 'Switch to night mode'; themeBtn.title = t; themeBtn.setAttribute('aria-label', t); };
+  label(); new MutationObserver(label).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  themeBtn.addEventListener('click', () => {
+    const site = document.querySelector('.dfs-night-toggle');
+    if (site) site.click(); else if (window.dfsNight) window.dfsNight.set(!isNight()); else document.documentElement.classList.toggle('dfs-night');
+    tinko.bwoop();
   });
   // his keys, while his window is the thing you're looking at: Space = Take a look, ⌫ = a squint
   addEventListener('keydown', e => {
@@ -305,12 +377,17 @@ function initStage(host) {
 
   // a gentle tilt towards the pointer (fine pointers only), like the Rhythms window
   if (finePointer && !reduce) {
-    const tilt = host.querySelector('.tkh-tilt'); let tx = 0, ty = 0, cx = 0, cy = 0, run = 0;
-    const step = () => { cx += (tx - cx) * .08; cy += (ty - cy) * .08; tilt.style.transform = `rotateX(${cy.toFixed(3)}deg) rotateY(${cx.toFixed(3)}deg)`; run = Math.abs(tx - cx) + Math.abs(ty - cy) > .01 ? requestAnimationFrame(step) : 0; };
+    const tilt = host.querySelector('.tkh-tilt'), MAXT = 5; let tx = 0, ty = 0, cx = 0, cy = 0, run = 0;
+    const step = () => {
+      cx += (tx - cx) * .08; cy += (ty - cy) * .08;
+      tilt.style.transform = `rotateX(${cy.toFixed(3)}deg) rotateY(${cx.toFixed(3)}deg)`;
+      tinkoEl.style.translate = `${(cx * 2.2).toFixed(2)}px ${(-cy * 2.2).toFixed(2)}px`;
+      run = Math.abs(tx - cx) + Math.abs(ty - cy) > .01 ? requestAnimationFrame(step) : 0;
+    };
     addEventListener('pointermove', e => {
       const r = tilt.getBoundingClientRect(); if (r.bottom < 0 || r.top > innerHeight) return;
-      tx = Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / (innerWidth / 2))) * 2.5;
-      ty = Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height / 2)) / innerHeight)) * -2.5;
+      tx = Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / (innerWidth / 2))) * MAXT;
+      ty = Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height / 2)) / innerHeight)) * -MAXT;
       if (!run) run = requestAnimationFrame(step);
     }, { passive: true });
   }
@@ -318,9 +395,10 @@ function initStage(host) {
 
 /* ---------- the title: lines rise out of their masks, then the rest ---------- */
 
+const heroTitle = { play() {} };
 function introTitle() {
   const h = document.querySelector('[data-tinko-title]'), rest = [...document.querySelectorAll('[data-tinko-intro]')];
-  if (!h) return;
+  if (!h) { document.documentElement.classList.add('tinko-ready'); return; }
   // one mask per line (the <br> splits them)
   const lines = []; let cur = [];
   [...h.childNodes].forEach(n => { if (n.nodeName === 'BR') { lines.push(cur); cur = []; } else cur.push(n); });
@@ -331,10 +409,15 @@ function introTitle() {
     const line = document.createElement('span'); line.className = 'tkh-line';
     l.forEach(n => line.append(n)); mask.append(line); h.append(mask); return line;
   });
-  document.documentElement.classList.add('tinko-ready');
-  if (reduce) return;
-  inner.forEach((l, i) => l.animate([{ transform: 'translateY(105%)' }, { transform: 'translateY(0)' }], { duration: 1100, delay: 120 + i * 110, easing: 'cubic-bezier(.625,.05,0,1)', fill: 'backwards' }));
-  rest.forEach((el, i) => el.animate([{ opacity: 0, transform: 'translateY(.75rem)' }, { opacity: 1, transform: 'none' }], { duration: 900, delay: i === 0 ? 0 : 520 + i * 90, easing: 'cubic-bezier(.33,1,.68,1)', fill: 'backwards' }));
+  let played = false, anims = [];
+  heroTitle.play = (delay = 0, now = false) => {
+    if (played) { if (now) anims.forEach(a => a.finish()); return; }
+    played = true;
+    document.documentElement.classList.add('tinko-ready');
+    if (reduce || now) return;
+    inner.forEach((l, i) => anims.push(l.animate([{ transform: 'translateY(105%)' }, { transform: 'translateY(0)' }], { duration: 1100, delay: delay + i * 110, easing: 'cubic-bezier(.625,.05,0,1)', fill: 'backwards' })));
+    rest.forEach((el, i) => anims.push(el.animate([{ opacity: 0, transform: 'translateY(.75rem)' }, { opacity: 1, transform: 'none' }], { duration: 900, delay: delay + (i === 0 ? 0 : 380 + i * 90), easing: 'cubic-bezier(.33,1,.68,1)', fill: 'backwards' })));
+  };
 }
 
 /* ---------- the feature demos: his window, his real lines, and the part of the Mac they change ---------- */
@@ -862,11 +945,12 @@ function injectCSS() {
   const s = document.createElement('style'); s.id = 'meet-tinko-css';
   s.textContent = `
 .tkh-line-mask{display:block;overflow:clip;padding-bottom:.06em;margin-bottom:-.06em}.tkh-line{display:block}
+.tinko-cta_price{border-left-color:color-mix(in srgb,currentColor 32%,transparent)!important}
 .tkh{container-type:inline-size;position:relative;perspective:2000px}
 .tkh-tilt{transform-origin:50% 0;will-change:transform}
 .tkh-win{--c-card:#fbf7ef;--c-ink:#3d3a36;--c-soft:#7d776f;--c-line:#dfd5ca;--c-calm:#1a97d7;--c-calmsoft:#edf5f9;--tkh-cell:clamp(10px,1.85cqw,19px);--chrome:clamp(22px,3.2cqw,34px);
   position:relative;aspect-ratio:1000/620;border-radius:clamp(10px,1.3cqw,14px);overflow:hidden;background:var(--c-card);color:var(--c-ink);font-family:"Space Mono",monospace;-webkit-font-smoothing:antialiased;
-  box-shadow:0 0 0 1px rgba(61,58,53,.1),0 2px 4px rgba(61,58,53,.06),0 40px 90px -40px rgba(61,58,53,.55);opacity:0;transform:translateY(1.5rem);transition:opacity .9s cubic-bezier(.33,1,.68,1),transform 1.1s cubic-bezier(.625,.05,0,1)}
+  box-shadow:0 0 0 1px rgba(61,58,53,.1),0 2px 4px rgba(61,58,53,.06),0 40px 90px -40px rgba(61,58,53,.55);opacity:0;transform:translateY(1.5rem);transition:opacity .9s cubic-bezier(.33,1,.68,1),transform 1.1s cubic-bezier(.625,.05,0,1),box-shadow .8s cubic-bezier(.33,1,.68,1)}
 .tkh-win.is-on{opacity:1;transform:none}
 .dfs-night .tkh-win{--c-card:#292724;--c-ink:#fbf7ef;--c-soft:#b3aca2;--c-line:#3d3a36;--c-calm:#1dabfa;--c-calmsoft:#173241;box-shadow:0 0 0 1px rgba(251,247,239,.08),0 40px 90px -40px rgba(0,0,0,.75)}
 @container (max-width:600px){.tkh-win{aspect-ratio:auto;min-height:31rem;--tkh-cell:clamp(9px,3.4cqw,14px)}}
@@ -880,6 +964,12 @@ function injectCSS() {
 .tkh-tools{position:absolute;right:clamp(10px,1.6cqw,16px);top:clamp(10px,1.4cqw,14px);display:flex;gap:8px;z-index:2}
 .tkh-tools>*{all:unset;width:clamp(30px,3.8cqw,38px);aspect-ratio:1;box-sizing:border-box;display:grid;place-items:center;border:1px solid var(--c-line);border-radius:4px;background:var(--c-card)}
 .tkh-tools svg{width:36%;height:36%;display:block;fill:var(--c-ink)}
+.tkh-sun{display:none}.dfs-night .tkh-sun{display:block}.dfs-night .tkh-moon{display:none}.tkh-moon,.tkh-sun{width:100%;height:100%;place-items:center}.tkh-moon{display:grid}.dfs-night .tkh-sun{display:grid}
+.tkh-intro{--c-card:#fbf7ef;--c-ink:#3d3a36;position:fixed;inset:0;z-index:60;display:grid;place-items:center;pointer-events:none}
+.dfs-night .tkh-intro{--c-card:#292724;--c-ink:#fbf7ef}
+.tkh-intro .tkh-tinko{transform-origin:50% 50%}
+.tkh-win.is-boxed{opacity:0}
+.tkh-win.is-clipping{box-shadow:none}
 .tkh-tool{cursor:pointer;transition:border-color .3s}.tkh-tool:hover{border-color:color-mix(in srgb,var(--c-ink) 35%,var(--c-line))}.tkh-tool:focus-visible{outline:2px solid var(--c-calm);outline-offset:2px}
 .tkh-stage{position:absolute;inset:0;display:grid;justify-items:center;align-content:center;gap:clamp(18px,3cqw,34px);padding:clamp(48px,6cqw,64px) 1.25rem}
 @container (max-width:600px){.tkh-stage{position:relative;min-height:calc(31rem - 2 * var(--chrome))}}
@@ -917,6 +1007,7 @@ function init() {
   injectCSS();
   introTitle();
   document.querySelectorAll('[data-tinko-stage]').forEach(initStage);
+  if (!document.querySelector('[data-tinko-stage]')) heroTitle.play(120);
   document.querySelectorAll('[data-tinko-demo]').forEach(initDemo);
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();

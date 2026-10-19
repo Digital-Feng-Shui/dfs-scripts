@@ -6529,20 +6529,36 @@
     }
 
     // [data-tinko-stage="N"] buttons (the Fundamentals V2 course): open that stage in the app.
-    // Webflow forces https:// onto custom-scheme links, so the link itself is "#" and this opens
-    // dfshelper://stage/N (a route Tinko still has to add; until then nothing happens).
+    // Tinko open and connected to this member: through the worker, no browser question (dfsTinkoOnline
+    // knows beforehand). Otherwise dfshelper://stage/N (Webflow forces https:// onto custom-scheme
+    // links, so the link itself is "#"), which the browser asks about once.
     window.addEventListener('click', function (event) {
       var button = event.target.closest && event.target.closest('[data-tinko-stage]');
       if (!button) return;
       event.preventDefault();
       event.stopPropagation();
-      window.location.href = 'dfshelper://stage/' + button.getAttribute('data-tinko-stage');
-      // A page can't ask the Mac whether Tinko is installed. If the link opened him, this tab loses focus;
-      // if nothing happened within 1.5 s, the card's [data-tinko-fallback] line shows (install him in 0.2).
+      var stage = button.getAttribute('data-tinko-stage');
       var card = button.closest('[data-lesson-stage]') || document;
       var note = card.querySelector('[data-tinko-fallback]');
-      if (!note) return;
-      note.classList.remove('is-shown');
+      if (note) note.classList.remove('is-shown');
+      if (tinkoLink.online) {
+        tinkoAsk('open', { stage: Number(stage) }).then(function (j) {
+          if (j && j.delivered) return;
+          tinkoLink.online = false;
+          viaLink();
+        });
+      } else {
+        viaLink();
+      }
+      function viaLink() {
+        window.location.href = 'dfshelper://stage/' + stage;
+        if (note) watch(note);
+      }
+    }, true);
+
+    // A page can't ask the Mac whether Tinko is installed. If the link opened him, this tab loses focus;
+    // if nothing happened within 1.5 s, the card's [data-tinko-fallback] line shows (install him in 0.2).
+    function watch(note) {
       var left = false;
       function gone() { left = true; }
       window.addEventListener('blur', gone, { once: true });
@@ -6552,7 +6568,7 @@
         document.removeEventListener('visibilitychange', gone);
         if (!left && document.hasFocus()) note.classList.add('is-shown');
       }, 1500);
-    }, true);
+    }
 
     window.addEventListener('click', function (event) {
       var link = event.target.closest && event.target.closest('[data-tinko-scroll]');
@@ -6744,6 +6760,143 @@
     }
   }
 
+  // =========================================================
+  // TINKO LINK — the course → Tinko hand-off without browser questions (19 Oct, Rim: "smooth").
+  // The page talks to the dfs-helper worker (tinko/worker, /course/*) with the member's Memberstack token
+  // in a POST body (never a URL or the clipboard); the worker answers with a ticket (signed, an hour) the
+  // page uses after that. Three uses:
+  //  - dfsTinkoInstallCode: the install line gets a one-time code (`… | sh -s K7QM-4XRT-9PWD`, once,
+  //    15 minutes, renewed while the page is open), so Tinko connects himself on first launch and the
+  //    Connect step goes.
+  //  - dfsTinkoOnline: is this member's Tinko open right now? Then "Open Tinko" ([data-tinko-stage],
+  //    dfsTinko) goes through the worker and he comes forward on that stage; else dfshelper://stage/N.
+  //  - dfsTinkoClaim: Tinko's own Connect opens the site with ?tinko-claim=…; once the member is logged in
+  //    (on whatever page they land), the page tells the worker who it is and Tinko collects his licence.
+  // Plan: tinko/docs/course-handoff-plan.md.
+  // =========================================================
+  var TINKO_WORKER = 'https://dfs-helper.dfs-helper-worker.workers.dev';
+  var tinkoLink = { ticket: null, online: false, checked: 0, code: null };
+
+  function tinkoMode() {
+    return location.hostname === 'dfs-staging.webflow.io' ? 'sandbox' : 'live';
+  }
+
+  // The member token the dfs-helper worker verifies: Memberstack's own getter first, then where
+  // the DOM package keeps it (localStorage or the _ms-mid cookie), depending on its settings.
+  function tinkoMemberToken(ms) {
+    try { var t = ms.getMemberCookie && ms.getMemberCookie(); if (t) return t; } catch (e) {}
+    try { var l = localStorage.getItem('_ms-mid'); if (l) return l; } catch (e) {}
+    var m = document.cookie.match(/(?:^|;\s*)_ms-mid=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+
+  // { ticket } while we have a fresh one, else { token } for a logged-in member, else null.
+  function tinkoWho() {
+    if (tinkoLink.ticket && Date.now() - tinkoLink.ticket.at < 50 * 60 * 1000) return Promise.resolve({ ticket: tinkoLink.ticket.value });
+    return new Promise(function (resolve) {
+      whenMemberstackReady(function () {
+        var ms = window.$memberstackDom;
+        ms.getCurrentMember().then(function (res) {
+          if (!res || !res.data) return resolve(null);
+          var token = tinkoMemberToken(ms);
+          resolve(token ? { token: token } : null);
+        }).catch(function () { resolve(null); });
+      });
+    });
+  }
+
+  // POST /course/<action>. text/plain, so the browser sends it straight away (no CORS preflight).
+  function tinkoAsk(action, extra) {
+    return tinkoWho().then(function (who) {
+      if (!who) return null;
+      var body = Object.assign({ mode: tinkoMode() }, extra || {}, who);
+      return fetch(TINKO_WORKER + '/course/' + action, {
+        method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(body)
+      }).then(function (r) {
+        return r.json().then(function (j) { j.status = r.status; return j; });
+      }).then(function (j) {
+        if (j.ticket) tinkoLink.ticket = { value: j.ticket, at: tinkoLink.ticket && tinkoLink.ticket.value === j.ticket ? tinkoLink.ticket.at : Date.now() };
+        if (j.code === 'bad-ticket') tinkoLink.ticket = null;
+        return j;
+      });
+    }).catch(function () { return null; });
+  }
+
+  function dfsTinkoInstallCode() {
+    function refresh() {
+      tinkoAsk('code').then(function (j) {
+        if (!j || !j.code) return;
+        tinkoLink.code = { value: j.code, at: Date.now() };
+        document.querySelectorAll('[data-helper-line]').forEach(function (line) {
+          var base = line.getAttribute('data-helper-base') || line.textContent.trim().replace(/\s+-s\s+\S+$/, '');
+          line.setAttribute('data-helper-base', base);
+          line.textContent = base + ' -s ' + j.code;
+        });
+        // The code connects him: the Connect step isn't needed (it stays for logged-out visitors).
+        document.querySelectorAll('[data-helper-connect]').forEach(function (button) {
+          var block = button.closest('.work_files') || button.closest('.tinko_actions');
+          if (block) block.style.display = 'none';
+        });
+        document.querySelectorAll('.tk_after').forEach(function (p) {
+          p.textContent = 'Tinko installs himself in Applications, opens, and connects to your account. The line is yours: it works once.';
+        });
+      });
+    }
+    refresh();
+    setInterval(function () { if (!document.hidden) refresh(); }, 10 * 60 * 1000);
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden && tinkoLink.code && Date.now() - tinkoLink.code.at > 10 * 60 * 1000) refresh();
+    });
+  }
+
+  // Asked when the page loads, when it's back in view, and when the pointer comes near an Open Tinko
+  // button (if the last answer is older than 15 s), so the click itself knows which way to go.
+  function dfsTinkoOnline() {
+    function check() {
+      tinkoLink.checked = Date.now();
+      tinkoAsk('online').then(function (j) { tinkoLink.online = !!(j && j.online); });
+    }
+    check();
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) check(); });
+    document.addEventListener('pointerover', function (event) {
+      if (event.target.closest && event.target.closest('[data-tinko-stage]') && Date.now() - tinkoLink.checked > 15000) check();
+    });
+  }
+
+  function dfsTinkoClaim() {
+    var KEY = 'dfs-tinko-claim';
+    var params = new URLSearchParams(location.search);
+    var fromUrl = params.get('tinko-claim');
+    if (fromUrl) {
+      try { localStorage.setItem(KEY, JSON.stringify({ claim: fromUrl, at: Date.now() })); } catch (e) {}
+      params.delete('tinko-claim');
+      history.replaceState(history.state, '', location.pathname + (params.toString() ? '?' + params : '') + location.hash);
+    }
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
+    if (!saved) return;
+    if (Date.now() - saved.at > 15 * 60 * 1000) { try { localStorage.removeItem(KEY); } catch (e) {} return; }
+    tinkoWho().then(function (who) {
+      if (!who) { if (fromUrl) tinkoToast('Log in, and Tinko connects by himself.'); return; }
+      tinkoAsk('claim', { claim: saved.claim }).then(function (j) {
+        try { localStorage.removeItem(KEY); } catch (e) {}
+        tinkoToast(j && j.ok ? 'Tinko is connected. He\u2019s waiting for you on your Mac.' : 'That Connect took too long. Press Connect in Tinko again.');
+      });
+    });
+  }
+
+  function tinkoToast(text) {
+    var el = document.createElement('div');
+    el.textContent = text;
+    el.setAttribute('role', 'status');
+    el.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9999;max-width:calc(100% - 32px);' +
+      'padding:12px 18px;border-radius:8px;background:#201A1A;color:#FBF7EF;font-size:14px;line-height:1.4;' +
+      'box-shadow:0 8px 24px rgba(0,0,0,.18);transition:opacity .4s';
+    document.body.appendChild(el);
+    setTimeout(function () { el.style.opacity = '0'; }, 6000);
+    setTimeout(function () { el.remove(); }, 6500);
+  }
+
   // The install line's Copy button: [data-helper-copy] copies the text of [data-helper-line] next to it.
   // One listener on the page, so it keeps working when the course player swaps lessons.
   function dfsHelperCopy() {
@@ -6845,15 +6998,6 @@
       }).catch(function () { who.textContent = 'Memberstack didn’t answer.'; });
     });
 
-    // The member token the dfs-helper worker verifies: Memberstack's own getter first, then where
-    // the DOM package keeps it (localStorage or the _ms-mid cookie), depending on its settings.
-    function memberToken(ms) {
-      try { var t = ms.getMemberCookie && ms.getMemberCookie(); if (t) return t; } catch (e) {}
-      try { var l = localStorage.getItem('_ms-mid'); if (l) return l; } catch (e) {}
-      var m = document.cookie.match(/(?:^|;\s*)_ms-mid=([^;]+)/);
-      return m ? decodeURIComponent(m[1]) : '';
-    }
-
     function connect() {
       setStatus('Checking who you are…');
       whenMemberstackReady(function () {
@@ -6864,7 +7008,7 @@
             setStatus('Log in first (the Log in link in the menu), then click Connect the app again.');
             return;
           }
-          var token = memberToken(ms);
+          var token = tinkoMemberToken(ms);
           if (!token) {
             setStatus('Couldn’t read your login. Log out, log in again, and try once more.');
             return;
@@ -7353,6 +7497,9 @@
     if (document.querySelector('[data-tinko-gate], [data-lesson-stage], [data-tinko-show]')) dfsTinko();
     if (document.querySelector('[data-tinko-mascot]')) dfsTinkoMascot();
     if (document.querySelector('[data-helper-copy]')) dfsHelperCopy();
+    if (document.querySelector('[data-helper-line]')) dfsTinkoInstallCode();   // the install line's one-time code
+    if (document.querySelector('[data-tinko-stage]')) dfsTinkoOnline();       // Open Tinko without the browser question
+    dfsTinkoClaim();                                                          // Tinko's Connect (?tinko-claim=…)
     if (document.querySelector('[data-toc-wrap]')) dfsToc();                 // blog article: On this page
     if (document.querySelector('[data-filter-group]')) dfsFilter();          // /resources: topic filter
     if (document.querySelector('[data-blog-more]')) dfsBlogMore();           // blog article: Recommended

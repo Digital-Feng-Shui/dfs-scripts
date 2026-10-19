@@ -441,8 +441,9 @@ function init(root) {
    Starts in the same black/paper the dive ends in, pinned:
      1. "7+ Hours A Day."      24 hour-pixels in a row, 7 light up
      2. "2,555 Hours A Year."  the row breaks into its four sixes (up one, stay, down one, down two), they slide
-                               together into one 6×4 day tile, and the year fills in with the scroll; the number rolls
-                               up once (Osmo's odometer) as soon as the line appears
+                               together into one 6×4 day tile (the last bit by a magnet, with the soft lock), and the
+                               year fills in with the scroll; the number rolls up once (Osmo's odometer) as soon as the
+                               line appears
      3. orange                 lit hours turn orange and blink like badges, the dither creeps in at the edges
      4. blue                   orange becomes blue, the dither calms: "Tech can make life better"
    Webflow:
@@ -632,6 +633,13 @@ function initTime(root) {
   // smoothed so a fast flick doesn't jump; scrolling back takes them away again
   let fillT = 0;
   let soundLit = null, soundWeek = null;   // for the ticks: hours lit, weeks filled
+  /* the snap (Rim, 19 Oct 2026, after the snap lab): the scroll brings the four rows most of the way, slowing a little
+     as they near; then a magnet takes over, pulls them in by itself (faster and faster) and they stop dead in one
+     square, with the soft lock (dfsSound.snap) and a tiny press. Scrolling back past the lock lets go (the soft tick). */
+  const MAG = .8, PULL_MS = 120, PRESS_MS = 140;
+  let locked = null, lockT = -1e9, lockFrom = 0, slideNow = 0;
+  const drift = x => MAG * (1 - Math.pow(1 - Math.min(x, MAG) / MAG, 1.6));
+  const pressAt = t => { const k = t / PRESS_MS; return k < 0 || k > 1 ? 0 : k < .3 ? k / .3 : 1 - (k - .3) / .7; };
   let visible = false, p = 0, lastSpeed = -1, lastHole = -1, lastShape = 2, lastBack = '', bgOn = null;
   let orangeNow = 0, blueNow = 0, heatNow = 0;
   new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(root);
@@ -695,7 +703,19 @@ function initTime(root) {
       setState(notes[3], p < .85 ? 'pre' : 'in');
       // the beats: the strip lights up, breaks into four levels, slides together, shrinks into day one; the year fills
       const rowIn = sm(.04, .09, p), litN = Math.floor(sm(.08, .22, p) * 7.999);
-      const levels = sm(.26, .33, p), slide = sm(.33, .4, p), shrink = sm(.4, .46, p);
+      const levels = sm(.26, .33, p), pushed = sm(.33, .4, p), shrink = sm(.4, .46, p);
+      const pull = reduce ? .5 : MAG;
+      if (locked === null) locked = pushed >= pull;            // the first frame: as it is, silent
+      else if (!locked && pushed >= pull) {
+        locked = true; lockT = now; lockFrom = slideNow;
+        if (shrink < .5) window.dfsSound?.snap(reduce ? 0 : PULL_MS / 1000);   // lands on the stop
+      } else if (locked && pushed < pull - .06) { locked = false; window.dfsSound?.point(); }
+      let slide;
+      if (reduce) slide = locked ? 1 : 0;
+      else if (locked) { const k = Math.min(1, (now - lockT) / PULL_MS); slide = lockFrom + (1 - lockFrom) * k * k * k; }
+      else slide = drift(pushed);
+      slideNow = slide;
+      const press = reduce || !locked ? 1 : 1 - .018 * pressAt(now - lockT - PULL_MS);   // the square's scale
       const target = sm(.46, .6, p);
       fillT = reduce ? target : fillT + (target - fillT) * .2;
       if (Math.abs(target - fillT) < .0005) fillT = target;
@@ -723,10 +743,14 @@ function initTime(root) {
           const hx = c.x + (h % 6) * u, hy = c.y + Math.floor(h / 6) * u;
           const strip = d === 0 && shrink < 1;
           if (strip) {                                   // beat 1: the strip of 24 → four levels → one block → day one
-            const lv = reduce ? (levels > .5 ? 1 : 0) : levels, sl = reduce ? (slide > .5 ? 1 : 0) : slide, sh = reduce ? (shrink > .5 ? 1 : 0) : shrink;
+            const lv = reduce ? (levels > .5 ? 1 : 0) : levels, sl = slide, sh = reduce ? (shrink > .5 ? 1 : 0) : shrink;
             const seg = Math.floor(h / 6);
-            const bx = rowX(h) + (blockX(h) - rowX(h)) * sl, by = rowY + (seg - 1) * big * 1.25 * lv;
-            x = bx + (hx - bx) * sh; y = by + (hy - by) * sh; s = big + (u - big) * sh;
+            let bx = rowX(h) + (blockX(h) - rowX(h)) * sl, by = rowY + (seg - 1) * big * 1.25 * lv, bs = big;
+            if (press < 1) {                               // the press, around the square's middle
+              const cx = (blockX(0) + blockX(5) + big) / 2, cy = rowY + big * 1.125;
+              bx = cx + (bx - cx) * press; by = cy + (by - cy) * press; bs = big * press;
+            }
+            x = bx + (hx - bx) * sh; y = by + (hy - by) * sh; s = bs + (u - bs) * sh;
           } else { x = hx; y = hy; s = u; }
           const inset = strip ? s * .14 * (1 - shrink) + seam * shrink : seam;
           let fill;

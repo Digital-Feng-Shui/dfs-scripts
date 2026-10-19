@@ -18,7 +18,10 @@
 
    Off until the visitor turns it on with the toggle ([data-sound-toggle], a button; when the page has none, one is
    built: a twin of the night toggle, the same square left of it, with a pixel speaker). Remembered in localStorage
-   'dfs-sound'. Browsers keep audio locked until the first click, tap or key, so the sound wakes on that gesture.
+   'dfs-sound'. Browsers keep audio locked until the first click, tap or key (a scroll or hover doesn't count). After a
+   reload the sound tries to start by itself (some browsers allow it once you clicked on the site before); where it
+   can't, the toggle shows it is waiting (the speaker's waves breathe) and the first click anywhere starts it. A click on
+   the waiting toggle starts the sound too, it doesn't turn it off.
    Hover sounds only where a mouse can hover, one per 40 ms, and only when the pointer moves (not the page under it).
    Nothing runs while the tab is hidden.
 
@@ -30,7 +33,9 @@
    once the visitor turns sound on; it fades in, and rests while the tab is hidden.
 
    Other scripts can play the ticks: window.dfsSound.look() / .point() / .choose() / .do() (silent while sound is off),
-   e.g. the time story ticking as the year fills.
+   e.g. the time story ticking as the year fills. dfsSound.snap(delay) is the soft lock (a rounded low knock with the
+   clear tick on top, Rim's pick from the snap lab, 19 Oct 2026): the time story's four rows locking into one square;
+   delay in seconds, so it lands exactly on the stop.
    ========================================================= */
 (() => {
   if (window.dfsSound) return;
@@ -41,6 +46,7 @@
     look:  { from: 1300, spread: 40, n: 6, to: 800, dur: .020, gain: .022, pitch: 1 },
     point: { from: 760,  spread: 30, n: 4, to: 460, dur: .014, gain: .013, pitch: 1 },
     press: { from: 620,  spread: 0,  n: 1, to: 330, dur: .045, gain: .032, pitch: 1 },
+    snap:  { peak: .12 },   // about five clear ticks at their loudest
   };
   const read = () => { try { return localStorage.getItem(KEY) === 'on'; } catch (e) { return false; } };
   const write = v => { try { localStorage.setItem(KEY, v ? 'on' : 'off'); } catch (e) {} };
@@ -48,7 +54,10 @@
   const mouse = matchMedia('(hover: hover) and (pointer: fine)');
 
   let on = read(), ctx = null, out = null, bufs = null;
-  let lastHover = -1e9, lastDown = { type: '', t: -1e9 }, px = null, py = null;
+  let lastHover = -1e9, lastDown = { type: '', t: -1e9 }, px = null, py = null, snapBuf = null;
+  // the audio runs (on, and the browser let it start); a gesture that met it locked wakes it instead of muting it
+  const running = () => !!ctx && ctx.state === 'running';
+  let lockedAtGesture = false;
   const toggles = new Set();
 
   /* ---- the ticks ---- */
@@ -67,8 +76,33 @@
   function render() {
     if (!ctx) return;
     const set = k => { const t = T[k]; return Array.from({ length: t.n }, (_, i) => blip(ctx.sampleRate, (t.from + i * t.spread) * t.pitch, t.to * t.pitch, t.dur, t.gain)); };
-    bufs = { look: set('look'), point: set('point'), press: set('press') };
+    bufs = { look: set('look'), point: set('point'), press: set('press'), snap: snapBuf ? [snapBuf] : [] };
     out.gain.value = T.master;
+    renderSnap();
+  }
+  // the soft lock, as in the snap lab: a sine knock 150 → 74 Hz and a quiet triangle an octave up, through a soft
+  // low-pass, with the clear tick on top; drawn once, off the main sound, then brought to its peak
+  function renderSnap() {
+    const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext, rate = ctx.sampleRate;
+    if (!OAC) return;
+    const o = new OAC(1, Math.ceil(rate * .45), rate);
+    const lp = o.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400; lp.connect(o.destination);
+    const voice = (type, at, f0, f1, sweep, peak, attack, decay) => {
+      const osc = o.createOscillator(); osc.type = type;
+      osc.frequency.setValueAtTime(f0, at); osc.frequency.exponentialRampToValueAtTime(f1, at + sweep);
+      const g = o.createGain(); g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(peak, at + attack); g.gain.setTargetAtTime(0, at + attack, decay);
+      osc.connect(g).connect(lp); osc.start(at); osc.stop(.44);
+    };
+    voice('sine', 0, 150, 74, .08, .55, .003, .04);
+    voice('triangle', 0, 300, 150, .08, .07, .003, .025);
+    voice('sine', .001, 1300, 800, .02, .05, .002, .006);
+    o.oncomplete = e => {
+      const buf = e.renderedBuffer, d = buf.getChannelData(0);
+      let m = 0; for (let i = 0; i < d.length; i++) m = Math.max(m, Math.abs(d[i]));
+      if (m) for (let i = 0; i < d.length; i++) d[i] *= T.snap.peak / m;
+      snapBuf = buf; if (bufs) bufs.snap = [buf];
+    };
+    try { o.startRendering(); } catch (e) {}
   }
 
   /* ---- audio wakes on a gesture (browsers allow nothing before) ---- */
@@ -78,6 +112,7 @@
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return;
       try { ctx = new AC({ latencyHint: 'interactive' }); } catch (e) { ctx = new AC(); }
+      ctx.onstatechange = () => toggles.forEach(paint);
       out = ctx.createGain(); out.connect(ctx.destination);
       render();
       // older iPhones unlock the output only once something plays inside the gesture
@@ -85,14 +120,23 @@
     }
     if (ctx.state !== 'running') ctx.resume().catch(() => {});
     bedStart();
+    toggles.forEach(paint);
+  }
+  // a gesture: note whether it met the sound on but locked (for the toggle), then wake it
+  function gesture() { lockedAtGesture = on && !running(); wake(); }
+  // after a reload, with sound on: try to start without a gesture (Firefox says up front whether it may)
+  function wakeIfAllowed() {
+    if (!on || ctx) return;
+    try { if (navigator.getAutoplayPolicy && navigator.getAutoplayPolicy('audiocontext') === 'disallowed') return; } catch (e) {}
+    wake();
   }
 
   // a hover only sounds once the audio runs; a click that woke it waits a moment for it
-  function play(kind, gesture) {
-    if (!on || !ctx || !bufs) return;
+  function play(kind, gesture, delay = 0) {
+    if (!on || !ctx || !bufs || !(bufs[kind] && bufs[kind].length)) return;
     const go = () => {
       const list = bufs[kind], s = ctx.createBufferSource();
-      s.buffer = list[Math.random() * list.length | 0]; s.connect(out); s.start();
+      s.buffer = list[Math.random() * list.length | 0]; s.connect(out); s.start(ctx.currentTime + Math.max(0, delay));
     };
     if (ctx.state === 'running') go();
     else if (gesture) { const t = now(); ctx.resume().then(() => { if (now() - t < 400) go(); }).catch(() => {}); }
@@ -137,24 +181,24 @@
   // click: a mouse answers on the press; a tap (a drag is not a tap) or a key on the click
   document.addEventListener('pointerdown', e => {
     lastDown = { type: e.pointerType, t: now() };
-    wake();
+    gesture();
     if (e.pointerType === 'touch' || e.button !== 0) return;
     const hit = find(e.target);
     if (hit && hit.kind === 'do') play('press', true);
     else if (hit && hit.kind === 'choose') play('point', true);
   }, true);
   document.addEventListener('click', e => {
-    wake();
+    if (!running()) gesture();
     const tap = e.detail === 0 || (lastDown.type === 'touch' && now() - lastDown.t < 1500);
     const hit = tap && find(e.target);
     if (!hit) return;
     if (hit.kind === 'do') play('press', true);
     else if (hit.kind === 'choose' || hit.kind === 'point') play('point', true);
   }, true);
-  addEventListener('keydown', wake, true);
-  addEventListener('touchend', wake, true);
+  addEventListener('keydown', gesture, true);
+  addEventListener('touchend', gesture, true);
   document.addEventListener('visibilitychange', () => {
-    if (!ctx) return;
+    if (!ctx) { if (!document.hidden) wakeIfAllowed(); return; }
     if (document.hidden) { ctx.suspend().catch(() => {}); return; }
     if (on) { ctx.resume().catch(() => {}); if (bed) bed.fadeIn(); }
   });
@@ -210,8 +254,11 @@
   }
 
   /* ---- the toggle: a twin of the night toggle (night/night.js), the same square with a 9x9 pixel speaker ---- */
-  const pixels = (rows, cls) => `<svg class="${cls}" viewBox="0 0 9 9" fill="currentColor" aria-hidden="true">`
-    + rows.map((row, y) => [...row].map((c, x) => c === 'X' ? `<rect x="${x}" y="${y}" width="1" height="1"/>` : '').join('')).join('') + '</svg>';
+  // the speaker (columns 0-3) and its waves (5-8, their own group, so they can breathe while the sound waits)
+  const pixels = (rows, cls) => {
+    const rects = from => rows.map((row, y) => [...row].map((c, x) => c === 'X' && (x >= 5) === from ? `<rect x="${x}" y="${y}" width="1" height="1"/>` : '').join('')).join('');
+    return `<svg class="${cls}" viewBox="0 0 9 9" fill="currentColor" aria-hidden="true">${rects(false)}<g class="sound-wave">${rects(true)}</g></svg>`;
+  };
   const SPEAKER_ON = pixels(['...X.....', '..XX..X..', '..XX...X.', 'XXXX.X..X', 'XXXX.X..X', 'XXXX.X..X', '..XX...X.', '..XX..X..', '...X.....'], 'sound-on');
   const SPEAKER_OFF = pixels(['...X.....', '..XX.....', '..XX.....', 'XXXX..X.X', 'XXXX...X.', 'XXXX..X.X', '..XX.....', '..XX.....', '...X.....'], 'sound-off');
   function setOn(v) {
@@ -226,10 +273,13 @@
     dispatchEvent(new CustomEvent('dfs-sound', { detail: { on } }));
   }
   function paint(b) {
-    const label = on ? 'Turn sound off' : 'Turn sound on';
+    // waiting: on, but the browser hasn't let the audio start yet (hidden tabs rest, they don't count)
+    const waiting = on && !running() && !document.hidden;
+    const label = !on ? 'Turn sound on' : waiting ? 'Sound starts on your first click' : 'Turn sound off';
     b.setAttribute('aria-pressed', on ? 'true' : 'false');
     b.setAttribute('aria-label', label); b.title = label;
     b.classList.toggle('is-on', on);
+    b.classList.toggle('is-waiting', waiting);
   }
   const CSS = `
 .sound-toggle{position:fixed;z-index:9000;top:1rem;right:4.25rem;width:2.75rem;height:2.75rem;display:flex;align-items:center;justify-content:center;
@@ -238,7 +288,10 @@ color:var(--brand-colors--dark_gray,#3d3a35);cursor:pointer;-webkit-tap-highligh
 .sound-toggle:focus-visible{outline:1px solid var(--brand-colors--blue,#0297db);outline-offset:-4px}
 .sound-toggle svg{width:18px;height:18px;shape-rendering:crispEdges;display:block}
 .sound-toggle .sound-on,.sound-toggle.is-on .sound-off{display:none}
-.sound-toggle.is-on .sound-on{display:block}`;
+.sound-toggle.is-on .sound-on{display:block}
+.sound-toggle.is-waiting .sound-wave{animation:dfs-sound-wait 2.4s ease-in-out infinite}
+@keyframes dfs-sound-wait{0%,100%{opacity:.2}50%{opacity:.9}}
+@media (prefers-reduced-motion:reduce){.sound-toggle.is-waiting .sound-wave{animation:none;opacity:.35}}`;
   function build() {
     if (!document.getElementById('dfs-sound-css')) {
       const st = document.createElement('style'); st.id = 'dfs-sound-css'; st.textContent = CSS; document.head.append(st);
@@ -251,10 +304,12 @@ color:var(--brand-colors--dark_gray,#3d3a35);cursor:pointer;-webkit-tap-highligh
     }
     list.forEach(b => {
       if (!b.children.length) b.innerHTML = SPEAKER_OFF + SPEAKER_ON;
-      b.addEventListener('click', () => setOn(!on));
+      // on but still locked: this click starts the sound (the press says so) instead of turning it off
+      b.addEventListener('click', () => { if (on && lockedAtGesture) { lockedAtGesture = false; wake(); play('press', true); return; } setOn(!on); });
       toggles.add(b); paint(b);
     });
     document.documentElement.classList.toggle('sound-on', on);
+    wakeIfAllowed();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', build); else build();
 
@@ -263,6 +318,7 @@ color:var(--brand-colors--dark_gray,#3d3a35);cursor:pointer;-webkit-tap-highligh
     point: () => throttled('point'),
     choose: () => play('point'),
     do: () => play('press'),
+    snap: (delay = 0) => play('snap', false, delay),
     get on() { return on; },
     set: setOn,
     // a page gives its parts a case without attributes: { '.journal_card': 'point', ... }
@@ -276,7 +332,7 @@ color:var(--brand-colors--dark_gray,#3d3a35);cursor:pointer;-webkit-tap-highligh
     // for the sound lab: change the values ({ master, look: { gain, pitch }, ... }) and redraw the ticks
     tune(patch) {
       if ('master' in patch) T.master = patch.master;
-      ['look', 'point', 'press'].forEach(k => { if (patch[k]) Object.assign(T[k], patch[k]); });
+      ['look', 'point', 'press', 'snap'].forEach(k => { if (patch[k]) Object.assign(T[k], patch[k]); });
       render();
     },
     get values() { return JSON.parse(JSON.stringify(T)); },

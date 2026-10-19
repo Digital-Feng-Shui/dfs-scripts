@@ -336,7 +336,7 @@ function initStage(host) {
   let started = false, shown = false, introOn = false;
   tinko.sleep(); screen.classList.add('is-hidden');
   const r0 = win.getBoundingClientRect();
-  if (!reduce && scrollY < 40 && !location.hash && r0.top < innerHeight * .92 && r0.bottom > 0) { started = shown = true; queueMicrotask(() => intro()); }   // once the rest below is set up
+  if (!reduce && scrollY < 40 && !location.hash && r0.top < innerHeight * .92 && r0.bottom > 0) { started = shown = true; heroTitle.reset(); queueMicrotask(() => intro()); }   // once the rest below is set up (the title hidden again, if the page's safety net already showed it)
   else if (reduce) heroTitle.play(120);
   let idle = 0;
   const later = () => {   // once the scrolling has stopped, with his window well in view
@@ -1364,6 +1364,7 @@ function injectCSS() {
 /* ---------- start ---------- */
 
 function init() {
+  clearTimeout(window.tinkoReadyTimer);   // the page head's safety net (shows the title if this script never runs): it does run
   // a refresh starts at the top (no scroll kept from before), so the intro plays; a link to a section still goes there
   // (ScrollTrigger, on every page, keeps its own scroll memory and sets the browser's back to auto: its own switch)
   if (!location.hash && 'scrollRestoration' in history) {

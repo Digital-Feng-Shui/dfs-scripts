@@ -329,7 +329,7 @@ function initStage(host) {
       win.classList.add('is-clipping'); win.style.opacity = '1';
       anims.push(win.animate([{ clipPath: from, opacity: 0 }, { clipPath: from, opacity: 1, offset: .12 }, { clipPath: 'inset(0px 0px 0px 0px round 14px)', opacity: 1 }], { duration: 1150 * f, easing: 'cubic-bezier(.625,.05,0,1)', fill: 'forwards' }));
     });
-    at(2350, () => finish());
+    at(2850, () => finish());   // once the box is fully open (1650 + 1150)
   }
   let running = null;
   // ?tune: the intro again from the top, at any speed

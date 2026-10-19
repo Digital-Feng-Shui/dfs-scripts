@@ -2137,7 +2137,7 @@
     // (styles.css), then the card's parts rise in one by one and Tinko on it gets a hello (dfsTinkoMascot).
     function stageParts(stage) {
       const parts = [...stage.querySelectorAll('.tinko-stage_tag, .tinko-stage_title, .tinko-stage_text:not([data-tinko-fallback]), ' +
-        '.tinko-stage_actions, .tinko-stage_cta, .tinko-stage_link, .v2-card_links > *')];
+        '.tinko-stage_actions, .tinko-stage_cta, .btn-icon-link, .tinko-stage_link, .v2-card_links > *')];
       return parts.filter(el => !parts.some(other => other !== el && other.contains(el)));
     }
 
@@ -6682,7 +6682,7 @@
       k.helloTimer1 = setTimeout(function () { set(k, [-1.5, -0.7, 1.6, 2.4], [1.5, -0.7, 1.6, 2.4], 0.14, 'out'); }, 620);
       k.helloTimer2 = setTimeout(function () {
         var stage = k.el.closest('[data-lesson-stage]') || document;
-        var cta = stage.querySelector('.tinko-stage_cta'), dx = 0, dy = 0;
+        var cta = stage.querySelector('.btn-icon-link, .tinko-stage_cta'), dx = 0, dy = 0;
         if (cta) {
           var a = k.el.getBoundingClientRect(), b = cta.getBoundingClientRect();
           var vx = (b.left + b.width / 2) - (a.left + a.width / 2), vy = (b.top + b.height / 2) - (a.top + a.height / 2);

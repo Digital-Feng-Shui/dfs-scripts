@@ -19,6 +19,9 @@
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const finePointer = matchMedia('(pointer: fine)').matches;
 const TUNE = new URLSearchParams(location.search).has('tune');   // /meet-tinko?tune: replay the intro, slowed down, with a clock
+// the feature layouts lab (meet/layouts.js): ?layout=rows|run|stages|scroll, and &you=1 = you press the keys
+const LAB = new URLSearchParams(location.search).get('layout');
+export const YOU = new URLSearchParams(location.search).get('you') === '1';
 
 /* ---------- Tinko, after Tinko.swift ---------- */
 
@@ -332,7 +335,7 @@ function initStage(host) {
   let started = false, shown = false, introOn = false;
   tinko.sleep(); screen.classList.add('is-hidden');
   const r0 = win.getBoundingClientRect();
-  if (!reduce && scrollY < 40 && r0.top < innerHeight * .92 && r0.bottom > 0) { started = shown = true; queueMicrotask(() => intro()); }   // once the rest below is set up
+  if (!reduce && scrollY < 40 && !location.hash && r0.top < innerHeight * .92 && r0.bottom > 0) { started = shown = true; queueMicrotask(() => intro()); }   // once the rest below is set up (a link to a section skips it)
   else heroTitle.play(120);
   const born = performance.now();
   function appear() {
@@ -524,7 +527,8 @@ const WALL_NIGHT = new URL('../night/HERO_BG_4-night.webp', import.meta.url).hre
 const APPLE = '<svg viewBox="0 0 170 170" aria-hidden="true"><path fill="currentColor" d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.2-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.93.21-9.84-1.96-14.75-6.52-3.13-2.73-7.05-7.41-11.74-14.04-5.03-7.08-9.17-15.29-12.41-24.65-3.47-10.11-5.21-19.9-5.21-29.38 0-10.86 2.35-20.22 7.04-28.07 3.69-6.3 8.61-11.27 14.77-14.92s12.81-5.51 19.97-5.63c3.92 0 9.06 1.21 15.43 3.6 6.36 2.39 10.44 3.6 12.23 3.6 1.34 0 5.88-1.42 13.57-4.24 7.27-2.62 13.41-3.7 18.44-3.28 13.63 1.1 23.87 6.47 30.68 16.15-12.19 7.39-18.22 17.73-18.1 31 .11 10.34 3.86 18.94 11.23 25.77 3.34 3.17 7.07 5.62 11.22 7.36-.9 2.61-1.85 5.11-2.86 7.51zM119.11 7.24c0 8.1-2.96 15.67-8.86 22.67-7.12 8.32-15.73 13.13-25.07 12.37a25.2 25.2 0 0 1-.19-3.07c0-7.78 3.39-16.1 9.4-22.91 3-3.44 6.82-6.31 11.45-8.6 4.62-2.25 8.99-3.5 13.1-3.71.12 1.08.17 2.17.17 3.25z"/></svg>';
 const LIGHTS = '<div class="tkd-lights"><i></i><i></i><i></i></div>';
 const wordsOf = t => t.split(/\s+/).length;
-const say = t => 900 + wordsOf(t) * 75;   // how long a line stays up before the key, like the homepage demo
+const say = t => YOU ? 500 : 900 + wordsOf(t) * 75;   // how long a line stays up before the key, like the homepage demo (you-mode: you decide)
+const and = l => l.length > 1 ? l.slice(0, -1).join(', ') + ' and ' + l[l.length - 1] : l.join('');
 
 // screen parts (Views.swift Screen: tag, words, content, buttons, ⌘Z under them)
 const S = {
@@ -540,9 +544,24 @@ const S = {
   count: t => `<div class="tkd-count">${t}</div>`,
 };
 
-function initDemo(host) {
-  const D = DEMOS[host.dataset.tinkoDemo];
-  if (!D) return;
+/* A demo, ready to play: its scene, its Tinko, and a clock that only runs while it's on screen and switched on.
+   initDemo loops one for the rows; the layouts lab (meet/layouts.js) plays several in turn in one frame, so it can
+   switch one off, stop it mid-way (stop(): the running play gives up at its next wait) and start it over. */
+export const ABORT = Symbol('stopped');
+const KEYS = { space: [' '], del: ['Backspace', 'Delete'], s: ['s', 'S'] };
+const live = new Set();   // every demo built, to find the one your keys go to (you-mode): the one nearest the middle
+let focused = null;
+function refocus() {
+  let best = null, bd = Infinity;
+  live.forEach(d => { if (!d.on) return; const r = d.host.getBoundingClientRect(), m = Math.abs(r.top + r.height / 2 - innerHeight / 2); if (m < bd) { bd = m; best = d; } });
+  focused = best;
+}
+if (YOU) addEventListener('scroll', () => requestAnimationFrame(refocus), { passive: true });
+
+export function buildDemo(host, key = host.dataset.tinkoDemo) {
+  const P = DEMOS[key];
+  if (!P) return null;
+  const D = Object.create(P);   // its own state (its Dock, your calls), so a part can be built more than once
   host.innerHTML = `<div class="tkd" aria-hidden="true"><div class="tkd-scene">
     <div class="tkd-wall"></div>
     <div class="tkd-bar"><span class="tkd-apple">${APPLE}</span><b class="tkd-app">Tinko</b><span>File</span><span>Edit</span><span>View</span><span>Window</span><i></i><span class="tkd-clock">Mon 10:24</span></div>
@@ -560,31 +579,69 @@ function initDemo(host) {
     const W = L === 'tall' ? 520 : 720, H = L === 'tall' ? 800 : 520;
     scale = host.clientWidth / W; scene.style.width = W + 'px'; scene.style.height = H + 'px'; scene.style.transform = `scale(${scale})`; wrap.style.height = H * scale + 'px';
   };
-  // the clock only runs while the demo is on screen, so a loop never plays to nobody
-  let visible = false, wakeups = [];
-  const wait = ms => new Promise(res => {
+  // the clock only runs while the demo is on screen (and switched on), so a loop never plays to nobody
+  let visible = false, active = true, wakeups = [], gen = 0, clock = 0;
+  const on = () => visible && active;
+  const wait = ms => { const g = gen; return new Promise((res, rej) => {
     let left = reduce ? Math.min(ms, 400) : ms, last = performance.now();
-    const tick = () => { const now = performance.now(); if (visible) left -= now - last; last = now; if (left <= 0) res(); else setTimeout(tick, Math.min(120, left)); };
+    const tick = () => { if (g !== gen) return rej(ABORT); const now = performance.now(); if (on()) { left -= now - last; clock += now - last; } last = now; if (left <= 0) res(); else setTimeout(tick, Math.min(120, left)); };
     setTimeout(tick, Math.min(120, left));
-  });
-  const until = () => visible ? Promise.resolve() : new Promise(r => wakeups.push(r));
+  }); };
+  const until = () => { const g = gen; return (on() ? Promise.resolve() : new Promise(r => wakeups.push(r))).then(() => { if (g !== gen) throw ABORT; }); };
+  // you-mode: his buttons glow and wait for your key (or a click); in the Dock, notifications and newsletters your
+  // call is the one that counts
+  const ask = keys => { const g = gen; return new Promise((res, rej) => {
+    const btns = keys.map(k => screen.querySelector(`[data-k="${k}"]`)).filter(Boolean);
+    const hint = document.createElement('div'); hint.className = 'tkd-your';
+    hint.textContent = 'Your turn · ' + ['space', 'del', 's'].filter(k => keys.includes(k)).map(k => k === 'del' ? '⌫' : k === 'space' ? 'Space' : k.toUpperCase()).join(' or ');
+    btns.forEach(b => b.classList.add('is-ask')); screen.append(hint);
+    const end = () => { clearInterval(poll); removeEventListener('keydown', onKey, true); screen.removeEventListener('click', onClick); btns.forEach(b => b.classList.remove('is-ask')); hint.remove(); };
+    const onKey = e => {
+      if (focused !== me || e.metaKey || e.ctrlKey || e.altKey) return;
+      const k = keys.find(k => KEYS[k].includes(e.key));
+      if (k || e.key === ' ') e.preventDefault();
+      if (k && !e.repeat) { end(); res(k); }
+    };
+    const onClick = e => { const b = e.target.closest('[data-k]'); if (b && keys.includes(b.dataset.k)) { end(); res(b.dataset.k); } };
+    const poll = setInterval(() => { if (g !== gen) { end(); rej(ABORT); } }, 150);
+    addEventListener('keydown', onKey, true); screen.addEventListener('click', onClick);
+  }); };
   const api = {
     ctx, scene, tinko, wait, S,
     get layout() { return L; },
     show(html) { screen.classList.add('is-swap'); screen.innerHTML = html; requestAnimationFrame(() => requestAnimationFrame(() => screen.classList.remove('is-swap'))); },
-    async press(key) {   // the key goes down on its button, and the screen moves on
-      const b = screen.querySelector(`[data-k="${key}"]`);
+    // the key goes down on its button, and the screen moves on; `or` = the other key you may press in you-mode
+    async press(key, or) {
+      const k = YOU ? await ask(or ? [key, or] : [key]) : key;
+      const b = screen.querySelector(`[data-k="${k}"]`);
       if (b) { b.classList.add('is-press'); await wait(170); b.classList.remove('is-press'); }
       await wait(120);
+      return k;
     },
     app(name) { host.querySelector('.tkd-app').textContent = name; },
     winAt(x, y) { win.style.left = x + 'px'; win.style.top = y + 'px'; },
   };
   D.build(api);
   new ResizeObserver(fit).observe(host); fit();
-  new IntersectionObserver(([e]) => { visible = e.isIntersecting; tinko.show(visible); if (visible) { wakeups.splice(0).forEach(r => r()); } }, { threshold: .15 }).observe(host);
-  tinko.sleep(); tinko.wakeUp();
-  (async () => { await until(); await wait(600); for (;;) { await D.play(api); await wait(D.hold || 3200); await D.reset?.(api); await wait(500); } })();
+  const me = {
+    host, D, api, tinko, wait, until,
+    get on() { return on(); },
+    get clock() { return clock; }, set clock(v) { clock = v; },
+    set active(a) { active = a; tinko.show(on()); if (on()) wakeups.splice(0).forEach(r => r()); refocus(); },
+    play: () => until().then(() => D.play(api)),   // rejects with ABORT once stopped
+    stop() { gen++; },
+    reset: () => D.reset?.(api),
+  };
+  live.add(me);
+  new IntersectionObserver(([e]) => { visible = e.isIntersecting; tinko.show(on()); if (on()) wakeups.splice(0).forEach(r => r()); refocus(); }, { threshold: .15 }).observe(host);
+  return me;
+}
+
+export function initDemo(host) {
+  const d = buildDemo(host);
+  if (!d) return;
+  d.tinko.sleep(); d.tinko.wakeUp();
+  (async () => { await d.until(); await d.wait(600); for (;;) { await d.D.play(d.api); await d.wait(d.D.hold || 3200); await d.reset(); await d.wait(500); } })();
 }
 
 /* the Dock and its icons, for the demos that need one */
@@ -642,12 +699,12 @@ const DEMOS = {
       for (let i = 0; i < this.pass.length; i++) {
         const [id, name, when, key] = this.pass[i], slow = i < 3;
         api.show(S.tag('What’s pinned') + S.words(`${name}. ${when} Daily driver?`) + row(i) + S.btns(S.btn('Keep', 'space'), S.btn('Unpin', 'del', true)));
-        await api.wait(slow ? 1500 : 300); await api.press(key);
-        this.fate[i] = key; if (key === 'del') d.dim(id);
+        await api.wait(YOU ? 0 : slow ? 1500 : 300); const k = await api.press(key, key === 'del' ? 'space' : 'del');
+        this.fate[i] = k; if (k === 'del') d.dim(id);
       }
-      const out = this.pass.filter((a, i) => this.fate[i] === 'del');
+      const out = this.pass.filter((a, i) => this.fate[i] === 'del'), kept = ['Finder', ...this.pass.filter((a, i) => this.fate[i] !== 'del').map(a => a[1])];
       d.leave(out.map(a => a[0]));
-      t = `${out.length} unpinned. Your Dock keeps Finder, Messages, Calendar, Notes, Arc, Figma, Claude and Spotify. That’s the lot.`;
+      t = `${out.length ? out.length + ' unpinned' : 'Nothing unpinned'}. Your Dock keeps ${and(kept)}. That’s the lot.`;
       api.show(S.tag('What’s pinned') + S.words(t) + S.btns(S.btn('Next', 'space')) + S.undo);
       await api.wait(say(t) + 600);
       t = 'Dock done. Lighter already. I’ll stay in it myself until the course is through. Now the desktop.';
@@ -700,7 +757,7 @@ const DEMOS = {
       for (const [id, name, key] of [['zip', 'photos-export.zip', 'del'], ['txt', 'Notes for Monday.txt', 'space'], ['old', 'Old stuff', 'space']]) {
         const kind = this.files.find(x => x[0] === id);
         api.show(S.tag('What’s left') + S.words('Into Documents, to sort later? Or the Bin?') + `<div class="tkd-filecard"><img src="${MAC(kind[2])}" alt=""><div><b>${name}</b><span>Here since today</span></div></div>` + S.btns(S.btn('Sort later', 'space'), S.btn('Bin', 'del', true)));
-        await api.wait(1400); await api.press(key);
+        await api.wait(YOU ? 0 : 1400); await api.press(key);
         await fly(api, f(id), key === 'del' ? centreOf(api, this.dock.el.querySelector('.tkd-trash')) : centreOf(api, this.dock.icon('finder')), { sc: .25, arc: 70, dur: 650 });
       }
       await fly(api, f('shots'), centreOf(api, this.dock.icon('finder')), { sc: .25, arc: 70, dur: 650 });
@@ -815,14 +872,16 @@ const DEMOS = {
       let t = 'Last part of the cleanup: notifications. If it’s not time-sensitive or a person who needs you, it doesn’t get to interrupt you. 6 apps may right now.';
       api.show(S.tag('Notifications') + S.words(t) + S.btns(S.btn('One by one', 'space'), S.btn('Skip', 's', true)));
       await api.wait(say(t)); await api.press('space');
+      const off = [];
       for (const [id, name, line, key] of this.apps) {
         head.querySelector('img').src = MAC(id); head.querySelector('b').textContent = name; set.querySelector('.tkd-mw-bar b').textContent = name;
         sw.classList.add('is-on'); set.classList.add('is-flip'); requestAnimationFrame(() => requestAnimationFrame(() => set.classList.remove('is-flip')));
         api.show(S.tag('Notifications') + S.title(name) + S.words(line) + S.btns(S.btn('Keep', 'space'), S.btn('Turn off', 'del', true)));
-        await api.wait(say(line) * .75); await api.press(key);
-        if (key === 'del') { sw.classList.remove('is-on'); await api.wait(650); }
+        await api.wait(say(line) * .75); const k = await api.press(key, key === 'del' ? 'space' : 'del');
+        if (k === 'del') { off.push(name); sw.classList.remove('is-on'); await api.wait(650); }
       }
-      t = '4 apps can’t interrupt you any more. Calendar and the people in Messages still can.';
+      const still = this.apps.filter(a => !off.includes(a[1])).map(a => a[0] === 'messages' ? 'the people in Messages' : a[1]);
+      t = off.length ? `${off.length} ${off.length === 1 ? 'app' : 'apps'} can’t interrupt you any more.${still.length ? ` ${and(still).replace(/^the/, 'The')} still can.` : ''}` : 'All 6 can still reach you.';
       api.show(S.tag('Notifications') + S.words(t) + S.btns(S.btn('Next', 'space')));
       api.tinko.cheer(1);
     },
@@ -850,22 +909,29 @@ const DEMOS = {
       let t = 'These 6 senders send newsletters, busiest first. Does each one earn its place?';
       api.show(S.tag('Newsletters') + S.words(t) + S.stats([[6, 'newsletters'], [164, 'mails in 3 months']]) + S.btns(S.btn('One by one', 'space')));
       await api.wait(say(t)); await api.press('space');
+      const gone = [];
       for (let i = 0; i < this.senders.length; i++) {
         const [name, , mails, key] = this.senders[i];
         api.ctx.querySelectorAll(`.tkd-mrow[data-s="${i}"]`).forEach(r => r.classList.add('is-seen'));
         api.show(S.tag('Newsletters') + S.title(name) + S.words(`${mails} mails in three months. Does it earn its place?`) + S.btns(S.btn('Keep', 'space'), S.btn('Unsubscribe', 'del', true)) + S.count(`${i + 1} OF ${this.senders.length} · AN UNSUBSCRIBE CAN’T BE UNDONE`));
-        await api.wait(i < 2 ? 1700 : 900); await api.press(key);
-        api.ctx.querySelectorAll(`.tkd-mrow[data-s="${i}"]`).forEach(r => { r.classList.remove('is-seen'); if (key === 'del') r.classList.add('is-gone'); });
+        await api.wait(YOU ? 0 : i < 2 ? 1700 : 900); const k = await api.press(key, key === 'del' ? 'space' : 'del');
+        api.ctx.querySelectorAll(`.tkd-mrow[data-s="${i}"]`).forEach(r => { r.classList.remove('is-seen'); if (k === 'del') r.classList.add('is-gone'); });
+        if (k === 'del') gone.push(mails);
       }
-      t = 'You unsubscribed from 4. Clear their old mails too? 133 mails, 38 MB. Only from these exact addresses: other mail from the same company stays.';
-      api.show(S.tag('Newsletters') + S.words(t) + S.btns(S.btn('Keep them', 'space'), S.btn('Move to Bin', 'del', true)));
-      await api.wait(say(t) * .8); await api.press('del'); count(8081);
-      await api.wait(900);
-      t = '8,081 mails older than three weeks are still unread. Mark them as read? The last three weeks stay as they are, for you to look through.';
+      const old = gone.reduce((a, b) => a + b, 0); let binned = 0;
+      if (gone.length) {
+        t = `You unsubscribed from ${gone.length}. Clear their old mails too? ${old} mails, ${Math.round(old * 38 / 133)} MB. Only from these exact addresses: other mail from the same company stays.`;
+        api.show(S.tag('Newsletters') + S.words(t) + S.btns(S.btn('Keep them', 'space'), S.btn('Move to Bin', 'del', true)));
+        await api.wait(say(t) * .8);
+        if (await api.press('del', 'space') === 'del') { binned = old; count(n - old); }
+        await api.wait(900);
+      }
+      t = `${n.toLocaleString('en')} mails older than three weeks are still unread. Mark them as read? The last three weeks stay as they are, for you to look through.`;
       api.show(S.tag('Your inbox') + S.words(t) + S.btns(S.btn('Mark them read', 'space'), S.btn('Skip', 's', true)));
-      await api.wait(say(t) * .8); await api.press('space'); count(37);
+      await api.wait(say(t) * .8);
+      const read = await api.press('space', 's') === 'space'; if (read) count(37);
       await api.wait(1000);
-      api.show(S.tag('Inbox, done') + S.words('Your inbox, cleared out. That’s a big one.') + S.fixes(['4 newsletters unsubscribed', '133 mails to the Bin', '8,214 unread → 37'], 3));
+      api.show(S.tag('Inbox, done') + S.words('Your inbox, cleared out. That’s a big one.') + S.fixes([`${gone.length} newsletter${gone.length === 1 ? '' : 's'} unsubscribed`, `${binned} mails to the Bin`, `8,214 unread → ${read ? 37 : n.toLocaleString('en')}`], 3));
       api.tinko.cheer(1);
     },
     hold: 3600,
@@ -935,6 +1001,11 @@ const DEMO_CSS = `
 .tkd-btn.is-light{background:var(--c-card);color:var(--c-ink);box-shadow:inset 0 0 0 1px var(--c-line)}
 .tkd-btn.is-press{transform:scale(.93);box-shadow:0 0 0 3px color-mix(in srgb,var(--c-calm) 45%,transparent)}
 .tkd-btn.is-light.is-press{box-shadow:inset 0 0 0 1px var(--c-line),0 0 0 3px color-mix(in srgb,var(--c-calm) 45%,transparent)}
+.tkd-btn.is-ask{cursor:pointer;animation:tkdAsk 1.3s ease-in-out infinite}
+.tkd-btn.is-light.is-ask{animation-name:tkdAskL}
+@keyframes tkdAsk{0%,100%{box-shadow:0 0 0 0 transparent}50%{box-shadow:0 0 0 4px color-mix(in srgb,var(--c-calm) 40%,transparent)}}
+@keyframes tkdAskL{0%,100%{box-shadow:inset 0 0 0 1px var(--c-line),0 0 0 0 transparent}50%{box-shadow:inset 0 0 0 1px var(--c-line),0 0 0 4px color-mix(in srgb,var(--c-calm) 40%,transparent)}}
+.tkd-your{margin-top:12px;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--c-calm)}
 .tkd-key{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;box-sizing:border-box;border-radius:3px;box-shadow:inset 0 0 0 1px color-mix(in srgb,currentColor 50%,transparent);font-size:10px;letter-spacing:0}
 .tkd-key svg{width:11px;height:9px;fill:none;stroke:currentColor;stroke-width:1.3}
 .tkd-undo{margin-top:16px;font-size:10px;letter-spacing:1px;color:var(--c-soft);white-space:pre}
@@ -1047,23 +1118,24 @@ const PALETTES = {
   accents: { name: 'Mac accents', day: ['#007AFF', '#953D96', '#F74F9E', '#E0383E', '#F7821B', '#FFC726', '#62BA46', '#989898'] },
   ink: { name: 'Tinko ink', day: ['#3D3A36'], night: ['#FBF7EF'] },
 };
+// whole 32px squares, from the same corner as the grid lines behind them
+function snapGrid(g, w) { const cols = Math.max(4, Math.floor(w / 32)); g.style.right = 'auto'; g.style.width = cols * 32 + 'px'; g.setAttribute('data-grid-size-desktop', cols); g.setAttribute('data-grid-size-mobile', cols); }
+// the hero's, and one behind each feature demo (Rim: the homepage's grid behind its demos, with the trail)
+export function snapAll() { document.querySelectorAll('.tinko-pixel-grid:not(.is-win)').forEach(g => snapGrid(g, g.parentElement.offsetWidth)); }
 function initPixels() {
   const q = new URLSearchParams(location.search);
   let pal = PALETTES[q.get('pixels')] ? q.get('pixels') : 'mac', inWin = q.get('win') === '1';
   const colors = () => { const P = PALETTES[pal]; return (document.documentElement.classList.contains('dfs-night') && P.night) || P.day; };
   window.tinkoPixels = { colors: colors() };
   new MutationObserver(() => { window.tinkoPixels.colors = colors(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-  // whole 32px squares, from the same corner as the grid lines behind them
-  const snap = (g, w) => { const cols = Math.max(4, Math.floor(w / 32)); g.style.right = 'auto'; g.style.width = cols * 32 + 'px'; g.setAttribute('data-grid-size-desktop', cols); g.setAttribute('data-grid-size-mobile', cols); };
-  // the hero's, and one behind each feature demo (Rim: the homepage's grid behind its demos, with the trail)
-  document.querySelectorAll('.tinko-pixel-grid:not(.is-win)').forEach(g => snap(g, g.parentElement.offsetWidth));
+  snapAll();
   const hero = document.querySelector('.tinko-hero_component .tinko-pixel-grid');
   const col = document.querySelector('.tkh-col');
   let win = null;
   if (hero && col) {
     win = document.createElement('div'); win.className = 'tinko-pixel-grid is-win';
     for (const a of ['data-grid', 'data-grid-background', 'data-grid-border-size', 'data-grid-border-color']) win.setAttribute(a, hero.getAttribute(a) ?? '');
-    snap(win, col.clientWidth);
+    snapGrid(win, col.clientWidth);
     if (!inWin) win.setAttribute('data-grid-off', '');
     col.prepend(win);
   }
@@ -1161,6 +1233,8 @@ function init() {
   document.querySelectorAll('[data-tinko-stage]').forEach(initStage);
   if (!document.querySelector('[data-tinko-stage]')) heroTitle.play(120);
   initPixels();   // before the Osmo script in the footer starts (it waits for DOMContentLoaded)
-  document.querySelectorAll('[data-tinko-demo]').forEach(initDemo);
+  const rows = () => document.querySelectorAll('[data-tinko-demo]').forEach(initDemo);
+  if (!LAB || LAB === 'rows') rows();
+  if (LAB) import('./layouts.js').then(m => m.initLayouts(LAB)).catch(e => { console.error(e); if (LAB !== 'rows') rows(); });
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();

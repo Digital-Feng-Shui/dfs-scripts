@@ -18,6 +18,7 @@
 
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const finePointer = matchMedia('(pointer: fine)').matches;
+const TUNE = new URLSearchParams(location.search).has('tune');   // /meet-tinko?tune: replay the intro, slowed down, with a clock
 
 /* ---------- Tinko, after Tinko.swift ---------- */
 
@@ -274,7 +275,7 @@ function initStage(host) {
   let started = false, shown = false;
   tinko.sleep(); screen.classList.add('is-hidden');
   const r0 = win.getBoundingClientRect();
-  if (!reduce && scrollY < 40 && r0.top < innerHeight * .92 && r0.bottom > 0) { started = shown = true; intro(); }
+  if (!reduce && scrollY < 40 && r0.top < innerHeight * .92 && r0.bottom > 0) { started = shown = true; queueMicrotask(() => intro()); }   // once the rest below is set up
   else heroTitle.play(120);
   const born = performance.now();
   function appear() {
@@ -284,7 +285,7 @@ function initStage(host) {
   /* The page-load intro (Rim, 19 Oct): Tinko on his own in the middle of the screen, larger. His pixels come in,
      he wakes up and says hello, then he glides down to his place while his box opens out around him and the
      title rises. Any scroll, click or key skips to the end. */
-  function intro() {
+  function intro(f = 1) {
     const cell = tinkoEl.offsetWidth / 16;
     const ov = document.createElement('div'); ov.className = 'tkh-intro'; ov.innerHTML = '<div class="tkh-tinko"></div>';
     ov.style.setProperty('--tkh-cell', cell + 'px');
@@ -296,37 +297,49 @@ function initStage(host) {
     const BIG = Math.max(1.2, Math.min(1.6, innerWidth / 3.2 / it.offsetWidth + .4));
     it.style.transform = `scale(${BIG})`;
     win.classList.add('is-on', 'is-boxed'); win.style.transition = 'none';
-    const anims = [], timers = [], at = (ms, fn) => timers.push(setTimeout(fn, ms));
+    const anims = [], timers = [], at = (ms, fn) => timers.push(setTimeout(fn, ms * f));
+    tune.start(f);
     let done = false;
     function finish() {
       if (done) return; done = true;
-      timers.forEach(clearTimeout); anims.forEach(a => { try { a.finish(); } catch (e) {} });
+      timers.forEach(clearTimeout); anims.forEach(a => a.cancel());   // their end state is the page's own state, so nothing stays stuck on (a replay starts clean)
       removeEventListener('wheel', skip); removeEventListener('touchstart', skip); removeEventListener('keydown', skip, true); removeEventListener('pointerdown', skip, true);
       win.style.clipPath = ''; win.classList.remove('is-boxed', 'is-clipping'); win.style.opacity = ''; win.style.transition = '';
       tinkoEl.style.visibility = ''; tinko.awakeNow(); tinko.show(true); twin.show(false); ov.remove();
       heroTitle.play(0, true);
       screen.classList.remove('is-hidden');
+      running = null; tune.stop();
     }
-    const skip = () => finish();
+    running = finish;
+    const skip = e => { if (e?.target?.closest?.('.tkh-tune')) return; finish(); };
     addEventListener('wheel', skip, { passive: true }); addEventListener('touchstart', skip, { passive: true });
     addEventListener('keydown', skip, true); addEventListener('pointerdown', skip, true);
-    twin.wakeUp(.62);
+    twin.wakeUp(.62 * f);
     // the glide down into his place, with the box opening out from around him
     at(1250, () => {
       twin.home(.35);
       const a = it.getBoundingClientRect(), b = tinkoEl.getBoundingClientRect();
       const dx = (b.left + b.width / 2) - (a.left + a.width / 2), dy = (b.top + b.height / 2) - (a.top + a.height / 2);
-      anims.push(it.animate([{ transform: `translate(0,0) scale(${BIG})` }, { transform: `translate(${dx}px,${dy}px) scale(1)` }], { duration: 1050, easing: 'cubic-bezier(.625,.05,0,1)', fill: 'forwards' }));
-      heroTitle.play(150);
+      anims.push(it.animate([{ transform: `translate(0,0) scale(${BIG})` }, { transform: `translate(${dx}px,${dy}px) scale(1)` }], { duration: 1050 * f, easing: 'cubic-bezier(.625,.05,0,1)', fill: 'forwards' }));
+      heroTitle.play(150 * f, false, f);
     });
     at(1650, () => {
       const w = win.getBoundingClientRect(), b = tinkoEl.getBoundingClientRect(), pad = cell * 1.2;
       const from = `inset(${b.top - w.top - pad}px ${w.right - b.right - pad}px ${w.bottom - b.bottom - pad}px ${b.left - w.left - pad}px round 8px)`;
       win.classList.add('is-clipping'); win.style.opacity = '1';
-      anims.push(win.animate([{ clipPath: from, opacity: 0 }, { clipPath: from, opacity: 1, offset: .12 }, { clipPath: 'inset(0px 0px 0px 0px round 14px)', opacity: 1 }], { duration: 1150, easing: 'cubic-bezier(.625,.05,0,1)', fill: 'forwards' }));
+      anims.push(win.animate([{ clipPath: from, opacity: 0 }, { clipPath: from, opacity: 1, offset: .12 }, { clipPath: 'inset(0px 0px 0px 0px round 14px)', opacity: 1 }], { duration: 1150 * f, easing: 'cubic-bezier(.625,.05,0,1)', fill: 'forwards' }));
     });
     at(2350, () => finish());
   }
+  let running = null;
+  // ?tune: the intro again from the top, at any speed
+  const tune = TUNE ? tunePanel(f => {
+    if (running) running();
+    if (window.lenis?.scrollTo) window.lenis.scrollTo(0, { immediate: true }); else scrollTo(0, 0);
+    screen.classList.add('is-hidden'); tinko.sleep(); tinko.show(false);
+    win.classList.add('is-boxed'); heroTitle.reset();
+    setTimeout(() => intro(f), 350);
+  }) : { start() {}, stop() {} };
 
   async function start() {
     started = true; appear();
@@ -393,6 +406,22 @@ function initStage(host) {
   }
 }
 
+/* ?tune: a small panel for working on the intro together: replay at full, half or quarter speed, and a clock
+   (in real seconds at full speed) so a moment can be named ("at 1.4 s"). Only with ?tune in the address. */
+function tunePanel(replay) {
+  const el = document.createElement('div'); el.className = 'tkh-tune';
+  el.innerHTML = '<b>Intro</b><button data-f="1">Replay</button><button data-f="2">Slow ×½</button><button data-f="4">Slower ×¼</button><span class="tkh-tune-clock">0.00 s</span>';
+  document.body.append(el);
+  const clock = el.querySelector('.tkh-tune-clock');
+  let t0 = 0, f = 1, raf = 0;
+  const tick = () => { clock.textContent = ((performance.now() - t0) / 1000 / f).toFixed(2) + ' s' + (f > 1 ? `  (×1/${f})` : ''); raf = requestAnimationFrame(tick); };
+  el.addEventListener('click', e => { const b = e.target.closest('button'); if (b) replay(+b.dataset.f); });
+  return {
+    start(speed) { f = speed; t0 = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(tick); },
+    stop() { cancelAnimationFrame(raf); clock.textContent = 'done at ' + ((performance.now() - t0) / 1000 / f).toFixed(2) + ' s'; },
+  };
+}
+
 /* ---------- the title: lines rise out of their masks, then the rest ---------- */
 
 const heroTitle = { play() {} };
@@ -410,14 +439,15 @@ function introTitle() {
     l.forEach(n => line.append(n)); mask.append(line); h.append(mask); return line;
   });
   let played = false, anims = [];
-  heroTitle.play = (delay = 0, now = false) => {
+  heroTitle.play = (delay = 0, now = false, f = 1) => {
     if (played) { if (now) anims.forEach(a => a.finish()); return; }
     played = true;
     document.documentElement.classList.add('tinko-ready');
     if (reduce || now) return;
-    inner.forEach((l, i) => anims.push(l.animate([{ transform: 'translateY(105%)' }, { transform: 'translateY(0)' }], { duration: 1100, delay: delay + i * 110, easing: 'cubic-bezier(.625,.05,0,1)', fill: 'backwards' })));
-    rest.forEach((el, i) => anims.push(el.animate([{ opacity: 0, transform: 'translateY(.75rem)' }, { opacity: 1, transform: 'none' }], { duration: 900, delay: delay + (i === 0 ? 0 : 380 + i * 90), easing: 'cubic-bezier(.33,1,.68,1)', fill: 'backwards' })));
+    inner.forEach((l, i) => anims.push(l.animate([{ transform: 'translateY(105%)' }, { transform: 'translateY(0)' }], { duration: 1100 * f, delay: delay + i * 110 * f, easing: 'cubic-bezier(.625,.05,0,1)', fill: 'backwards' })));
+    rest.forEach((el, i) => anims.push(el.animate([{ opacity: 0, transform: 'translateY(.75rem)' }, { opacity: 1, transform: 'none' }], { duration: 900 * f, delay: delay + (i === 0 ? 0 : 380 + i * 90) * f, easing: 'cubic-bezier(.33,1,.68,1)', fill: 'backwards' })));
   };
+  heroTitle.reset = () => { anims.forEach(a => a.cancel()); anims = []; played = false; document.documentElement.classList.remove('tinko-ready'); };
 }
 
 /* ---------- the feature demos: his window, his real lines, and the part of the Mac they change ---------- */
@@ -969,6 +999,10 @@ function injectCSS() {
 .dfs-night .tkh-intro{--c-card:#292724;--c-ink:#fbf7ef}
 .tkh-intro .tkh-tinko{transform-origin:50% 50%}
 .tkh-win.is-boxed{opacity:0}
+.tkh-tune{position:fixed;left:16px;bottom:16px;z-index:70;display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;background:rgba(29,29,31,.88);color:#fff;font:11px/1 "Space Mono",monospace;letter-spacing:.04em;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.tkh-tune b{font-weight:400;opacity:.6;margin-right:4px;text-transform:uppercase}
+.tkh-tune button{all:unset;cursor:pointer;padding:5px 8px;border-radius:4px;background:rgba(255,255,255,.12)}.tkh-tune button:hover{background:rgba(255,255,255,.22)}
+.tkh-tune-clock{min-width:7.5em;margin-left:4px;opacity:.8;white-space:pre}
 .tkh-win.is-clipping{box-shadow:none}
 .tkh-tool{cursor:pointer;transition:border-color .3s}.tkh-tool:hover{border-color:color-mix(in srgb,var(--c-ink) 35%,var(--c-line))}.tkh-tool:focus-visible{outline:2px solid var(--c-calm);outline-offset:2px}
 .tkh-stage{position:absolute;inset:0;display:grid;justify-items:center;align-content:center;gap:clamp(18px,3cqw,34px);padding:clamp(48px,6cqw,64px) 1.25rem}

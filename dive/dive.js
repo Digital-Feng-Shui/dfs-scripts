@@ -36,8 +36,14 @@
 
 import { ShaderMount, ditheringFragmentShader, getShaderColorFromString as col } from 'https://cdn.jsdelivr.net/npm/@paper-design/shaders@0.0.81/+esm';
 
+/* the arrival (see init): the heavier parts (sound, the solutions demos, the time story's dither) wait until the
+   opening has come together, so they don't stall it */
+let arrive;
+const arrived = new Promise(r => { arrive = r; });
+const idle = f => (window.requestIdleCallback ? requestIdleCallback(f, { timeout: 1500 }) : setTimeout(f, 200));
+
 const root = document.querySelector('[data-dive]');
-if (root) init(root);
+if (root) init(root); else arrive();
 const timeRoot = document.querySelector('[data-time]');
 if (timeRoot) initTime(timeRoot);
 const standRoot = document.querySelector('[data-stand]');
@@ -58,7 +64,7 @@ const SOUNDS = {
   '.close_door, .close_submit, .found_play, .rhythms-app_save, [data-tk], .tk-reset': 'do',
 };
 // no ambience for now: Rim didn't like the wind (18 Oct); a bed that follows the sections is being explored
-import('../sound/sound.js').then(() => window.dfsSound && window.dfsSound.map(SOUNDS)).catch(e => console.warn('[sound] did not load', e));
+arrived.then(() => import('../sound/sound.js')).then(() => window.dfsSound && window.dfsSound.map(SOUNDS)).catch(e => console.warn('[sound] did not load', e));
 
 function init(root) {
   const q = sel => root.querySelector(sel);
@@ -67,7 +73,7 @@ function init(root) {
     logo: q('[data-dive-logo]'), title: q('[data-dive-title]'), end: q('[data-dive-end]'), end2: q('[data-dive-end2]'),
     cue: q('[data-dive-cue]'),
   };
-  if (!el.sticky || !el.canvas) return;
+  if (!el.sticky || !el.canvas) { arrive(); return; }
 
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const num = (name, def) => { const v = parseFloat(root.dataset[name]); return Number.isFinite(v) ? v : def; };
@@ -91,12 +97,16 @@ function init(root) {
   injectCSS();
 
   /* ---- shader ---- */
+  // the arrival plays when the page opens at the top (see below); then the swirl starts invisible (front = back)
+  const VARIANT = (new URLSearchParams(location.search).get('intro') || 'tune').toLowerCase();
+  const atTop = (() => { const r = root.getBoundingClientRect(); return -r.top < 8; })();
+  const willArrive = atTop && !reduce && VARIANT !== 'off';
   const sizing = { u_fit: 0, u_scale: 1, u_rotation: 0, u_offsetX: 0, u_offsetY: 0, u_originX: .5, u_originY: .5, u_worldWidth: 0, u_worldHeight: 0 };
   let mount = null;
   try {
     const p = PAL[isNight() ? 'night' : 'day'];
     mount = new ShaderMount(el.canvas, ditheringFragmentShader, {
-      ...sizing, u_colorBack: col(p.back), u_colorFront: col(p.front), u_shape: 6, u_type: S.type, u_pxSize: S.px, u_scale: S.scale0,
+      ...sizing, u_colorBack: col(p.back), u_colorFront: col(willArrive ? p.back : p.front), u_shape: 6, u_type: S.type, u_pxSize: S.px, u_scale: S.scale0,
     }, undefined, reduce ? 0 : S.speed, 0);
   } catch (e) { console.warn('[dive] shader did not start', e); }
 
@@ -114,11 +124,11 @@ function init(root) {
     const f = (t, a, b) => ((A(a, b) * t + B(a, b)) * t + C(a)) * t, s = (t, a, b) => 3 * A(a, b) * t * t + 2 * B(a, b) * t + C(a);
     return x => { if (x <= 0) return 0; if (x >= 1) return 1; let t = x; for (let i = 0; i < 8; i++) { const d = s(t, x1, x2); if (d < 1e-6) break; t -= (f(t, x1, x2) - x) / d; } return f(t, y1, y2); };
   })();
-  const t0 = performance.now();
+  let t0 = performance.now();   // the arrival moves it, so a tick lands where the swirl locks
   let logoVisible = true;
   function tickLogo(now) {
     if (outer && logoVisible && !reduce) {
-      const t = (now - t0) / 1000;
+      const t = Math.max(0, (now - t0) / 1000);
       const turns = S.logo === 'keeper' ? Math.floor(t / 4.4) + osmo(((t % 4.4) - 3.6) / .8) : S.logo === 'spin' ? t * .12 : 0;
       outer.setAttribute('transform', `rotate(${turns * 45} 16 16)`);
       inner.setAttribute('transform', `rotate(${-turns * 45} 16 16)`);
@@ -146,7 +156,7 @@ function init(root) {
 
   /* ---- colours ---- */
   const hex3 = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
-  const lerp = (a, b, t) => { const A = hex3(a), B = hex3(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',')})`; };
+  const lerp = (a, b, t) => { const A = hex3(a), B = hex3(b); return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0')).join(''); };
   const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   let P = PAL[isNight() ? 'night' : 'day'];
   function paint() {
@@ -171,12 +181,15 @@ function init(root) {
     const p = progress();
     const z = sm(.04, .7, p), f0 = S.fade;
     const drain = sm(f0, f0 + .22, p), dark = sm(f0 + .1, f0 + .3, p);
-    const key = p.toFixed(4) + P.back;
+    const key = p.toFixed(4) + P.back + (A.on ? A.n : '');
     if (mount && key !== lastKey) {
       lastKey = key;
+      const front = lerp(P.front, P.end, drain);
       mount.setUniforms({
-        u_scale: S.scale0 + z * S.zoom, u_rotation: z * S.spin, u_pxSize: S.px + Math.round(z * S.pxGrow),
-        u_colorBack: col(P.back), u_colorFront: col(lerp(P.front, P.end, drain)),
+        u_scale: (S.scale0 + z * S.zoom) * (A.on ? A.scale : 1), u_rotation: z * S.spin + (A.on ? A.rot : 0),
+        u_pxSize: A.on && A.px ? A.px : S.px + Math.round(z * S.pxGrow), u_type: A.on && A.type ? A.type : S.type,
+        u_offsetX: A.on ? A.jx : 0, u_offsetY: A.on ? A.jy : 0,
+        u_colorBack: col(P.back), u_colorFront: col(A.on && A.contrast < 1 ? lerp(P.back, front, A.contrast) : front),
       });
     }
     if (el.logo) {
@@ -429,10 +442,86 @@ function init(root) {
     }
   }
 
+  /* ---- the arrival (Rim, 19 Oct 2026: "now we just land on it", and a heavier page loaded with flashes) ----
+     The first paint is the still star on the page's own colour (page head CSS, before any script runs), so a slow load
+     waits on something calm instead of a blank or a navy flash. Once the swirl can draw, it comes together around the
+     star; the star ticks as it locks; then the cue rises in and the corner buttons fade in (html.dive-shown). Only then
+     do the heavier parts load (sound, the solutions demos, the time story's dither). Variants to compare, ?intro=
+       tune   (default) restless static, big pixels and a jitter, that comes together in steps: random → 2x2 → 4x4
+       spin   a wild spin from far out that winds down into place
+       still  the star alone, one tick, and the swirl opens out from it
+       off    no arrival, the swirl fades in
+     Skipped when the page opens scrolled down, a fade with reduced motion; a scroll, key or tap plays the rest fast. */
+  const A = { on: false, n: 0, contrast: 1, rot: 0, scale: 1, px: 0, type: 0, jx: 0, jy: 0 };
+  const ease3 = x => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
+  // per variant: when the cue comes in (done) and when the star's tick starts (its turn lands about .45 s later)
+  const BEATS = { tune: { done: 1250, tick: 420 }, spin: { done: 1650, tick: 820 }, still: { done: 1500, tick: 0 } };
+  const beats = BEATS[VARIANT] || BEATS.tune;
+  function arrivalAt(t) {   // the swirl at t ms; px/type 0 = its own
+    if (VARIANT === 'spin') {
+      const k = ease3(t / 1500);
+      return { contrast: sm(0, 260, t), rot: -720 * (1 - k), scale: .18 + .82 * k, px: Math.max(S.px, Math.round(2 + 10 * (1 - k))),
+        type: t < 700 ? 1 : 0, speed: S.speed + 3 * (1 - k), jitter: .045 * (1 - sm(0, 900, t)) };
+    }
+    if (VARIANT === 'still') {
+      return { contrast: 1, rot: 30 * (1 - ease3((t - 350) / 1100)), scale: 1, px: 0, type: 0,
+        speed: S.speed + 2.5 * (1 - sm(350, 1400, t)), jitter: 0, reveal: sm(350, 1450, t) };
+    }
+    const steps = [[200, 28], [380, 16], [540, 9], [700, 5], [860, 3]];
+    return { contrast: sm(0, 160, t), rot: 45 * (1 - ease3(t / 1100)), scale: 1, px: (steps.find(st => t < st[0]) || [0, 0])[1],
+      type: t < 540 ? 1 : t < 860 ? 2 : 0, speed: S.speed + 4.5 * (1 - sm(0, 1150, t)), jitter: .05 * (1 - sm(0, 950, t)) };
+  }
+  let shown = false;
+  function show(quiet) {
+    if (shown) return; shown = true;
+    document.documentElement.classList.add('dive-shown');
+    if (el.cue && !quiet && el.cue.animate) {
+      el.cue.animate([{ opacity: 0, translate: '0 .9rem' }, { opacity: 1, translate: '0 0' }], { duration: 750, easing: 'cubic-bezier(.625,.05,0,1)' });
+    }
+    arrive();
+  }
+  function arrival() {
+    let t = 0, last = 0, fast = false, jt = 0;
+    const hurry = () => { fast = true; };
+    const INPUT = ['wheel', 'touchstart', 'keydown', 'pointerdown'];
+    INPUT.forEach(e => addEventListener(e, hurry, { passive: true }));
+    const finish = () => {
+      A.on = false; INPUT.forEach(e => removeEventListener(e, hurry));
+      el.canvas.style.webkitMaskImage = el.canvas.style.maskImage = '';
+      if (mount) mount.setSpeed(S.speed);
+      lastKey = ''; render(); show();
+    };
+    const step = now => {
+      if (!last) { last = now; t0 = now + beats.tick - 3600; }   // the star's next tick: at beats.tick
+      t += (now - last) * (fast ? 5 : 1); last = now;
+      if (t >= beats.done) { finish(); return; }
+      const st = arrivalAt(t);
+      A.n++; A.contrast = st.contrast; A.rot = st.rot; A.scale = st.scale; A.px = st.px; A.type = st.type;
+      if (!st.jitter) A.jx = A.jy = 0;
+      else if (now - jt > 45) { jt = now; A.jx = (Math.random() * 2 - 1) * st.jitter; A.jy = (Math.random() * 2 - 1) * st.jitter; }
+      if (mount) mount.setSpeed(st.speed);
+      if (st.reveal !== undefined) {
+        const R = st.reveal * Math.hypot(innerWidth, innerHeight) * .55, m = `radial-gradient(circle at 50% 50%,#000 ${R.toFixed(1)}px,transparent ${(R + 90 * st.reveal).toFixed(1)}px)`;
+        el.canvas.style.webkitMaskImage = el.canvas.style.maskImage = m;
+      }
+      render();
+      requestAnimationFrame(step);
+    };
+    A.on = true; Object.assign(A, arrivalAt(0)); A.jx = A.jy = 0;
+    if (VARIANT === 'still') el.canvas.style.webkitMaskImage = el.canvas.style.maskImage = 'radial-gradient(circle,#000 0,transparent 0)';
+    requestAnimationFrame(step);
+  }
+
   let queued = false;
   const onScroll = () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; render(); }); };
   addEventListener('scroll', onScroll, { passive: true });
   addEventListener('resize', onScroll);
+  if (willArrive && mount) arrival();
+  else {
+    // no arrival: the swirl fades in (at the top), or is simply there (opened further down)
+    if (atTop && el.canvas.animate) el.canvas.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 450, easing: 'ease-out' });
+    show(!atTop);
+  }
   paint();
 }
 
@@ -613,13 +702,18 @@ function initTime(root) {
   const shaderEl = document.createElement('div'); shaderEl.className = 'dive-bg-shader'; bgEl.append(shaderEl);
   document.body.append(bgEl);
   if (ditherHost) ditherHost.style.display = 'none';
-  let mount = null;
-  try {
-    mount = new ShaderMount(shaderEl, ditheringFragmentShader, {
-      u_fit: 0, u_scale: 1, u_rotation: 0, u_offsetX: 0, u_offsetY: 0, u_originX: .5, u_originY: .5, u_worldWidth: 0, u_worldHeight: 0,
-      u_colorBack: col(P.back), u_colorFront: col(P.back), u_shape: 2, u_type: 3, u_pxSize: 2, u_scale: .7,
-    }, undefined, 0, 0);
-  } catch (e) { console.warn('[time] dither did not start', e); }
+  // compiled once the opening has come together (or the moment it's needed), so it doesn't stall the arrival
+  let mount = null, mountTried = false;
+  function makeMount() {
+    if (mountTried) return; mountTried = true;
+    try {
+      mount = new ShaderMount(shaderEl, ditheringFragmentShader, {
+        u_fit: 0, u_scale: 1, u_rotation: 0, u_offsetX: 0, u_offsetY: 0, u_originX: .5, u_originY: .5, u_worldWidth: 0, u_worldHeight: 0,
+        u_colorBack: col(P.back), u_colorFront: col(P.back), u_shape: 2, u_type: 3, u_pxSize: 2, u_scale: .7,
+      }, undefined, 0, 0);
+    } catch (e) { console.warn('[time] dither did not start', e); }
+  }
+  arrived.then(() => idle(makeMount));
   // mixes two colours, each '#rrggbb' or 'rgb(r,g,b)'
   const parseCol = c => c[0] === '#' ? [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16)) : c.match(/\d+/g).slice(0, 3).map(Number);
   const hexLerp = (a, b, t) => { const A = parseCol(a), B = parseCol(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',')})`; };
@@ -647,6 +741,7 @@ function initTime(root) {
   function bgFrame(now) {
     const tr = root.getBoundingClientRect(), sr = standEl ? standEl.getBoundingClientRect() : tr, br = lastEl ? lastEl.getBoundingClientRect() : tr, vh = innerHeight;
     const on = br.bottom > 0 && tr.top < vh;
+    if (on && !mount) makeMount();
     if (on !== bgOn) { bgOn = on; bgEl.style.visibility = on ? 'visible' : 'hidden'; if (!on && mount) { mount.setSpeed(0); lastSpeed = 0; } }
     if (on && mount) {
       bgEl.style.clipPath = `inset(${Math.max(0, tr.top).toFixed(1)}px 0 ${Math.max(0, vh - br.bottom).toFixed(1)}px 0)`;
@@ -1092,8 +1187,16 @@ function initSol(root) {
   const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) e.target.classList.add(e.target === path ? 'is-in' : 'dive-in'); }), { threshold: .5 });
   [rise, path].filter(Boolean).forEach(n => io.observe(n));
 
-  // the three products show what they do (dive/solutions.js, loaded only here)
-  import('./solutions.js').then(m => m.initSolutions(root)).catch(e => console.warn('[sol] demos did not load', e));
+  // the three products show what they do (dive/solutions.js, loaded only here): after the arrival, or straight away
+  // when the page opens near them (a reload further down, a link to the footer)
+  let solLoaded = false;
+  const loadSol = () => {
+    if (solLoaded) return; solLoaded = true;
+    import('./solutions.js').then(m => m.initSolutions(root)).catch(e => console.warn('[sol] demos did not load', e));
+  };
+  arrived.then(() => idle(loadSol));
+  if (location.hash) loadSol();
+  new IntersectionObserver((es, o) => { if (es[0].isIntersecting) { o.disconnect(); loadSol(); } }, { rootMargin: '200% 0px' }).observe(root);
 }
 
 function injectCSS() {

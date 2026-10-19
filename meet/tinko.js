@@ -72,6 +72,38 @@ const GOOFS = [
 ];
 const CHEER = [E(-1.6, -1, 1.8, .5), E(1.6, -1, 1.8, .5)];
 
+/* His arrivals (Rim, 19 Oct, from the load-in lab): Outline (his outline is drawn block by block, the inside
+   fills ring by ring, then the eyes open: drawn, then brought to life), Rings (from the middle out, a whole ring per
+   beat, fast) and Bloom (blocks grow open, slow). Each says when every pixel switches on (0..1 of the arrival); in
+   Outline and Rings a pixel is on or off, nothing fades. Every arrival ends on his exact grid, and his outline only
+   starts to drift after that, so the end never jumps. ?arrive=outline|rings|bloom picks one; else a weighted pick. */
+const PIX = []; BITMAP.forEach((r, y) => [...r].forEach((c, x) => { if (c === '#') PIX.push({ x, y }); }));
+const isOn = (x, y) => y >= 0 && y < ROWS && x >= 0 && x < COLS && BITMAP[y][x] === '#';
+const pdist = c => Math.hypot(c.x + .5 - CX, (c.y + .5 - CY) * 1.2), PFAR = Math.max(...PIX.map(pdist));
+const RING = (() => {   // depth from the edge (0 = the outline), and the angle round the middle
+  const depth = new Map(), key = c => c.x + ',' + c.y, N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  let layer = PIX.filter(c => N4.some(([dx, dy]) => !isOn(c.x + dx, c.y + dy))), d = 0;
+  const left = new Set(PIX.map(key));
+  while (layer.length) { layer.forEach(c => { depth.set(key(c), d); left.delete(key(c)); }); d++; layer = PIX.filter(c => left.has(key(c)) && N4.some(([dx, dy]) => depth.get((c.x + dx) + ',' + (c.y + dy)) === d - 1)); }
+  const maxD = Math.max(...depth.values());
+  return c => ({ d: depth.get(key(c)), maxD, ang: (Math.atan2(c.y + .5 - CY, c.x + .5 - CX) + Math.PI * 1.5) % (Math.PI * 2) / (Math.PI * 2) });
+})();
+const ARRIVALS = {
+  outline: { dur: 1250, at: c => { const r = RING(c); return r.d === 0 ? r.ang * .58 : .6 + r.d / r.maxD * .4; } },
+  rings: { dur: 620, at: c => Math.round(pdist(c) / PFAR * 7) / 7 },
+  bloom: { dur: 1500, smooth: true, at: c => pdist(c) / PFAR * .62 },
+};
+const ARRIVE = (() => {
+  const q = new URLSearchParams(location.search).get('arrive');
+  if (ARRIVALS[q]) return q;
+  const r = Math.random(); return r < .5 ? 'outline' : r < .8 ? 'rings' : 'bloom';
+})();
+
+function wakeTimes(k, style) {
+  const A = ARRIVALS[style].dur * k, start = 60 * k, end = start + A;
+  return { A, start, end, open: end + 220 * k, blink: end + 640 * k, hello: end + 900 * k, idle: end + 1550 * k };
+}
+
 let tinkoIds = 0;
 function makeTinko(host, shared) {
   // His body and eyes sit behind a mask of his own pixels. Waking up, each pixel grows open (a wave from the
@@ -83,10 +115,11 @@ function makeTinko(host, shared) {
       <g class="tkh-me"><path class="tkh-body"/><rect class="tkh-eye"/><rect class="tkh-eye"/></g>
     </svg></div></div></div>`;
   const svg = host.querySelector('svg'), body = host.querySelector('.tkh-body'), me = host.querySelector('.tkh-me');
-  const cells = [...host.querySelectorAll('mask rect')].map(el => { const x = +el.getAttribute('x') - .5, y = +el.getAttribute('y') - .5; return { el, x, y, d: Math.hypot(x + .5 - CX, (y + .5 - CY) * 1.25) }; });
-  const far = Math.max(...cells.map(c => c.d));
-  let reveal = null;   // { t0, spread, grow } while the pixels are coming in
-  const sizeCell = (c, k) => { const w = 2.1 * out(Math.max(0, Math.min(1, k))); c.el.setAttribute('x', (c.x + .5 - w / 2).toFixed(3)); c.el.setAttribute('y', (c.y + .5 - w / 2).toFixed(3)); c.el.setAttribute('width', w.toFixed(3)); c.el.setAttribute('height', w.toFixed(3)); };
+  const cells = [...host.querySelectorAll('mask rect')].map(el => { const x = +el.getAttribute('x') - .5, y = +el.getAttribute('y') - .5, at = {}; for (const k in ARRIVALS) at[k] = ARRIVALS[k].at({ x, y }); return { el, x, y, at, w: -1 }; });
+  let reveal = null;   // { t0, A (ms), style } while his pixels are coming in
+  // a pixel of the mask: w = 0 shut, 1.04 open (a hair over its cell, so neighbours close up with no seams)
+  const sizeCell = (c, w) => { if (Math.abs(w - c.w) < .001) return; c.w = w; c.el.setAttribute('x', (c.x + .5 - w / 2).toFixed(3)); c.el.setAttribute('y', (c.y + .5 - w / 2).toFixed(3)); c.el.setAttribute('width', w.toFixed(3)); c.el.setAttribute('height', w.toFixed(3)); };
+  const S = shared || {};   // shared by the intro's two Tinkos: the morph, its clock, and when the drift starts
   const masked = on => on ? me.setAttribute('mask', `url(#${mid})`) : me.removeAttribute('mask');
   const eyeEls = [...host.querySelectorAll('.tkh-eye')], blob = host.querySelector('.tkh-blob'), jig = host.querySelector('.tkh-jig');
 
@@ -99,7 +132,7 @@ function makeTinko(host, shared) {
     const leg = Math.min(3, Math.floor(t * 4)), k = inOut(t * 4 - leg), a = variants[leg], b = variants[leg + 1];
     return a.map((p, i) => [p[0] + (b[i][0] - p[0]) * k, p[1] + (b[i][1] - p[1]) * k]);
   };
-  body.setAttribute('d', pathOf(reduce ? base : variants[0]));
+  body.setAttribute('d', pathOf(base));
 
   // eyes: each moves from where it is to a target, eased (TinkoView.set)
   let eyes = HOME.map(e => ({ ...e })), tween = null;
@@ -116,14 +149,23 @@ function makeTinko(host, shared) {
   drawEyes();
 
   // one frame loop while he's on screen: the morph and any eye move
-  let raf = 0, visible = false; const t0 = shared?.t0 ?? (shared ? (shared.t0 = performance.now()) : performance.now());
+  let raf = 0, visible = false; const t0 = S.t0 ?? (S.t0 = performance.now());
+  if (S.driftFrom === undefined) S.driftFrom = -1e9;
   function frame(now) {
     raf = 0;
-    if (!reduce) body.setAttribute('d', pathOf(morphAt((((now - t0) / 11000) % 1 + 1) % 1)));   // a frame's time can be a hair before t0
-    if (reveal) {   // each pixel opens in turn, eased, a little bigger than its cell so they close up with no seams
-      let open = true;
-      for (const c of cells) { const k = (now - reveal.t0 - c.d / far * reveal.spread) / reveal.grow; if (k < 1) open = false; sizeCell(c, k); }
-      if (open) { reveal = null; masked(false); }
+    if (!reduce) {   // the morph, faded in from his exact grid once he has arrived
+      const amp = inOut(Math.max(0, Math.min(1, (now - S.driftFrom) / 1800)));
+      if (amp <= 0) body.setAttribute('d', pathOf(base));
+      else { const m = morphAt((((now - t0) / 11000) % 1 + 1) % 1); body.setAttribute('d', pathOf(amp >= 1 ? m : base.map((p, i) => [p[0] + (m[i][0] - p[0]) * amp, p[1] + (m[i][1] - p[1]) * amp]))); }
+    }
+    if (reveal) {
+      const A = ARRIVALS[reveal.style], k = (now - reveal.t0) / reveal.A;
+      for (const c of cells) {
+        const s = c.at[reveal.style];
+        if (A.smooth) { const g = Math.max(0, Math.min(1, (k - s) / .38)); sizeCell(c, 2.1 * out(g)); }
+        else sizeCell(c, k >= s ? 1.04 : 0);
+      }
+      if (k >= 1) { reveal = null; masked(false); }
     }
     if (tween) {
       const k = Math.min(1, (now - tween.t0) / tween.dur), f = tween.ease(k);
@@ -221,25 +263,28 @@ function makeTinko(host, shared) {
   function sleep() {
     mood = 'asleep'; timers.forEach(clearTimeout); timers.clear(); goofing = blinking = false;
     host.classList.add('is-asleep'); host.classList.remove('is-awake');
-    reveal = null; cells.forEach(c => sizeCell(c, 0)); masked(true);
+    reveal = null; cells.forEach(c => sizeCell(c, 0)); masked(true); S.driftFrom = Infinity;
     eyes = HOME.map(e => ({ ...e, y: e.y + .8, h: .25 })); tween = null; drawEyes();
   }
-  // k < 1 runs it faster (the page-load intro)
-  function wakeUp(k = 1) {
+  // he arrives (the style's pixels switch on), and only once he's whole do the eyes open: a blink, the big hello.
+  // k < 1 runs it faster. The times after the arrival are the same for every style (wakeTimes).
+  function wakeUp(k = 1, style = 'rings') {
     return new Promise(done => {
       if (reduce) { awakeNow(); return done(); }
-      reveal = { t0: performance.now() + 60 * k, spread: 560 * k, grow: 420 * k }; wake();
-      later(() => { host.classList.remove('is-asleep'); host.classList.add('is-awake'); }, 640 * k);
-      later(() => set(E(-1.5, -.6, 1, 2.1), E(1.5, -.6, 1, 2.1), .26, 'out'), 1000 * k);
-      later(() => { blinking = false; blink(); }, 1450 * k);
-      later(() => set(E(-1.5, -.7, 1.4, 2.2), E(1.5, -.7, 1.4, 2.2), .38, 'out'), 1800 * k);
-      later(() => { mood = 'idle'; nextGoof = performance.now() + 7000; gaze = { x: 9, y: 9 }; done(); }, 2500 * k);
+      const W = wakeTimes(k, style), now = performance.now();
+      reveal = { t0: now + W.start, A: W.A, style }; S.driftFrom = now + W.end + 350 * k; wake();
+      later(() => { host.classList.remove('is-asleep'); host.classList.add('is-awake'); }, W.end);
+      later(() => set(E(-1.5, -.6, 1, 2.1), E(1.5, -.6, 1, 2.1), .26, 'out'), W.open);
+      later(() => { blinking = false; blink(); }, W.blink);
+      later(() => set(E(-1.5, -.7, 1.4, 2.2), E(1.5, -.7, 1.4, 2.2), .38, 'out'), W.hello);
+      later(() => { mood = 'idle'; nextGoof = performance.now() + 7000; gaze = { x: 9, y: 9 }; done(); }, W.idle);
     });
   }
-  // straight to awake, eyes home (the hand-over at the end of the intro)
-  function awakeNow() {
+  // straight to awake, eyes home (the hand-over at the end of the intro); keepDrift leaves the shared drift clock
+  function awakeNow(keepDrift = false) {
     timers.forEach(clearTimeout); timers.clear(); goofing = blinking = false;
-    reveal = null; cells.forEach(c => sizeCell(c, 1)); masked(false); host.classList.remove('is-asleep'); host.classList.add('is-awake');
+    if (!keepDrift) S.driftFrom = -1e9;
+    reveal = null; cells.forEach(c => sizeCell(c, 1.04)); masked(false); host.classList.remove('is-asleep'); host.classList.add('is-awake');
     eyes = HOME.map(e => ({ ...e })); tween = null; drawEyes();
     mood = 'idle'; nextGoof = performance.now() + 7000; gaze = { x: 9, y: 9 };
   }
@@ -297,9 +342,11 @@ function initStage(host) {
   /* The page-load intro (Rim, 19 Oct): Tinko on his own in the middle of the screen, larger. His pixels come in,
      he wakes up and says hello, then he glides down to his place while his box opens out around him and the
      title rises. Any scroll, click or key skips to the end. */
-  // the intro's beats, in ms at full speed (Rim, 19 Oct: calmer, a slower wake, a longer hello before the glide)
-  const BEAT = { wake: .85, glide: 2250, glideDur: 1150, title: 150, box: 2650, boxDur: 1200 };
-  function intro(f = 1) {
+  // the intro's beats, in ms at full speed (Rim, 19 Oct: calmer, a longer hello before the glide). The glide waits
+  // for his arrival and his hello, whichever arrival it is: hold = how long he looks at you before he goes
+  const BEAT = { wake: .85, hold: 650, glideDur: 1150, title: 150, box: 400, boxDur: 1200 };
+  function intro(f = 1, style = ARRIVE) {
+    const W = wakeTimes(BEAT.wake, style), glide = W.hello + 380 * BEAT.wake + BEAT.hold;
     const cell = tinkoEl.offsetWidth / 16;
     const ov = document.createElement('div'); ov.className = 'tkh-intro'; ov.innerHTML = '<div class="tkh-tinko"></div>';
     ov.style.setProperty('--tkh-cell', cell + 'px');
@@ -307,7 +354,7 @@ function initStage(host) {
     const it = ov.firstChild, twin = makeTinko(it, shared);
     it.querySelector('.tkh-sway').style.animationDelay = `-${((performance.now() - swayBorn) / 1000).toFixed(3)}s`;
     twin.sleep(); twin.show(true);
-    tinkoEl.style.visibility = 'hidden'; tinko.awakeNow(); introOn = true; tinkoEl.style.translate = '';
+    tinkoEl.style.visibility = 'hidden'; tinko.awakeNow(true); introOn = true; tinkoEl.style.translate = '';
     const BIG = Math.max(1.2, Math.min(1.6, innerWidth / 3.2 / it.offsetWidth + .4));
     it.style.transform = `scale(${BIG})`;
     win.classList.add('is-on', 'is-boxed'); win.style.transition = 'none';
@@ -319,7 +366,7 @@ function initStage(host) {
       timers.forEach(clearTimeout); anims.forEach(a => a.cancel());   // their end state is the page's own state, so nothing stays stuck on (a replay starts clean)
       removeEventListener('wheel', skip); removeEventListener('touchstart', skip); removeEventListener('keydown', skip, true); removeEventListener('pointerdown', skip, true);
       win.style.clipPath = ''; win.classList.remove('is-boxed', 'is-clipping'); win.style.opacity = ''; win.style.transition = '';
-      tinko.awakeNow(); tinko.show(true); tinkoEl.style.visibility = ''; twin.show(false); ov.remove(); introOn = false;
+      tinko.awakeNow(true); tinko.show(true); tinkoEl.style.visibility = ''; twin.show(false); ov.remove(); introOn = false;
       heroTitle.play(0, true);
       screen.classList.remove('is-hidden');
       running = null; tune.stop();
@@ -328,37 +375,37 @@ function initStage(host) {
     const skip = e => { if (e?.target?.closest?.('.tkh-tune')) return; finish(); };
     addEventListener('wheel', skip, { passive: true }); addEventListener('touchstart', skip, { passive: true });
     addEventListener('keydown', skip, true); addEventListener('pointerdown', skip, true);
-    twin.wakeUp(BEAT.wake * f);
+    twin.wakeUp(BEAT.wake * f, style);
     // the glide down into his place, with the box opening out from around him
-    at(BEAT.glide, () => {
+    at(glide, () => {
       twin.home(.45);
       const a = it.getBoundingClientRect(), b = tinkoEl.getBoundingClientRect();
       const dx = (b.left + b.width / 2) - (a.left + a.width / 2), dy = (b.top + b.height / 2) - (a.top + a.height / 2);
       anims.push(it.animate([{ transform: `translate(0,0) scale(${BIG})` }, { transform: `translate(${dx}px,${dy}px) scale(1)` }], { duration: BEAT.glideDur * f, easing: 'cubic-bezier(.625,.05,0,1)', fill: 'forwards' }));
       heroTitle.play(BEAT.title * f, false, f);
     });
-    at(BEAT.box, () => {
+    at(glide + BEAT.box, () => {
       const w = win.getBoundingClientRect(), b = tinkoEl.getBoundingClientRect(), pad = cell * 1.2;
       const from = `inset(${b.top - w.top - pad}px ${w.right - b.right - pad}px ${w.bottom - b.bottom - pad}px ${b.left - w.left - pad}px round 8px)`;
       win.classList.add('is-clipping'); win.style.opacity = '1';
       anims.push(win.animate([{ clipPath: from, opacity: 0 }, { clipPath: from, opacity: 1, offset: .32 }, { clipPath: 'inset(0px 0px 0px 0px round 14px)', opacity: 1 }], { duration: BEAT.boxDur * f, easing: 'cubic-bezier(.625,.05,0,1)', fill: 'forwards' }));
     });
-    at(Math.max(BEAT.box + BEAT.boxDur, BEAT.glide + BEAT.glideDur) + 50, () => finish());   // once everything has landed
+    at(glide + Math.max(BEAT.box + BEAT.boxDur, BEAT.glideDur) + 50, () => finish());   // once everything has landed
   }
   let running = null;
   // ?tune: the intro again from the top, at any speed
-  const tune = TUNE ? tunePanel(f => {
+  const tune = TUNE ? tunePanel((f, style) => {
     if (running) running();
     if (window.lenis?.scrollTo) window.lenis.scrollTo(0, { immediate: true }); else scrollTo(0, 0);
     screen.classList.add('is-hidden'); tinko.sleep(); tinko.show(false);
     win.classList.add('is-boxed'); heroTitle.reset();
-    setTimeout(() => intro(f), 350);
+    setTimeout(() => intro(f, style), 350);
   }) : { start() {}, stop() {} };
 
   async function start() {
     started = true; appear();
     await new Promise(r => setTimeout(r, reduce ? 0 : Math.max(450, 1300 - (performance.now() - born))));
-    await tinko.wakeUp();
+    await tinko.wakeUp(1, ARRIVE);
     screen.classList.remove('is-hidden');
   }
   new IntersectionObserver(([e]) => {
@@ -425,12 +472,16 @@ function initStage(host) {
    (in real seconds at full speed) so a moment can be named ("at 1.4 s"). Only with ?tune in the address. */
 function tunePanel(replay) {
   const el = document.createElement('div'); el.className = 'tkh-tune';
-  el.innerHTML = '<b>Intro</b><button data-f="1">Replay</button><button data-f="2">Slow ×½</button><button data-f="4">Slower ×¼</button><span class="tkh-tune-clock">0.00 s</span>';
+  el.innerHTML = `<b>Intro</b>${Object.keys(ARRIVALS).map(a => `<button data-a="${a}" aria-pressed="${a === ARRIVE}">${a[0].toUpperCase() + a.slice(1)}</button>`).join('')}<i></i><button data-f="1">Replay</button><button data-f="2">Slow ×½</button><button data-f="4">Slower ×¼</button><span class="tkh-tune-clock">0.00 s</span>`;
   document.body.append(el);
   const clock = el.querySelector('.tkh-tune-clock');
-  let t0 = 0, f = 1, raf = 0;
+  let t0 = 0, f = 1, raf = 0, style = ARRIVE;
   const tick = () => { clock.textContent = ((performance.now() - t0) / 1000 / f).toFixed(2) + ' s' + (f > 1 ? `  (×1/${f})` : ''); raf = requestAnimationFrame(tick); };
-  el.addEventListener('click', e => { const b = e.target.closest('button'); if (b) replay(+b.dataset.f); });
+  el.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.a) { style = b.dataset.a; el.querySelectorAll('[data-a]').forEach(o => o.setAttribute('aria-pressed', o === b)); replay(1, style); }
+    else replay(+b.dataset.f, style);
+  });
   return {
     start(speed) { f = speed; t0 = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(tick); },
     stop() { cancelAnimationFrame(raf); clock.textContent = 'done at ' + ((performance.now() - t0) / 1000 / f).toFixed(2) + ' s'; },
@@ -1017,6 +1068,7 @@ function injectCSS() {
 .tkh-tune{position:fixed;left:16px;bottom:16px;z-index:70;display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;background:rgba(29,29,31,.88);color:#fff;font:11px/1 "Space Mono",monospace;letter-spacing:.04em;box-shadow:0 8px 24px rgba(0,0,0,.25)}
 .tkh-tune b{font-weight:400;opacity:.6;margin-right:4px;text-transform:uppercase}
 .tkh-tune button{all:unset;cursor:pointer;padding:5px 8px;border-radius:4px;background:rgba(255,255,255,.12)}.tkh-tune button:hover{background:rgba(255,255,255,.22)}
+.tkh-tune button[aria-pressed="true"]{background:#1dabfa;color:#0e1628}.tkh-tune i{width:1px;height:16px;background:rgba(255,255,255,.2);margin:0 2px}
 .tkh-tune-clock{min-width:7.5em;margin-left:4px;opacity:.8;white-space:pre}
 .tkh-win.is-clipping{box-shadow:none}
 .tkh-tool{cursor:pointer;transition:border-color .3s}.tkh-tool:hover{border-color:color-mix(in srgb,var(--c-ink) 35%,var(--c-line))}.tkh-tool:focus-visible{outline:2px solid var(--c-calm);outline-offset:2px}

@@ -76,7 +76,8 @@ const CHEER = [E(-1.6, -1, 1.8, .5), E(1.6, -1, 1.8, .5)];
    fills ring by ring, then the eyes open: drawn, then brought to life), Rings (from the middle out, a whole ring per
    beat, fast) and Bloom (blocks grow open, slow). Each says when every pixel switches on (0..1 of the arrival); in
    Outline and Rings a pixel is on or off, nothing fades. Every arrival ends on his exact grid, and his outline only
-   starts to drift after that, so the end never jumps. ?arrive=outline|rings|bloom picks one; else a weighted pick. */
+   starts to drift after that, so the end never jumps. The page always uses Outline (Rim, 19 Oct: "for simplicity
+   just the outline one"); ?arrive=rings|bloom shows the others, for testing. */
 const PIX = []; BITMAP.forEach((r, y) => [...r].forEach((c, x) => { if (c === '#') PIX.push({ x, y }); }));
 const isOn = (x, y) => y >= 0 && y < ROWS && x >= 0 && x < COLS && BITMAP[y][x] === '#';
 const pdist = c => Math.hypot(c.x + .5 - CX, (c.y + .5 - CY) * 1.2), PFAR = Math.max(...PIX.map(pdist));
@@ -95,8 +96,7 @@ const ARRIVALS = {
 };
 const ARRIVE = (() => {
   const q = new URLSearchParams(location.search).get('arrive');
-  if (ARRIVALS[q]) return q;
-  const r = Math.random(); return r < .5 ? 'outline' : r < .8 ? 'rings' : 'bloom';
+  return ARRIVALS[q] ? q : 'outline';
 })();
 
 function wakeTimes(k, style) {

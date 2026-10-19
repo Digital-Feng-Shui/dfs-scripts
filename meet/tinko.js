@@ -427,7 +427,7 @@ function initStage(host) {
     btn.classList.add('is-press'); setTimeout(() => btn.classList.remove('is-press'), 160);
     const hop = tinko.cheer(1);
     setTimeout(() => {
-      const hero = host.closest('[data-tinko-hero]'), next = document.querySelector('#features') || hero?.nextElementSibling;
+      const hero = host.closest('[data-tinko-hero]'), next = document.querySelector('#before-after') || document.querySelector('#features') || hero?.nextElementSibling;
       const y = next ? next.getBoundingClientRect().top + scrollY : (hero ? hero.getBoundingClientRect().bottom + scrollY : innerHeight);
       if (window.lenis?.scrollTo) window.lenis.scrollTo(y, { duration: 1.6 }); else scrollTo({ top: y, behavior: 'smooth' });
     }, reduce ? 0 : 520);
@@ -544,6 +544,41 @@ const S = {
   count: t => `<div class="tkd-count">${t}</div>`,
 };
 
+/* The hero window's tilt for the other Macs too (Rim, 20 Oct: "I'd like to have that effect on every Tinko"): each
+   leans a few degrees towards the pointer while it's on screen. One pointer listener and one easing loop for all of
+   them, which stops once they're still. Holding the slider's handle keeps its Mac where it is while you drag. */
+const tilts = new Set();
+let tiltRun = 0, ptrX = -1, ptrY = -1;
+function tiltStep() {
+  let moving = false;
+  tilts.forEach(t => {
+    if (!t.on || t.hold) return;
+    let tx = 0, ty = 0;
+    if (ptrX >= 0) {
+      const r = t.el.getBoundingClientRect();
+      tx = Math.max(-1, Math.min(1, (ptrX - (r.left + r.width / 2)) / (innerWidth / 2))) * t.max;
+      ty = Math.max(-1, Math.min(1, (ptrY - (r.top + r.height / 2)) / innerHeight)) * -t.max;
+    }
+    t.cx += (tx - t.cx) * .08; t.cy += (ty - t.cy) * .08;
+    if (Math.abs(tx - t.cx) + Math.abs(ty - t.cy) > .01) moving = true;
+    t.el.style.transform = `perspective(${t.p}px) rotateX(${t.cy.toFixed(3)}deg) rotateY(${t.cx.toFixed(3)}deg)`;
+  });
+  tiltRun = moving ? requestAnimationFrame(tiltStep) : 0;
+}
+const tiltKick = () => { if (!tiltRun) tiltRun = requestAnimationFrame(tiltStep); };
+function tilt(el, { max = 4, p = 1800 } = {}) {
+  if (!el || !finePointer || reduce) return;
+  if (!tilts.size) {
+    addEventListener('pointermove', e => { ptrX = e.clientX; ptrY = e.clientY; tiltKick(); }, { passive: true });
+    addEventListener('scroll', tiltKick, { passive: true });
+  }
+  const t = { el, max, p, cx: 0, cy: 0, on: false, hold: false };
+  tilts.add(t);
+  new IntersectionObserver(([e]) => { t.on = e.isIntersecting; if (t.on) tiltKick(); }).observe(el);
+  el.addEventListener('pointerdown', e => { if (e.target.closest('[data-splitter="handle"]')) t.hold = true; });
+  addEventListener('pointerup', () => { if (t.hold) { t.hold = false; tiltKick(); } });
+}
+
 /* A demo, ready to play: its scene, its Tinko, and a clock that only runs while it's on screen and switched on.
    initDemo loops one for the rows; the layouts lab (meet/layouts.js) plays several in turn in one frame, so it can
    switch one off, stop it mid-way (stop(): the running play gives up at its next wait) and start it over. */
@@ -623,6 +658,7 @@ export function buildDemo(host, key = host.dataset.tinkoDemo) {
   };
   D.build(api);
   new ResizeObserver(fit).observe(host); fit();
+  tilt(wrap);
   const me = {
     host, D, api, tinko, wait, until,
     get on() { return on(); },
@@ -1322,6 +1358,7 @@ function init() {
   document.querySelectorAll('[data-tinko-stage]').forEach(initStage);
   if (!document.querySelector('[data-tinko-stage]')) heroTitle.play(120);
   document.querySelectorAll('[data-tinko-ba]').forEach(initBA);
+  tilt(document.querySelector('.splitter-wrapper'), { max: 3, p: 2200 });
   initPixels();   // before the Osmo script in the footer starts (it waits for DOMContentLoaded)
   const rows = () => document.querySelectorAll('[data-tinko-demo]').forEach(initDemo);
   if (!LAB || LAB === 'rows') rows();

@@ -1680,6 +1680,9 @@
   // member's progress, there's no onboarding, and the menu is only for show.
   function dfsCourse(opts) {
     const DEMO = !!(opts && opts.demo);
+    // V2 (lessonsFromMenu): lesson switches ease in (text block, cards over the player) instead of cutting
+    const SMOOTH = !!(opts && opts.lessonsFromMenu) && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let shownStage = null;
     const hamburger = document.querySelector('.bold-nav-full__hamburger');
     const menuWrap = document.querySelector('.absoulte_menu_wrap');
     const menuToggle = document.querySelector('.Menu_toggle');
@@ -2130,6 +2133,41 @@
       switchLessonContent(targetLessonElement);
     }
     // LESSON NAVIGATION
+    // V2 cards over the player: the card that leaves fades out first, the player fades under the new card
+    // (styles.css), then the card's parts rise in one by one and Tinko on it gets a hello (dfsTinkoMascot).
+    function stageParts(stage) {
+      const parts = [...stage.querySelectorAll('.tinko-stage_tag, .tinko-stage_title, .tinko-stage_text:not([data-tinko-fallback]), ' +
+        '.tinko-stage_actions, .tinko-stage_cta, .tinko-stage_link, .v2-card_links > *')];
+      return parts.filter(el => !parts.some(other => other !== el && other.contains(el)));
+    }
+
+    function switchStageSmooth(next) {
+      const old = shownStage;
+      shownStage = next;
+      document.querySelectorAll('[data-lesson-stage]').forEach(stage => {
+        if (stage === next || stage === old) return;
+        gsap.killTweensOf(stage);
+        gsap.set(stage, { clearProps: 'opacity' });
+        stage.classList.remove('is-active');
+      });
+      if (old && old !== next) {
+        gsap.killTweensOf(old);
+        gsap.to(old, { opacity: 0, duration: 0.2, ease: 'power1.in', onComplete() {
+          old.classList.remove('is-active');
+          gsap.set(old, { clearProps: 'opacity' });
+        } });
+      }
+      if (!next || next === old) return;
+      const parts = stageParts(next);
+      gsap.killTweensOf([next, ...parts]);
+      next.classList.add('is-active');
+      gsap.fromTo(next, { opacity: 0 }, { opacity: 1, duration: 0.3, delay: old ? 0.15 : 0.08, ease: 'power1.out',
+        clearProps: 'opacity' });
+      gsap.fromTo(parts, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.55, delay: 0.22, stagger: 0.06,
+        ease: 'power3.out', clearProps: 'opacity,transform' });
+      next.querySelectorAll('[data-tinko-mascot]').forEach(m => m.dispatchEvent(new CustomEvent('tinko:hello')));
+    }
+
     function switchLessonContent(item) {
       // ---- CLOSE MENU ON MOBILE/TABLET ----
       if (isMobileView() && isOpen) {
@@ -2168,16 +2206,19 @@
       const activeText = document.getElementById(textId);
       if (activeText) {
         activeText.classList.add('is-active');
+        if (SMOOTH) gsap.fromTo(activeText, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.45, delay: 0.1,
+          ease: 'power2.out', clearProps: 'opacity,transform' });
       }
       // ---- STAGE SWITCH ----
       // A lesson without a video can show a panel in the video's place: a Webflow element with
       // data-lesson-stage="<lesson id>" next to the player. It covers the player while its lesson is open.
       let hasStage = false;
+      let nextStage = null;
       document.querySelectorAll('[data-lesson-stage]').forEach(stage => {
-        const on = stage.getAttribute('data-lesson-stage') === item.id;
-        stage.classList.toggle('is-active', on);
-        if (on) hasStage = true;
+        if (stage.getAttribute('data-lesson-stage') === item.id) { nextStage = stage; hasStage = true; }
       });
+      if (SMOOTH) switchStageSmooth(nextStage);
+      else document.querySelectorAll('[data-lesson-stage]').forEach(stage => stage.classList.toggle('is-active', stage === nextStage));
       if (hasStage) {
         const playing = oldPlayer && oldPlayer.querySelector('video');
         if (playing && !playing.paused) playing.pause();
@@ -6624,6 +6665,36 @@
       setTimeout(function () { set(k, [0.4, -0.3, 1, 2], [-0.4, -1.1, 1, 2], 0.18); }, 280);
       setTimeout(function () { k.gaze = [9, 9]; set(k, HOME[0].slice(), HOME[1].slice(), 0.3); k.bwoop = false; }, 750);
     }
+    // "tinko:hello" (the course sends it when a card with him opens): he pops up from below and lands with
+    // a squash, eyes shut; they open wide, then he looks at the card's button for a moment, blinks, home.
+    function hello(k) {
+      var g = k.el.querySelector('.dfs-tinko-body');
+      k.helloAt = Date.now(); k.met = true; k.bwoop = true;
+      clearTimeout(k.helloTimer1); clearTimeout(k.helloTimer2); clearTimeout(k.helloTimer3);
+      if (g && g.animate) g.animate([
+        { transform: 'translateY(5px) scale(.25)', opacity: 0 },
+        { transform: 'translateY(-1.6px) scale(.9, 1.14)', opacity: 1, offset: 0.34 },
+        { transform: 'translateY(.4px) scale(1.14, .88)', offset: 0.52 },
+        { transform: 'translateY(0) scale(.96, 1.04)', offset: 0.72 },
+        { transform: 'translateY(0) scale(1)' }
+      ], { duration: 820, delay: 160, easing: 'cubic-bezier(.25,.8,.3,1)', fill: 'backwards' });
+      set(k, [HOME[0][0], HOME[0][1] + 0.8, 1, 0.25], [HOME[1][0], HOME[1][1] + 0.8, 1, 0.25], 0.01);
+      k.helloTimer1 = setTimeout(function () { set(k, [-1.5, -0.7, 1.6, 2.4], [1.5, -0.7, 1.6, 2.4], 0.14, 'out'); }, 620);
+      k.helloTimer2 = setTimeout(function () {
+        var stage = k.el.closest('[data-lesson-stage]') || document;
+        var cta = stage.querySelector('.tinko-stage_cta'), dx = 0, dy = 0;
+        if (cta) {
+          var a = k.el.getBoundingClientRect(), b = cta.getBoundingClientRect();
+          var vx = (b.left + b.width / 2) - (a.left + a.width / 2), vy = (b.top + b.height / 2) - (a.top + a.height / 2);
+          var len = Math.sqrt(vx * vx + vy * vy) || 1; dx = vx / len; dy = vy / len;
+        }
+        set(k, [HOME[0][0] + dx * 1.9, HOME[0][1] + dy * 1.3, 1, 2], [HOME[1][0] + dx * 1.9, HOME[1][1] + dy * 1.3, 1, 2], 0.35);
+      }, 1000);
+      k.helloTimer3 = setTimeout(function () {
+        k.bwoop = false; k.gaze = [9, 9]; k.nextBlink = 0;
+        set(k, HOME[0].slice(), HOME[1].slice(), 0.4);
+      }, 2300);
+    }
     function step() {
       all.forEach(function (k) {
         if (!k.seen || k.bwoop) return;
@@ -6656,12 +6727,13 @@
         nextBlink: Date.now() + 2000, nextGoof: Date.now() + 5000, nextGesture: Date.now() + 9000, seq: null, seen: false, met: false };
       all.push(k);
       el.addEventListener('click', function () { bwoop(k); });
-      // The first time he comes into view he says hello with the bwoop
+      el.addEventListener('tinko:hello', function () { hello(k); });
+      // The first time he comes into view he says hello with the bwoop (unless a card just gave him his own hello)
       if ('IntersectionObserver' in window) {
         new IntersectionObserver(function (entries) {
           k.seen = entries[0].isIntersecting;
           if (svg.pauseAnimations) { if (k.seen) svg.unpauseAnimations(); else svg.pauseAnimations(); }
-          if (k.seen && !k.met) { k.met = true; setTimeout(function () { bwoop(k); }, 350); }
+          if (k.seen && !k.met) { k.met = true; setTimeout(function () { if (Date.now() - (k.helloAt || 0) > 2500) bwoop(k); }, 350); }
         }, { threshold: 0.6 }).observe(el);
       } else { k.seen = true; if (svg.unpauseAnimations) svg.unpauseAnimations(); }
     });

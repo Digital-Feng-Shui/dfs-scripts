@@ -1055,8 +1055,9 @@ function initPixels() {
   new MutationObserver(() => { window.tinkoPixels.colors = colors(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
   // whole 32px squares, from the same corner as the grid lines behind them
   const snap = (g, w) => { const cols = Math.max(4, Math.floor(w / 32)); g.style.right = 'auto'; g.style.width = cols * 32 + 'px'; g.setAttribute('data-grid-size-desktop', cols); g.setAttribute('data-grid-size-mobile', cols); };
-  const hero = document.querySelector('.tinko-pixel-grid');
-  if (hero) snap(hero, hero.parentElement.offsetWidth);
+  // the hero's, and one behind each feature demo (Rim: the homepage's grid behind its demos, with the trail)
+  document.querySelectorAll('.tinko-pixel-grid:not(.is-win)').forEach(g => snap(g, g.parentElement.offsetWidth));
+  const hero = document.querySelector('.tinko-hero_component .tinko-pixel-grid');
   const col = document.querySelector('.tkh-col');
   let win = null;
   if (hero && col) {

@@ -1005,6 +1005,15 @@ const DEMO_CSS = `
 .tkd-btn.is-light.is-ask{animation-name:tkdAskL}
 @keyframes tkdAsk{0%,100%{box-shadow:0 0 0 0 transparent}50%{box-shadow:0 0 0 4px color-mix(in srgb,var(--c-calm) 40%,transparent)}}
 @keyframes tkdAskL{0%,100%{box-shadow:inset 0 0 0 1px var(--c-line),0 0 0 0 transparent}50%{box-shadow:inset 0 0 0 1px var(--c-line),0 0 0 4px color-mix(in srgb,var(--c-calm) 40%,transparent)}}
+.tkd.tkd-ba{height:100%;border-radius:0;box-shadow:none}
+.dfs-night .tkd-ba .tkd-wall{background-color:#0e1628}
+.tkd-scene.is-ba:not(.is-tall) .tkd-dock{--ds:32px}
+.tkb-badge{position:absolute;top:calc(var(--ds) * -.12);right:calc(var(--ds) * -.2);min-width:calc(var(--ds) * .46);height:calc(var(--ds) * .46);padding:0 calc(var(--ds) * .13);box-sizing:border-box;border-radius:calc(var(--ds) * .23);background:#ff453a;color:#fff;font-weight:600;font-size:calc(var(--ds) * .3);line-height:calc(var(--ds) * .46);text-align:center;white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.tkb-note{position:absolute;z-index:5;display:flex;align-items:center;gap:10px;box-sizing:border-box;padding:10px 54px 10px 12px;border-radius:14px;background:rgba(246,246,246,.8);-webkit-backdrop-filter:blur(20px) saturate(1.6);backdrop-filter:blur(20px) saturate(1.6);box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 8px 24px rgba(0,0,0,.16);font-size:11px;line-height:1.35;color:#1d1d1f}
+.dfs-night .tkb-note{background:rgba(44,44,48,.78);color:#ececec;box-shadow:0 0 0 .5px rgba(255,255,255,.12),0 8px 24px rgba(0,0,0,.4)}
+.tkb-note img{width:30px;height:30px;flex:none}.tkb-note b{display:block;font-size:11.5px}.tkb-note span{display:block;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tkb-note em{position:absolute;right:12px;top:10px;font-style:normal;font-size:10px;opacity:.5}
+.tkb-mail{z-index:2}.tkb-finder{z-index:3}
 .tkd-your{margin-top:12px;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--c-calm)}
 .tkd-key{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;box-sizing:border-box;border-radius:3px;box-shadow:inset 0 0 0 1px color-mix(in srgb,currentColor 50%,transparent);font-size:10px;letter-spacing:0}
 .tkd-key svg{width:11px;height:9px;fill:none;stroke:currentColor;stroke-width:1.3}
@@ -1102,6 +1111,61 @@ const DEMO_CSS = `
 .tkd-prow b,.tkd-ptotal b{font-weight:400;white-space:nowrap}
 .tkd-ptotal{border:0;margin-top:6px;letter-spacing:1px}.tkd-ptotal b{font-size:13px}
 `;
+
+/* ---------- before and after (Osmo's Before/After Split Slider, built in Webflow): the same Mac twice ----------
+   [data-tinko-ba="before"]: a Mac after a few busy years: files piled on the desk, Downloads open in Finder with Mail
+   behind it, a 24-app Dock with badges, three banners. [data-tinko-ba="after"]: the same Mac after Tinko: an empty desk,
+   no windows, a Dock of daily drivers (Raycast from the setup), Mail at 37 unread, Messages still 2 (people can reach
+   you), the Bin full (he moves things to the Bin; nothing is deleted). Wide 3:2 on a desktop, tall 4:5 on a phone
+   (picked by the slider's own shape). Demo files and numbers. */
+const BA_FILES = [   // id, kind, image, name, where on the wide Mac, where on the tall one (null: not on the phone)
+  ['shot', 'shot-1', 'Screenshot 2026-10-12 at 09.41.22', [862, 248], [436, 206]], ['folder', 'file-folder', 'Old stuff', [770, 240], [352, 206]],
+  ['dmg', 'file-dmg', 'zoomusInstallerFull.dmg', [866, 344], [268, 206]], ['shot', 'shot-2', 'Screenshot 2026-10-13 at 16.07.51', [776, 338], [184, 206]],
+  ['zip', 'file-zip', 'photos-export.zip', [684, 252], [100, 206]], ['shot', 'shot-3', 'Screenshot 2026-10-14 at 11.22.09', [860, 440], [16, 206]],
+  ['txt', 'file-txt', 'Notes for Monday.txt', [772, 436], [436, 534]], ['png', 'file-png', 'IMG_2041.png', [688, 350], [352, 534]],
+  ['zip', 'file-zip', 'Archive.zip', [598, 262], [268, 534]], ['folder', 'file-folder', 'untitled folder', [682, 446], [184, 534]],
+  ['shot', 'shot-4', 'Screenshot 2026-10-15 at 22.51.40', [598, 452], [100, 534]], ['dmg', 'file-dmg', 'Figma-old.dmg', [40, 452], [16, 534]],
+  ['png', 'file-png', 'IMG_2047.png', [132, 468], null], ['txt', 'file-txt', 'todo FINAL final.txt', [222, 455], null], ['shot', 'shot-1', 'Screenshot 2026-10-16 at 08.02.13', [312, 470], null],
+];
+const BA_NOTES = [['slack', 'Slack', '#general · 3 new messages', 'now'], ['news', 'News', 'Top stories for you', '2m ago'], ['appstore', 'App Store', '12 updates available', '5m ago']];
+const BA_BEFORE = [['finder', 1], ['safari'], ['messages', 0, 2], ['mail', 1, '8,214'], ['maps'], ['photos'], ['facetime'], ['calendar'], ['contacts'], ['reminders'], ['notes'], ['tv'], ['music'], ['news', 0, 5], ['appstore', 0, 12], ['settings', 0, 1], ['arc', 1], ['figma', 1], ['claude', 1], ['slack', 1, 3], ['chrome', 1], ['spotify', 1], ['zoom'], ['tinko', 1]];
+const BA_AFTER = [['finder', 1], ['messages', 0, 2], ['mail', 1, 37], ['calendar'], ['notes'], ['arc', 1], ['figma', 1], ['claude', 1], ['spotify', 1], ['raycast']];
+const baDock = (apps, full) => `<div class="tkd-dock">${apps.map(([id, run, badge]) => `<div class="tkd-dapp${run ? ' is-run' : ''}"><img src="${MAC(id)}" alt="">${badge ? `<b class="tkb-badge">${badge}</b>` : ''}<i></i></div>`).join('')}<b class="tkd-dsep"></b><div class="tkd-dapp tkd-trash"><img src="${MAC(full ? 'trash-full' : 'trash-empty')}" alt=""></div></div>`;
+
+function initBA(host) {
+  const after = host.dataset.tinkoBa === 'after';
+  host.innerHTML = `<div class="tkd tkd-ba" aria-hidden="true"><div class="tkd-scene is-ba">
+    <div class="tkd-wall"></div>
+    <div class="tkd-bar"><span class="tkd-apple">${APPLE}</span><b class="tkd-app">Finder</b><span>File</span><span>Edit</span><span>View</span><span>Go</span><span>Window</span><span>Help</span><i></i><span class="tkd-clock">Mon 10:24</span></div>
+    <div class="tkd-ctx"></div>
+  </div></div>`;
+  host.setAttribute('role', 'img');
+  host.setAttribute('aria-label', after ? 'The same Mac after Tinko: an empty desktop, no windows, a Dock of ten apps, 37 unread mails and the Bin full.' : 'A cluttered Mac: files all over the desktop, Downloads and Mail open, a Dock of 24 apps with badges and three notifications.');
+  const scene = host.querySelector('.tkd-scene'), ctx = host.querySelector('.tkd-ctx');
+  if (after) ctx.innerHTML = baDock(BA_AFTER, true);
+  else {
+    const mails = [['Weekly Wins', 'Your 5 wins for the week'], ['Shop Daily', 'Last chance: 40% off everything'], ['Deal Radar', 'Prices dropped on 12 items'], ['App Digest', 'New this week in apps'], ['Studio Notes', 'What we learned building in public'], ['Shop Daily', 'Your cart misses you'], ['The Long Read', 'Sunday edition'], ['Weekly Wins', 'Your 5 wins for the week'], ['Deal Radar', 'Flash sale ends tonight'], ['App Digest', 'Five apps worth a look']];
+    ctx.innerHTML = `${BA_NOTES.map(([id, app, line, when]) => `<div class="tkb-note"><img src="${MAC(id)}" alt=""><div><b>${app}</b><span>${line}</span></div><em>${when}</em></div>`).join('')}
+      ${macWin('is-mail tkb-mail', 'Inbox', `<div class="tkd-mail-head"><b>Inbox</b><span class="tkd-unread">8,214 unread</span></div><div class="tkd-mails">${mails.map(([n, t]) => `<div class="tkd-mrow"><i></i><b>${n}</b><span>${t}</span></div>`).join('')}</div>`)}
+      ${macWin('is-finder tkb-finder', 'Downloads', `<div class="tkd-fside"></div><div class="tkd-list"><div class="tkd-lhead"><span>Name</span><span>Size</span></div>${DEMOS.files.rows.map(([k, n, sz]) => `<div class="tkd-lrow"><span><img src="${MAC(k === 'part' ? 'file-txt' : 'file-' + k)}" alt="">${n}</span><span>${sz}</span></div>`).join('')}</div>`)}
+      <div class="tkd-desk">${BA_FILES.map(([kind, img, name]) => `<div class="tkd-file is-${kind}">${kind === 'shot' ? `<img class="tkd-thumb" src="${MAC(img)}" alt="">` : `<img class="tkd-ficon" src="${MAC(img)}" alt="">`}<span>${name.length > 22 ? name.slice(0, 11) + '…' + name.slice(-8) : name}</span></div>`).join('')}</div>
+      ${baDock(BA_BEFORE, false)}`;
+  }
+  const place = tall => {
+    if (after) return;
+    ctx.querySelectorAll('.tkd-file').forEach((f, i) => { const at = BA_FILES[i][tall ? 4 : 3]; f.style.display = at ? '' : 'none'; if (at) Object.assign(f.style, { left: at[0] + 'px', top: at[1] + 'px' }); });
+    ctx.querySelectorAll('.tkb-note').forEach((n, i) => { n.style.display = tall && i > 1 ? 'none' : ''; Object.assign(n.style, tall ? { left: '12px', right: '12px', width: 'auto', top: 86 + i * 58 + 'px' } : { left: 'auto', right: '12px', width: '268px', top: 32 + i * 66 + 'px' }); });
+    Object.assign(ctx.querySelector('.tkb-mail').style, tall ? { left: '16px', top: '300px', width: '300px', height: '190px' } : { left: '30px', top: '74px', width: '420px', height: '300px' });
+    Object.assign(ctx.querySelector('.tkb-finder').style, tall ? { left: '170px', top: '330px', width: '334px', height: '196px' } : { left: '210px', top: '152px', width: '400px', height: '296px' });
+  };
+  let L = '';
+  const fit = () => {
+    const tall = host.clientHeight > host.clientWidth, W = tall ? 520 : 960, H = tall ? 650 : 640;
+    if ((tall ? 'tall' : 'wide') !== L) { L = tall ? 'tall' : 'wide'; scene.classList.toggle('is-tall', tall); place(tall); }
+    scene.style.width = W + 'px'; scene.style.height = H + 'px'; scene.style.transform = `scale(${host.clientWidth / W})`;
+  };
+  new ResizeObserver(fit).observe(host); fit();
+}
 
 /* ---------- the pixel cursor (Osmo's Interactive Pixel Grid, its script in the page footer code) ----------
    Rim, 19 Oct: playful, keep the colour, but find the palette. His pick: Mac lights (the window buttons and our
@@ -1232,6 +1296,7 @@ function init() {
   introTitle();
   document.querySelectorAll('[data-tinko-stage]').forEach(initStage);
   if (!document.querySelector('[data-tinko-stage]')) heroTitle.play(120);
+  document.querySelectorAll('[data-tinko-ba]').forEach(initBA);
   initPixels();   // before the Osmo script in the footer starts (it waits for DOMContentLoaded)
   const rows = () => document.querySelectorAll('[data-tinko-demo]').forEach(initDemo);
   if (!LAB || LAB === 'rows') rows();

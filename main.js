@@ -7337,6 +7337,152 @@
   }
 
   // =========================================================
+  // BLOG: COVERS — the card pictures come into focus
+  // At rest a card's cover is a quiet two-colour dither of its picture (4×4 Bayer, in the palette of the
+  // article's "Dither cover" option: the homepage journal's three). Hovering the card resolves it: big colour
+  // pixels shrink into the sharp picture, and leaving folds it back. On touch screens a card resolves while
+  // it's in the middle of the screen. The first time a cover scrolls in, its dither settles from coarse to fine.
+  // Also measures --ex per card (the excerpt + gap) for the "Blog card styles" hover, where the picture grows
+  // into the excerpt's place. The article's own cover (.post_cover) just comes into focus once, from big pixels.
+  // =========================================================
+  function dfsBlogCovers() {
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var canHover = window.matchMedia('(hover: hover)').matches;
+    var BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+    var PAL = { // [day, night], each [back, front], as the homepage journal covers
+      stack: [['#16181d', '#e9e3d6'], ['#16181d', '#c9c3b6']],
+      flow: [['#e3dccf', '#0297db'], ['#1b2236', '#1dabfa']],
+      sun: [['#0e1628', '#7f90bb'], ['#0e1628', '#8a9bc6']]
+    };
+    var DITHER = 3, COARSE = 16; // css px: a dither cell at rest, the biggest pixels
+    var isNight = function () { return document.documentElement.classList.contains('dfs-night'); };
+    var hex = function (h) { var n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+    var lum = function (c) { return .299 * c[0] + .587 * c[1] + .114 * c[2]; };
+    var ease = function (t) { return 1 - Math.pow(1 - t, 3); };
+    var states = [];
+
+    function measure(st) {
+      if (!st.card) return;
+      var ex = 0, p = st.card.querySelector('.res_excerpt');
+      if (canHover && p) ex = p.offsetHeight + (parseFloat(getComputedStyle(st.card).rowGap) || 0);
+      st.card.style.setProperty('--ex', ex + 'px');
+    }
+    function size(st) {
+      var r = st.cv.getBoundingClientRect();
+      st.dpr = Math.min(2, window.devicePixelRatio || 1);
+      st.W = Math.max(1, Math.round(r.width * st.dpr));
+      st.H = Math.max(1, Math.round(r.height * st.dpr));
+      st.cv.width = st.W; st.cv.height = st.H;
+    }
+    function draw(st) {
+      if (!st.ready || !st.W) return;
+      var cell = Math.max(1, st.cell * st.dpr);
+      var cw = Math.max(1, Math.round(st.W / cell)), ch = Math.max(1, Math.round(st.H / cell));
+      var iw = st.img.naturalWidth, ih = st.img.naturalHeight, s = Math.max(st.W / iw, st.H / ih);
+      var sw = st.W / s, sh = st.H / s;
+      st.small.width = cw; st.small.height = ch;
+      st.sctx.imageSmoothingEnabled = true;
+      st.sctx.drawImage(st.img, (iw - sw) / 2, (ih - sh) / 2, sw, sh, 0, 0, cw, ch);
+      if (st.mode === 'dither') {
+        var pair = (PAL[st.art] || PAL.flow)[isNight() ? 1 : 0].map(hex);
+        var dark = lum(pair[0]) < lum(pair[1]) ? pair[0] : pair[1], light = dark === pair[0] ? pair[1] : pair[0];
+        var d = st.sctx.getImageData(0, 0, cw, ch), a = d.data, lo = 255, hi = 0, sum = 0, j, v;
+        // each picture on its own range, and its average pulled toward the middle, so a pale misty one
+        // still shows its shapes and a dark one doesn't go solid
+        for (j = 0; j < a.length; j += 4) { v = .299 * a[j] + .587 * a[j + 1] + .114 * a[j + 2]; sum += v; if (v < lo) lo = v; if (v > hi) hi = v; }
+        var span = Math.max(24, hi - lo), shift = ((sum / (a.length / 4) - lo) / span - .5) * .5;
+        for (var y = 0; y < ch; y++) {
+          for (var x = 0; x < cw; x++) {
+            var i = (y * cw + x) * 4;
+            var l = Math.min(1, Math.max(0, ((.299 * a[i] + .587 * a[i + 1] + .114 * a[i + 2] - lo) / span - shift - .5) * 1.2 + .5));
+            var c = l > (BAYER[(y & 3) * 4 + (x & 3)] + .5) / 16 ? light : dark;
+            a[i] = c[0]; a[i + 1] = c[1]; a[i + 2] = c[2]; a[i + 3] = 255;
+          }
+        }
+        st.sctx.putImageData(d, 0, 0);
+      }
+      st.ctx.imageSmoothingEnabled = false;
+      st.ctx.drawImage(st.small, 0, 0, cw, ch, 0, 0, st.W, st.H);
+    }
+    function tween(st, from, to, ms, mode, done) {
+      cancelAnimationFrame(st.anim);
+      st.mode = mode;
+      if (reduce) { st.cell = to; draw(st); if (done) done(); return; }
+      var t0 = performance.now();
+      (function step(now) {
+        var k = Math.min(1, (now - t0) / ms);
+        st.cell = from + (to - from) * ease(k); draw(st);
+        if (k < 1) st.anim = requestAnimationFrame(step); else if (done) done();
+      })(t0);
+    }
+    // into the picture: big colour pixels shrink until it's sharp, then the real image shows
+    function focus(st, from, ms) {
+      if (!st.ready || st.sharp) return;
+      st.sharp = true; st.cv.style.opacity = '1';
+      tween(st, from || COARSE, 1, ms || 650, 'color', function () { if (st.sharp) st.cv.style.opacity = '0'; });
+    }
+    // back to the dither
+    function soften(st) {
+      if (!st.ready || !st.sharp) return;
+      st.sharp = false; st.cv.style.opacity = '1';
+      tween(st, 1, COARSE * .6, 260, 'color', function () { if (!st.sharp) { st.mode = 'dither'; st.cell = DITHER; draw(st); } });
+    }
+
+    function setup(cover, card) {
+      var tag = cover.querySelector('img');
+      if (!tag || tag.classList.contains('w-dyn-bind-empty') || !tag.getAttribute('src')) return;
+      var cv = document.createElement('canvas');
+      cv.className = 'res_cover-fx';
+      cv.setAttribute('aria-hidden', 'true');
+      cv.style.transition = 'clip-path .6s cubic-bezier(.625,.05,0,1), opacity .25s ease';
+      cover.appendChild(cv);
+      tag.style.opacity = '0'; // no flash of colour before the dither is drawn
+      var st = { cover: cover, card: card, cv: cv, ctx: cv.getContext('2d'), small: document.createElement('canvas'),
+        img: new Image(), mode: card ? 'dither' : 'color', cell: COARSE, anim: 0, ready: false, sharp: false,
+        art: cover.getAttribute('data-journal-art') || 'flow' };
+      st.sctx = st.small.getContext('2d', { willReadFrequently: true });
+      states.push(st);
+      measure(st);
+      st.img.crossOrigin = 'anonymous';
+      st.img.onload = function () {
+        st.ready = true; size(st); tag.style.opacity = '';
+        if (!card) { focus(st, COARSE * 1.5, 900); return; } // the article's own cover: into focus once
+        draw(st);
+        var seen = new IntersectionObserver(function (es) {
+          if (!es[0].isIntersecting) return;
+          seen.disconnect();
+          if (!st.sharp) tween(st, COARSE, DITHER, 700, 'dither');
+        }, { threshold: .3 });
+        seen.observe(cover);
+        if (canHover) {
+          card.addEventListener('pointerenter', function () { focus(st); });
+          card.addEventListener('pointerleave', function () { soften(st); });
+          card.addEventListener('focus', function () { focus(st); });
+          card.addEventListener('blur', function () { soften(st); });
+        } else {
+          new IntersectionObserver(function (es) {
+            if (es[0].isIntersecting) focus(st); else soften(st);
+          }, { rootMargin: '-35% 0px -35% 0px' }).observe(cover);
+        }
+      };
+      st.img.onerror = function () { cv.remove(); tag.style.opacity = ''; };
+      st.img.src = tag.currentSrc || tag.src;
+    }
+
+    document.querySelectorAll('.res_card .res_cover').forEach(function (cover) { setup(cover, cover.closest('.res_card')); });
+    document.querySelectorAll('.post_cover').forEach(function (cover) { setup(cover, null); });
+
+    var t;
+    window.addEventListener('resize', function () {
+      clearTimeout(t);
+      t = setTimeout(function () { states.forEach(function (st) { measure(st); if (st.ready) { size(st); draw(st); } }); }, 150);
+    });
+    new MutationObserver(function () {
+      states.forEach(function (st) { if (st.ready && st.mode === 'dither') draw(st); });
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  // =========================================================
   // FOOTER (NEW) — the "Footer (new)" component ([data-foot]), from the test homepage
   // The ground (mountains) comes up and the lines draw in as the footer scrolls into view; Log in says My courses
   // when you're signed in and fills like a load on click; [data-foot-to] links scroll to that part of the page
@@ -7504,6 +7650,7 @@
     if (document.querySelector('[data-filter-group]')) dfsFilter();          // /resources: topic filter
     if (document.querySelector('[data-blog-more]')) dfsBlogMore();           // blog article: Recommended
     if (document.querySelector('[data-foot]')) dfsFooter();                  // the new footer (component)
+    if (document.querySelector('.res_cover img, .post_cover img')) dfsBlogCovers(); // blog cards: dither → picture
     if (path === '/'|| path === '/course' || path === '/test-zone') dfsHome();
   });
 

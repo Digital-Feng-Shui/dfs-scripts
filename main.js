@@ -6902,6 +6902,26 @@
     setTimeout(function () { el.remove(); }, 6500);
   }
 
+  // The install line in colour, like code in an editor: curl and sh, the flags, the address, the one-time code.
+  // dfsTinkoInstallCode writes the line as plain text; this colours it again each time it changes. Copy reads
+  // textContent, so the colours never end up in Terminal.
+  function dfsInstallLineColours() {
+    function esc(t) { return t.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+    function paint(line) {
+      line.innerHTML = line.textContent.split(/(\s+)/).map(function (w) {
+        if (!w || /^\s+$/.test(w)) return w;
+        var kind = /^(curl|sh)$/.test(w) ? 'cmd' : w.charAt(0) === '-' ? 'flag' : w === '|' ? 'pipe' :
+          /^https?:/.test(w) ? 'url' : /^[A-Z0-9]{4}(-[A-Z0-9]{4})+$/.test(w) ? 'key' : '';
+        return kind ? '<span class="tk-tok tk-' + kind + '">' + esc(w) + '</span>' : esc(w);
+      }).join('');
+    }
+    document.querySelectorAll('.tk_code-line[data-helper-line]').forEach(function (line) {
+      paint(line);
+      new MutationObserver(function () { if (!line.querySelector('.tk-tok')) paint(line); })
+        .observe(line, { childList: true, characterData: true, subtree: true });
+    });
+  }
+
   // The install line's Copy button: [data-helper-copy] copies the text of [data-helper-line] next to it.
   // One listener on the page, so it keeps working when the course player swaps lessons.
   function dfsHelperCopy() {
@@ -7628,6 +7648,7 @@
     if (document.querySelector('[data-tinko-mascot]')) dfsTinkoMascot();
     if (document.querySelector('[data-helper-copy]')) dfsHelperCopy();
     if (document.querySelector('[data-helper-line]')) dfsTinkoInstallCode();   // the install line's one-time code
+    if (document.querySelector('.tk_code-line[data-helper-line]')) dfsInstallLineColours();
     if (document.querySelector('[data-tinko-stage]')) dfsTinkoOnline();       // Open Tinko without the browser question
     dfsTinkoClaim();                                                          // Tinko's Connect (?tinko-claim=…)
     if (document.querySelector('[data-toc-wrap]')) dfsToc();                 // blog article: On this page

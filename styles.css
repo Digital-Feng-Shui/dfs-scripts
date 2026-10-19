@@ -902,6 +902,26 @@ html[data-wf-page="6ad4b2a25ceae8fe2c8c8d7e"] .accordion-css__item.is-course{bor
 /* Lesson texts that aren't open don't animate (the welcome lesson's bouncing heart kept ticking while hidden) */
 .course_content:not(.is-active) *{animation-play-state:paused}
 
+/* Install steps (.tk_steps): the numbers sit on the text's own left edge with one space after them (the browser's
+   list marker hung outside with a wide gap), and the key caps flow inline so a ":" never drops to its own line. */
+.tk_steps{list-style:none;padding-left:0;counter-reset:tk-step;line-height:1.75}
+.tk_steps>li{counter-increment:tk-step;position:relative;padding-left:1.5em}
+.tk_steps>li+li{margin-top:.4em}
+.tk_steps>li::before{content:counter(tk-step) ".";position:absolute;left:0;top:0}
+.tk_kbd{display:inline;white-space:nowrap}
+/* The install line in colour (main.js dfsInstallLineColours): commands blue, flags and pipe quiet, the address
+   warm, the one-time code green. Night has a light box, so darker tints there; Copy gets its own darker beige. */
+.tk-cmd{color:#5EC2FF}
+.tk-flag,.tk-pipe{color:rgba(251,247,239,.5)}
+.tk-url{color:#E8D5AE}
+.tk-key{color:#8FDB97}
+html.dfs-night .tk-cmd{color:#0072B0}
+html.dfs-night .tk-flag,html.dfs-night .tk-pipe{color:rgba(14,22,40,.5)}
+html.dfs-night .tk-url{color:#7A5A1E}
+html.dfs-night .tk-key{color:#1E7A3A}
+html.dfs-night .tk_copy{background-color:#cdc5b3}
+html.dfs-night .tk_copy:hover{background-color:#c2baa7}
+
 /* Dashboard: a course or tool card that's coming soon isn't a link (no hover arrow, no pointer) */
 .course_card:has(.coming_soon) .cover_course-card{pointer-events:none;cursor:default}
 /* Dashboard feedback cards: on hover the arrow slides out to the right and the next one slides in */

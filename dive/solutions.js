@@ -1073,7 +1073,7 @@ function initClose(host, above) {
    one across from the left; then the columns, left to right; a beat later the row under them (the socials and Log
    in), whose lines run out to the page edge. On phones it's a list: the brand, then a row per group (title left,
    links right, split at 40%), then the socials and Log in; the row lines draw in from the left.
-   Log in knows if you're signed in (My courses) and fills like a load.
+   Log in knows if you're signed in (My dashboard: it opens /dashboard, more than the courses) and fills like a load.
    Its look is on the Webflow classes (foot_*); the dashes and the motion are here.
    --------------------------------------------------------- */
 function initFooter(host) {
@@ -1094,14 +1094,14 @@ function initFooter(host) {
   }));
   host.querySelectorAll('[data-foot-soon]').forEach(a => a.addEventListener('click', e => e.preventDefault()));
 
-  // Log in, or My courses when you're signed in (Memberstack if it's on the page, otherwise its token)
+  // Log in, or My dashboard when you're signed in (Memberstack if it's on the page, otherwise its token)
   const login = host.querySelector('[data-foot-login]'), loginText = host.querySelector('[data-foot-login-text]');
   if (login) {
     const signedIn = () => {
       try { if (localStorage.getItem('_ms-mid')) return true; } catch (e) {}
       return /(?:^|;\s*)_ms-mid=/.test(document.cookie);
     };
-    const mark = yes => { if (!yes) return; login.setAttribute('href', '/dashboard'); if (loginText) loginText.textContent = 'My courses'; };
+    const mark = yes => { if (!yes) return; login.setAttribute('href', '/dashboard'); if (loginText) loginText.textContent = 'My dashboard'; };
     mark(signedIn());
     if (window.$memberstackDom) window.$memberstackDom.getCurrentMember().then(r => mark(!!(r && r.data))).catch(() => {});
     login.addEventListener('click', e => {

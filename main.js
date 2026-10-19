@@ -1792,7 +1792,7 @@
     );
 
     // ---- HYDRATION TIMER ----
-    const HYDRATION_INTERVAL = 30 * 60 * 1000; // 30 min — for testing use 20 * 1000
+    const HYDRATION_INTERVAL = 20 * 60 * 1000; // 20 min (was 30 until v1.7.83) — for testing use 20 * 1000
     let hydrationEligible = false;
     let hydrationTimer = null;
 

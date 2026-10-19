@@ -1032,6 +1032,53 @@ const DEMO_CSS = `
 .tkd-ptotal{border:0;margin-top:6px;letter-spacing:1px}.tkd-ptotal b{font-size:13px}
 `;
 
+/* ---------- the pixel cursor (Osmo's Interactive Pixel Grid, its script in the page footer code) ----------
+   Rim, 19 Oct: playful, keep the colour, but find the palette. The Osmo code reads window.tinkoPixels.colors on
+   every square it lights, so a palette can change on the fly; a grid with data-grid-off stays dark. Here: the
+   palettes, the squares snapped to the 32px grid (the grid's width is set to whole squares before Osmo starts),
+   a second grid inside Tinko's window, and with ?tune (or ?pixels) a panel to try them. ?pixels=<name>&win=1
+   opens on a palette, so a link can show Marco one. */
+const PALETTES = {
+  rainbow: { name: 'Osmo rainbow', day: ['#C5D4FF', '#B7B0FF', '#FF5FCE', '#4136FF', '#FFF751', '#87FEFF', '#C4FF3F'] },
+  mixed: { name: 'Rainbow, our blue', day: ['#C5E8F8', '#7FD0F5', '#FF5FCE', '#0297DB', '#FFF751', '#00ACFF', '#C4FF3F'] },
+  blues: { name: 'Our blues', day: ['#0297DB', '#00ACFF', '#1DABFA', '#7FD0F5', '#C5E8F8', '#EFF9FD'] },
+  mac: { name: 'Mac lights', day: ['#FF5F57', '#FEBC2E', '#28C840', '#0297DB'] },
+  accents: { name: 'Mac accents', day: ['#007AFF', '#953D96', '#F74F9E', '#E0383E', '#F7821B', '#FFC726', '#62BA46', '#989898'] },
+  ink: { name: 'Tinko ink', day: ['#3D3A36'], night: ['#FBF7EF'] },
+};
+function initPixels() {
+  const q = new URLSearchParams(location.search);
+  let pal = PALETTES[q.get('pixels')] ? q.get('pixels') : 'rainbow', inWin = q.get('win') === '1';
+  const colors = () => { const P = PALETTES[pal]; return (document.documentElement.classList.contains('dfs-night') && P.night) || P.day; };
+  window.tinkoPixels = { colors: colors() };
+  new MutationObserver(() => { window.tinkoPixels.colors = colors(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  // whole 32px squares, from the same corner as the grid lines behind them
+  const snap = (g, w) => { const cols = Math.max(4, Math.floor(w / 32)); g.style.right = 'auto'; g.style.width = cols * 32 + 'px'; g.setAttribute('data-grid-size-desktop', cols); g.setAttribute('data-grid-size-mobile', cols); };
+  const hero = document.querySelector('.tinko-pixel-grid');
+  if (hero) snap(hero, hero.parentElement.offsetWidth);
+  const col = document.querySelector('.tkh-col');
+  let win = null;
+  if (hero && col) {
+    win = document.createElement('div'); win.className = 'tinko-pixel-grid is-win';
+    for (const a of ['data-grid', 'data-grid-background', 'data-grid-border-size', 'data-grid-border-color']) win.setAttribute(a, hero.getAttribute(a) ?? '');
+    snap(win, col.clientWidth);
+    if (!inWin) win.setAttribute('data-grid-off', '');
+    col.prepend(win);
+  }
+  if (!(TUNE || q.has('pixels'))) return;
+  // the panel: a palette to pick (its swatches on the button), and the window switch
+  const el = document.createElement('div'); el.className = 'tkh-tune is-pixels';
+  el.innerHTML = `<b>Pixels</b>${Object.entries(PALETTES).map(([k, P]) => `<button data-p="${k}" aria-pressed="${k === pal}" title="${P.name}"><span class="tkh-sw">${P.day.slice(0, 6).map(c => `<i style="background:${c}"></i>`).join('')}</span>${P.name}</button>`).join('')}<i></i><button data-w aria-pressed="${inWin}">In his window too</button>`;
+  document.body.append(el);
+  const keepInUrl = () => { const u = new URL(location.href); u.searchParams.set('pixels', pal); inWin ? u.searchParams.set('win', '1') : u.searchParams.delete('win'); history.replaceState(null, '', u); };
+  el.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.p) { pal = b.dataset.p; window.tinkoPixels.colors = colors(); el.querySelectorAll('[data-p]').forEach(o => o.setAttribute('aria-pressed', o === b)); }
+    if ('w' in b.dataset) { inWin = !inWin; b.setAttribute('aria-pressed', inWin); win?.toggleAttribute('data-grid-off', !inWin); }
+    keepInUrl();
+  });
+}
+
 /* ---------- styles for what the script builds ---------- */
 
 function injectCSS() {
@@ -1068,7 +1115,11 @@ function injectCSS() {
 .tkh-tune{position:fixed;left:16px;bottom:16px;z-index:70;display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;background:rgba(29,29,31,.88);color:#fff;font:11px/1 "Space Mono",monospace;letter-spacing:.04em;box-shadow:0 8px 24px rgba(0,0,0,.25)}
 .tkh-tune b{font-weight:400;opacity:.6;margin-right:4px;text-transform:uppercase}
 .tkh-tune button{all:unset;cursor:pointer;padding:5px 8px;border-radius:4px;background:rgba(255,255,255,.12)}.tkh-tune button:hover{background:rgba(255,255,255,.22)}
-.tkh-tune button[aria-pressed="true"]{background:#1dabfa;color:#0e1628}.tkh-tune i{width:1px;height:16px;background:rgba(255,255,255,.2);margin:0 2px}
+.tkh-tune button[aria-pressed="true"]{background:#1dabfa;color:#0e1628}
+.tkh-tune.is-pixels{bottom:62px;flex-wrap:wrap;max-width:calc(100vw - 32px)}
+.tkh-tune button{display:inline-flex;align-items:center;gap:6px}
+.tkh-sw{display:inline-flex}.tkh-sw i{width:6px;height:10px;display:block}
+.tinko-pixel-grid.is-win{z-index:0}.tkh-tune i{width:1px;height:16px;background:rgba(255,255,255,.2);margin:0 2px}
 .tkh-tune-clock{min-width:7.5em;margin-left:4px;opacity:.8;white-space:pre}
 .tkh-win.is-clipping{box-shadow:none}
 .tkh-tool{cursor:pointer;transition:border-color .3s}.tkh-tool:hover{border-color:color-mix(in srgb,var(--c-ink) 35%,var(--c-line))}.tkh-tool:focus-visible{outline:2px solid var(--c-calm);outline-offset:2px}
@@ -1107,6 +1158,7 @@ function init() {
   introTitle();
   document.querySelectorAll('[data-tinko-stage]').forEach(initStage);
   if (!document.querySelector('[data-tinko-stage]')) heroTitle.play(120);
+  initPixels();   // before the Osmo script in the footer starts (it waits for DOMContentLoaded)
   document.querySelectorAll('[data-tinko-demo]').forEach(initDemo);
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();

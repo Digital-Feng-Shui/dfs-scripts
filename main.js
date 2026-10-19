@@ -6681,22 +6681,74 @@
       setTimeout(function () { set(k, [0.4, -0.3, 1, 2], [-0.4, -1.1, 1, 2], 0.18); }, 280);
       setTimeout(function () { k.gaze = [9, 9]; set(k, HOME[0].slice(), HOME[1].slice(), 0.3); k.bwoop = false; }, 750);
     }
-    // "tinko:hello" (the course sends it when a card with him opens): he pops up from below and lands with
-    // a squash, eyes shut; they open wide, then he looks at the card's button for a moment, blinks, home.
+    // "tinko:hello" (the course sends it when a card with him opens): the Outline arrival from the Meet Tinko page
+    // (meet/tinko.js ARRIVALS.outline): his edge is drawn pixel by pixel round the clock, the inside fills ring by
+    // ring, then the eyes open, blink and go big. Then he glances at the card's button and goes home.
+    // ARRIVAL = per pixel of his bitmap, when it switches on (0..1 of the arrival).
+    var ARRIVAL = (function () {
+      var B = ['....######....', '..##########..', '.############.', '.#############', '##############', '##############', '##############', '.############.', '.############.', '..##########..', '....#####.....'];
+      var on = function (x, y) { return y >= 0 && y < 11 && x >= 0 && x < 14 && B[y][x] === '#'; };
+      var key = function (x, y) { return x + ',' + y; }, N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      var pix = [], depth = {}, left = {}, d = 0;
+      B.forEach(function (r, y) { for (var x = 0; x < 14; x++) if (r[x] === '#') { pix.push([x, y]); left[key(x, y)] = 1; } });
+      var layer = pix.filter(function (c) { return N4.some(function (n) { return !on(c[0] + n[0], c[1] + n[1]); }); });
+      while (layer.length) {
+        layer.forEach(function (c) { depth[key(c[0], c[1])] = d; delete left[key(c[0], c[1])]; });
+        d++;
+        layer = pix.filter(function (c) { return left[key(c[0], c[1])] && N4.some(function (n) { return depth[key(c[0] + n[0], c[1] + n[1])] === d - 1; }); });
+      }
+      return pix.map(function (c) {
+        var dd = depth[key(c[0], c[1])], ang = (Math.atan2(c[1] + 0.5 - 5.5, c[0] + 0.5 - 7) + Math.PI * 1.5) % (Math.PI * 2) / (Math.PI * 2);
+        return { x: c[0], y: c[1], at: dd === 0 ? ang * 0.58 : 0.6 + dd / (d - 1) * 0.4 };
+      });
+    })();
+    var maskIds = 0;
+    function arrivalMask(k) {   // a mask of his own pixels inside his svg, made the first time he arrives
+      if (k.cells) return k.cells;
+      var svg = k.el.tagName.toLowerCase() === 'svg' ? k.el : k.el.querySelector('svg');
+      var defs = document.createElementNS(NS, 'defs'), mask = document.createElementNS(NS, 'mask');
+      k.maskId = 'dfs-tinko-mask-' + (++maskIds);
+      mask.setAttribute('id', k.maskId); mask.setAttribute('maskUnits', 'userSpaceOnUse');
+      mask.setAttribute('x', '-3'); mask.setAttribute('y', '-3'); mask.setAttribute('width', '20'); mask.setAttribute('height', '17');
+      k.cells = ARRIVAL.map(function (c) {
+        var r = document.createElementNS(NS, 'rect'); r.setAttribute('fill', '#fff'); mask.appendChild(r);
+        return { el: r, x: c.x, y: c.y, at: c.at, w: -1 };
+      });
+      defs.appendChild(mask); svg.insertBefore(defs, svg.firstChild);
+      return k.cells;
+    }
+    function sizeCell(c, w) {   // w = 0 shut, 1.04 open (a hair over its cell, so neighbours close up with no seams)
+      if (Math.abs(w - c.w) < 0.001) return;
+      c.w = w;
+      c.el.setAttribute('x', (c.x + 0.5 - w / 2).toFixed(3)); c.el.setAttribute('y', (c.y + 0.5 - w / 2).toFixed(3));
+      c.el.setAttribute('width', w.toFixed(3)); c.el.setAttribute('height', w.toFixed(3));
+    }
     function hello(k) {
-      var g = k.el.querySelector('.dfs-tinko-body');
+      var g = k.el.querySelector('.dfs-tinko-body'), cells = arrivalMask(k), START = 160, DUR = 1250, END = START + DUR;
       k.helloAt = Date.now(); k.met = true; k.bwoop = true;
-      clearTimeout(k.helloTimer1); clearTimeout(k.helloTimer2); clearTimeout(k.helloTimer3);
-      if (g && g.animate) g.animate([
-        { transform: 'translateY(5px) scale(.25)', opacity: 0 },
-        { transform: 'translateY(-1.6px) scale(.9, 1.14)', opacity: 1, offset: 0.34 },
-        { transform: 'translateY(.4px) scale(1.14, .88)', offset: 0.52 },
-        { transform: 'translateY(0) scale(.96, 1.04)', offset: 0.72 },
-        { transform: 'translateY(0) scale(1)' }
-      ], { duration: 820, delay: 160, easing: 'cubic-bezier(.25,.8,.3,1)', fill: 'backwards' });
-      set(k, [HOME[0][0], HOME[0][1] + 0.8, 1, 0.25], [HOME[1][0], HOME[1][1] + 0.8, 1, 0.25], 0.01);
-      k.helloTimer1 = setTimeout(function () { set(k, [-1.5, -0.7, 1.6, 2.4], [1.5, -0.7, 1.6, 2.4], 0.14, 'out'); }, 620);
-      k.helloTimer2 = setTimeout(function () {
+      (k.helloTimers || []).forEach(clearTimeout); k.helloTimers = [];
+      cancelAnimationFrame(k.revealRaf);
+      cells.forEach(function (c) { sizeCell(c, 0); });
+      g.setAttribute('mask', 'url(#' + k.maskId + ')');
+      set(k, [HOME[0][0], HOME[0][1] + 0.8, 1, 0.25], [HOME[1][0], HOME[1][1] + 0.8, 1, 0.25], 0.01);   // asleep
+      var t0 = performance.now() + START;
+      (function reveal(now) {
+        var p = (now - t0) / DUR;
+        if (p < 1) {
+          cells.forEach(function (c) { sizeCell(c, p >= c.at ? 1.04 : 0); });
+          k.revealRaf = requestAnimationFrame(reveal); return;
+        }
+        // whole: the pixels widen past his edge (so the drifting outline is never cut), then the mask goes
+        var q = Math.min(1, (p - 1) * DUR / 260);
+        cells.forEach(function (c) { sizeCell(c, 1.04 + 1.4 * q); });
+        if (q < 1) k.revealRaf = requestAnimationFrame(reveal); else g.removeAttribute('mask');
+      })(performance.now());
+      function at(ms, fn) { k.helloTimers.push(setTimeout(fn, ms)); }
+      at(END + 220, function () { set(k, [-1.5, -0.6, 1, 2.1], [1.5, -0.6, 1, 2.1], 0.26, 'out'); });   // eyes open
+      at(END + 640, function () { set(k, [-1.5, 0.2, 1, 0.25], [1.5, 0.2, 1, 0.25], 0.07, 'in'); });     // a blink
+      at(END + 770, function () { set(k, [-1.5, -0.6, 1, 2.1], [1.5, -0.6, 1, 2.1], 0.16, 'out'); });
+      at(END + 900, function () { set(k, [-1.5, -0.7, 1.4, 2.2], [1.5, -0.7, 1.4, 2.2], 0.38, 'out'); }); // hello
+      at(END + 1400, function () {   // a glance at the card's button
         var stage = k.el.closest('[data-lesson-stage]') || document;
         var cta = stage.querySelector('.btn-icon-link, .tinko-stage_cta'), dx = 0, dy = 0;
         if (cta) {
@@ -6705,11 +6757,11 @@
           var len = Math.sqrt(vx * vx + vy * vy) || 1; dx = vx / len; dy = vy / len;
         }
         set(k, [HOME[0][0] + dx * 1.9, HOME[0][1] + dy * 1.3, 1, 2], [HOME[1][0] + dx * 1.9, HOME[1][1] + dy * 1.3, 1, 2], 0.35);
-      }, 1000);
-      k.helloTimer3 = setTimeout(function () {
-        k.bwoop = false; k.gaze = [9, 9]; k.nextBlink = 0;
+      });
+      at(END + 2500, function () {
+        k.bwoop = false; k.gaze = [9, 9]; k.nextBlink = Date.now() + 2500;
         set(k, HOME[0].slice(), HOME[1].slice(), 0.4);
-      }, 2300);
+      });
     }
     function step() {
       all.forEach(function (k) {
@@ -6749,7 +6801,7 @@
         new IntersectionObserver(function (entries) {
           k.seen = entries[0].isIntersecting;
           if (svg.pauseAnimations) { if (k.seen) svg.unpauseAnimations(); else svg.pauseAnimations(); }
-          if (k.seen && !k.met) { k.met = true; setTimeout(function () { if (Date.now() - (k.helloAt || 0) > 2500) bwoop(k); }, 350); }
+          if (k.seen && !k.met) { k.met = true; setTimeout(function () { if (Date.now() - (k.helloAt || 0) > 4500) bwoop(k); }, 350); }
         }, { threshold: 0.6 }).observe(el);
       } else { k.seen = true; if (svg.unpauseAnimations) svg.unpauseAnimations(); }
     });

@@ -6673,12 +6673,14 @@
       k.gaze = [gx, gy];
       set(k, [HOME[0][0] + gx * 1.8, HOME[0][1] + gy * 1.1, 1, 2], [HOME[1][0] + gx * 1.8, HOME[1][1] + gy * 1.1, 1, 2], 0.25, 'out');
     }
-    function bwoop(k) {   // swell 1.22, settle with a wobble, tilt; eyes big, then crossed, then home
+    // swell 1.22, settle with a wobble, tilt; the eyes go big with a gap, then out towards his edges (a little
+    // lopsided), never into each other, then home (as on the Meet Tinko page and in Tinko.swift, 19 Oct)
+    function bwoop(k) {
       var g = k.el.querySelector('.dfs-tinko-body');
       if (g && g.animate) g.animate([{ transform: 'scale(1) rotate(0)' }, { transform: 'scale(1.22) rotate(6deg)', offset: 0.18 }, { transform: 'scale(.92) rotate(-5deg)', offset: 0.42 }, { transform: 'scale(1.06) rotate(3deg)', offset: 0.62 }, { transform: 'scale(.98) rotate(-1.5deg)', offset: 0.82 }, { transform: 'scale(1) rotate(0)' }], { duration: 700, easing: 'ease-in-out' });
       k.bwoop = true;
-      set(k, [-1.4, -0.6, 2.2, 2.2], [1.4, -0.6, 2.2, 2.2], 0.12, 'out');
-      setTimeout(function () { set(k, [0.4, -0.3, 1, 2], [-0.4, -1.1, 1, 2], 0.18); }, 280);
+      set(k, [-2.1, -0.6, 2, 2.2], [2.1, -0.6, 2, 2.2], 0.12, 'out');
+      setTimeout(function () { set(k, [-3.7, -0.9, 1, 2], [3.5, 0.2, 1, 1.8], 0.2, 'out'); }, 280);
       setTimeout(function () { k.gaze = [9, 9]; set(k, HOME[0].slice(), HOME[1].slice(), 0.3); k.bwoop = false; }, 750);
     }
     // "tinko:hello" (the course sends it when a card with him opens): the Outline arrival from the Meet Tinko page

@@ -470,27 +470,32 @@ function init(root) {
   const A = { on: false, n: 0, reveal: 1, spread: FAR, edge: .4 };
   const easeIO = x => { x = Math.min(1, Math.max(0, x)); return .5 - .5 * Math.cos(Math.PI * x); };
   // per variant: how long it takes (the cue comes in at done)
-  const DONE = { develop: 2400, fade: 1800, opacity: 1300 };
-  const done = DONE[VARIANT] || DONE.develop;
+  // per variant (ms): when it's fully there (done) and when the cue comes in (cue), a little before, as it settles.
+  // Slow on purpose (Rim: "a lot slower, more calm": at 2.4 s the shades came in one, two, three, all at once)
+  const BEAT = { develop: [5000, 4000], fade: [4200, 3400], opacity: [2600, 2000] };
+  const [done, cueAt] = BEAT[VARIANT] || BEAT.develop;
   function arrivalAt(t) {
     // the flow starts from still and eases into its own pace as the swirl comes in
-    const speed = S.speed * Math.pow(easeIO((t - 150) / (done - 250)), 1.5);
-    if (VARIANT === 'opacity' || !revealShader) return { reveal: 1, spread: FAR, speed, opacity: easeIO(t / 1100) };
-    if (VARIANT === 'fade') return { reveal: easeIO((t - 150) / 1500), spread: FAR, speed };
-    // develop: like ink in water, the frontier leaves the star as its tick turns, quick through the swirl's empty
-    // middle, slowing as it reaches the corners; behind it the tones keep deepening, so it never has a hard edge
-    const half = Math.hypot(innerWidth, innerHeight) / 2000, edge = half * .7;   // in 1000s of px, as the shader
-    const k = Math.min(1, Math.max(0, (t - 200) / 2000)), out = 1 - Math.pow(1 - k, 3);
-    return { reveal: .5 + .5 * easeIO((t - 200) / 2100), spread: .15 + (half + edge - .15) * out, edge, speed };
+    const speed = S.speed * Math.pow(easeIO((t - 200) / (done - 300)), 1.5);
+    if (VARIANT === 'opacity' || !revealShader) return { reveal: 1, spread: FAR, speed, opacity: easeIO(t / 2400) };
+    if (VARIANT === 'fade') return { reveal: easeIO((t - 200) / 3900), spread: FAR, speed };
+    // develop: like ink in water, the frontier leaves the star as its tick turns and drifts out to the corners, slowing
+    // a little at the end. Its edge is almost as wide as the screen, so every spot develops over about 2.5 s from the
+    // moment the frontier reaches it: the shades arrive gradually across the page, never one, two, three, all at once
+    const half = Math.hypot(innerWidth, innerHeight) / 2000, edge = half * .9;   // in 1000s of px, as the shader
+    const x = Math.min(1, Math.max(0, (t - 200) / 4600));
+    return { reveal: 1, spread: .15 + (half + edge - .15) * (1 - Math.pow(1 - x, 1.6)), edge, speed };
   }
   let shown = false;
-  function show(quiet) {
-    if (shown) return; shown = true;
-    document.documentElement.classList.add('dive-shown');
-    if (el.cue && !quiet && el.cue.animate) {
-      el.cue.animate([{ opacity: 0, translate: '0 .9rem' }, { opacity: 1, translate: '0 0' }], { duration: 900, easing: 'cubic-bezier(.625,.05,0,1)' });
+  function show(quiet, later) {
+    if (!shown) {
+      shown = true;
+      document.documentElement.classList.add('dive-shown');
+      if (el.cue && !quiet && el.cue.animate) {
+        el.cue.animate([{ opacity: 0, translate: '0 .9rem' }, { opacity: 1, translate: '0 0' }], { duration: 1100, easing: 'cubic-bezier(.625,.05,0,1)' });
+      }
     }
-    arrive();
+    if (!later) arrive();
   }
   function arrival() {
     let t = 0, last = 0, fast = false;
@@ -506,6 +511,7 @@ function init(root) {
     const step = now => {
       if (!last) { last = now; t0 = now - 3600; }   // the star's tick starts now; its turn lands as the swirl starts to come in
       t += (now - last) * (fast ? 4 : 1); last = now;
+      if (t >= cueAt) show(false, true);   // the cue rises as it settles; the heavier parts wait for the end
       if (t >= done) { finish(); return; }
       const st = arrivalAt(t);
       A.n++; A.reveal = st.reveal; A.spread = st.spread; if (st.edge) A.edge = st.edge;

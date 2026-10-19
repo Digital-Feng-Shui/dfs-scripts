@@ -330,13 +330,24 @@ function initStage(host) {
   const tinko = makeTinko(tinkoEl, shared);
   const swayBorn = performance.now();
 
-  // the window comes in with the hero (as soon as any of it shows, after the title); he wakes up the first
-  // time it's well in view, and his screen follows him in. On the first screen at load: the intro instead.
+  // On the first screen at load: the intro. A page that opens further down (a link to a section) keeps it for
+  // later: it plays the first time you stop with his window in view (Rim, 20 Oct: always Tinko first, never the
+  // title first). With reduced motion: the window and the title come in, and he wakes up in his place.
   let started = false, shown = false, introOn = false;
   tinko.sleep(); screen.classList.add('is-hidden');
   const r0 = win.getBoundingClientRect();
-  if (!reduce && scrollY < 40 && !location.hash && r0.top < innerHeight * .92 && r0.bottom > 0) { started = shown = true; queueMicrotask(() => intro()); }   // once the rest below is set up (a link to a section skips it)
-  else heroTitle.play(120);
+  if (!reduce && scrollY < 40 && !location.hash && r0.top < innerHeight * .92 && r0.bottom > 0) { started = shown = true; queueMicrotask(() => intro()); }   // once the rest below is set up
+  else if (reduce) heroTitle.play(120);
+  let idle = 0;
+  const later = () => {   // once the scrolling has stopped, with his window well in view
+    clearTimeout(idle);
+    idle = setTimeout(() => {
+      const r = win.getBoundingClientRect();
+      if (started || r.top > innerHeight * .8 || r.bottom < innerHeight * .25) return;
+      started = shown = true; heroTitle.reset(); intro();
+    }, 300);
+  };
+  if (!started && !reduce) addEventListener('scroll', () => { if (!started) later(); }, { passive: true });
   const born = performance.now();
   function appear() {
     if (shown) return; shown = true;
@@ -413,8 +424,8 @@ function initStage(host) {
   }
   new IntersectionObserver(([e]) => {
     tinko.show(e.isIntersecting);
-    if (e.isIntersecting) appear();
-    if (e.isIntersecting && e.intersectionRatio > .35 && !started) start();
+    if (e.isIntersecting && (reduce || started)) appear();   // (a later intro opens the window itself)
+    if (e.isIntersecting && e.intersectionRatio > .35 && !started) reduce ? start() : later();
   }, { threshold: [0, .01, .35] }).observe(win);
   document.addEventListener('visibilitychange', () => tinko.show(document.visibilityState === 'visible' && inView()));
   const inView = () => { const r = win.getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight; };
@@ -1353,6 +1364,12 @@ function injectCSS() {
 /* ---------- start ---------- */
 
 function init() {
+  // a refresh starts at the top (no scroll kept from before), so the intro plays; a link to a section still goes there
+  // (ScrollTrigger, on every page, keeps its own scroll memory and sets the browser's back to auto: its own switch)
+  if (!location.hash && 'scrollRestoration' in history) {
+    if (window.ScrollTrigger?.clearScrollMemory) ScrollTrigger.clearScrollMemory('manual'); else history.scrollRestoration = 'manual';
+    if (scrollY) { scrollTo(0, 0); window.lenis?.scrollTo?.(0, { immediate: true }); }
+  }
   injectCSS();
   introTitle();
   document.querySelectorAll('[data-tinko-stage]').forEach(initStage);

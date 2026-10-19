@@ -6770,8 +6770,9 @@
   //    Connect step goes.
   //  - dfsTinkoOnline: is this member's Tinko open right now? Then "Open Tinko" ([data-tinko-stage],
   //    dfsTinko) goes through the worker and he comes forward on that stage; else dfshelper://stage/N.
-  //  - dfsTinkoClaim: Tinko's own Connect opens the site with ?tinko-claim=…; once the member is logged in
-  //    (on whatever page they land), the page tells the worker who it is and Tinko collects his licence.
+  //  - dfsTinkoClaim: Tinko's own Connect opens /login?tinko-claim=… (a gated page would send a logged-out
+  //    visitor to /login before this code could keep the claim); once the member is logged in (already, or
+  //    on the page after logging in), the page tells the worker who it is and Tinko collects his licence.
   // Plan: tinko/docs/course-handoff-plan.md.
   // =========================================================
   var TINKO_WORKER = 'https://dfs-helper.dfs-helper-worker.workers.dev';
@@ -6877,7 +6878,11 @@
     if (!saved) return;
     if (Date.now() - saved.at > 15 * 60 * 1000) { try { localStorage.removeItem(KEY); } catch (e) {} return; }
     tinkoWho().then(function (who) {
-      if (!who) { if (fromUrl) tinkoToast('Log in, and Tinko connects by himself.'); return; }
+      // Not logged in: the claim waits in this browser and is used on the page after logging in.
+      if (!who) {
+        if (fromUrl) tinkoToast('Log in, and Tinko connects by himself.');
+        return;
+      }
       tinkoAsk('claim', { claim: saved.claim }).then(function (j) {
         try { localStorage.removeItem(KEY); } catch (e) {}
         tinkoToast(j && j.ok ? 'Tinko is connected. He\u2019s waiting for you on your Mac.' : 'That Connect took too long. Press Connect in Tinko again.');

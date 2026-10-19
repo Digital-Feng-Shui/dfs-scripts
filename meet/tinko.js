@@ -218,9 +218,9 @@ function makeTinko(host, shared) {
       const order = cells.map((c, i) => [c, Math.random() + (Math.abs(i % 14 - 7) / 30)]).sort((a, b) => a[1] - b[1]);
       order.forEach(([c], i) => later(() => c.classList.add('is-in'), (40 + i * (520 / order.length)) * k));
       later(() => { host.classList.remove('is-asleep'); host.classList.add('is-awake'); }, 640 * k);
-      later(() => set(E(-1.5, -.6, 1, 2.1), E(1.5, -.6, 1, 2.1), .16, 'out'), 1000 * k);
+      later(() => set(E(-1.5, -.6, 1, 2.1), E(1.5, -.6, 1, 2.1), .26, 'out'), 1000 * k);
       later(() => { blinking = false; blink(); }, 1450 * k);
-      later(() => set(E(-1.5, -.7, 1.4, 2.2), E(1.5, -.7, 1.4, 2.2), .3, 'out'), 1800 * k);
+      later(() => set(E(-1.5, -.7, 1.4, 2.2), E(1.5, -.7, 1.4, 2.2), .38, 'out'), 1800 * k);
       later(() => { mood = 'idle'; nextGoof = performance.now() + 7000; gaze = { x: 9, y: 9 }; done(); }, 2500 * k);
     });
   }
@@ -285,6 +285,8 @@ function initStage(host) {
   /* The page-load intro (Rim, 19 Oct): Tinko on his own in the middle of the screen, larger. His pixels come in,
      he wakes up and says hello, then he glides down to his place while his box opens out around him and the
      title rises. Any scroll, click or key skips to the end. */
+  // the intro's beats, in ms at full speed (Rim, 19 Oct: calmer, a slower wake, a longer hello before the glide)
+  const BEAT = { wake: .85, glide: 2250, glideDur: 1150, title: 150, box: 2650, boxDur: 1200 };
   function intro(f = 1) {
     const cell = tinkoEl.offsetWidth / 16;
     const ov = document.createElement('div'); ov.className = 'tkh-intro'; ov.innerHTML = '<div class="tkh-tinko"></div>';
@@ -314,22 +316,22 @@ function initStage(host) {
     const skip = e => { if (e?.target?.closest?.('.tkh-tune')) return; finish(); };
     addEventListener('wheel', skip, { passive: true }); addEventListener('touchstart', skip, { passive: true });
     addEventListener('keydown', skip, true); addEventListener('pointerdown', skip, true);
-    twin.wakeUp(.62 * f);
+    twin.wakeUp(BEAT.wake * f);
     // the glide down into his place, with the box opening out from around him
-    at(1250, () => {
-      twin.home(.35);
+    at(BEAT.glide, () => {
+      twin.home(.45);
       const a = it.getBoundingClientRect(), b = tinkoEl.getBoundingClientRect();
       const dx = (b.left + b.width / 2) - (a.left + a.width / 2), dy = (b.top + b.height / 2) - (a.top + a.height / 2);
-      anims.push(it.animate([{ transform: `translate(0,0) scale(${BIG})` }, { transform: `translate(${dx}px,${dy}px) scale(1)` }], { duration: 1050 * f, easing: 'cubic-bezier(.625,.05,0,1)', fill: 'forwards' }));
-      heroTitle.play(150 * f, false, f);
+      anims.push(it.animate([{ transform: `translate(0,0) scale(${BIG})` }, { transform: `translate(${dx}px,${dy}px) scale(1)` }], { duration: BEAT.glideDur * f, easing: 'cubic-bezier(.625,.05,0,1)', fill: 'forwards' }));
+      heroTitle.play(BEAT.title * f, false, f);
     });
-    at(1650, () => {
+    at(BEAT.box, () => {
       const w = win.getBoundingClientRect(), b = tinkoEl.getBoundingClientRect(), pad = cell * 1.2;
       const from = `inset(${b.top - w.top - pad}px ${w.right - b.right - pad}px ${w.bottom - b.bottom - pad}px ${b.left - w.left - pad}px round 8px)`;
       win.classList.add('is-clipping'); win.style.opacity = '1';
-      anims.push(win.animate([{ clipPath: from, opacity: 0 }, { clipPath: from, opacity: 1, offset: .12 }, { clipPath: 'inset(0px 0px 0px 0px round 14px)', opacity: 1 }], { duration: 1150 * f, easing: 'cubic-bezier(.625,.05,0,1)', fill: 'forwards' }));
+      anims.push(win.animate([{ clipPath: from, opacity: 0 }, { clipPath: from, opacity: 1, offset: .12 }, { clipPath: 'inset(0px 0px 0px 0px round 14px)', opacity: 1 }], { duration: BEAT.boxDur * f, easing: 'cubic-bezier(.625,.05,0,1)', fill: 'forwards' }));
     });
-    at(2850, () => finish());   // once the box is fully open (1650 + 1150)
+    at(Math.max(BEAT.box + BEAT.boxDur, BEAT.glide + BEAT.glideDur) + 50, () => finish());   // once everything has landed
   }
   let running = null;
   // ?tune: the intro again from the top, at any speed

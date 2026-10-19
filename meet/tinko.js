@@ -1033,7 +1033,8 @@ const DEMO_CSS = `
 `;
 
 /* ---------- the pixel cursor (Osmo's Interactive Pixel Grid, its script in the page footer code) ----------
-   Rim, 19 Oct: playful, keep the colour, but find the palette. The Osmo code reads window.tinkoPixels.colors on
+   Rim, 19 Oct: playful, keep the colour, but find the palette. His pick: Mac lights (the window buttons and our
+   blue), in the hero only; Tinko ink read too heavy, like a drawing. The Osmo code reads window.tinkoPixels.colors on
    every square it lights, so a palette can change on the fly; a grid with data-grid-off stays dark. Here: the
    palettes, the squares snapped to the 32px grid (the grid's width is set to whole squares before Osmo starts),
    a second grid inside Tinko's window, and with ?tune (or ?pixels) a panel to try them. ?pixels=<name>&win=1
@@ -1048,7 +1049,7 @@ const PALETTES = {
 };
 function initPixels() {
   const q = new URLSearchParams(location.search);
-  let pal = PALETTES[q.get('pixels')] ? q.get('pixels') : 'rainbow', inWin = q.get('win') === '1';
+  let pal = PALETTES[q.get('pixels')] ? q.get('pixels') : 'mac', inWin = q.get('win') === '1';
   const colors = () => { const P = PALETTES[pal]; return (document.documentElement.classList.contains('dfs-night') && P.night) || P.day; };
   window.tinkoPixels = { colors: colors() };
   new MutationObserver(() => { window.tinkoPixels.colors = colors(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });

@@ -278,7 +278,13 @@ margin: 0rem !important;
   .btn-icon-link:hover .btn-icon-icon__arrow{ transform: translate(200%, 0px); }
   
   .btn-icon-link:hover .btn-icon-content__bg{ transform: translate(0px, 0%) rotate(0deg); }
-  
+
+  /* The link boxes on the V2 course's action cards (.v2-link) use the same parts: the arrow square turns, the
+     arrows slide, the darker beige sweeps up from below */
+  .v2-link:hover .btn-icon-icon__bg{ transform: rotate(90deg); }
+  .v2-link:hover .btn-icon-icon__arrow{ transform: translate(200%, 0px); }
+  .v2-link:hover .btn-icon-content__bg{ transform: translate(0px, 0%) rotate(0deg); }
+
 }
 
 /* =========================================================
@@ -901,6 +907,9 @@ html[data-wf-page="6ad4b2a25ceae8fe2c8c8d7e"] .accordion-css__item.is-course{bor
 
 /* Lesson texts that aren't open don't animate (the welcome lesson's bouncing heart kept ticking while hidden) */
 .course_content:not(.is-active) *{animation-play-state:paused}
+
+/* Link boxes on the V2 action cards (.v2-link, Webflow classes): three in one card get shorter so they fit the player slot */
+.v2-card_links:has(> .v2-link:nth-child(3)) .v2-link{min-height:6.75rem}
 
 /* Install steps (.tk_steps): the numbers sit on the text's own left edge with one space after them (the browser's
    list marker hung outside with a wide gap), and the key caps flow inline so a ":" never drops to its own line. */

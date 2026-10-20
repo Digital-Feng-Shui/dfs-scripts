@@ -1283,7 +1283,12 @@ const PALETTES = {
   ink: { name: 'Tinko ink', day: ['#3D3A36'], night: ['#FBF7EF'] },
 };
 // whole 32px squares, from the same corner as the grid lines behind them
-function snapGrid(g, w) { const cols = Math.max(4, Math.floor(w / 32)); g.style.right = 'auto'; g.style.width = cols * 32 + 'px'; g.setAttribute('data-grid-size-desktop', cols); g.setAttribute('data-grid-size-mobile', cols); }
+// (rounded up, and the last part column clipped: rounding down left a strip on the right with no trail, Rim, 21 Oct)
+function snapGrid(g, w) {
+  const cols = Math.max(4, Math.ceil(w / 32)), over = cols * 32 - w;
+  g.style.right = 'auto'; g.style.width = cols * 32 + 'px'; g.style.clipPath = over > .5 ? `inset(0 ${over}px 0 0)` : '';
+  g.setAttribute('data-grid-size-desktop', cols); g.setAttribute('data-grid-size-mobile', cols);
+}
 // the hero's, and one behind each feature demo (Rim: the homepage's grid behind its demos, with the trail)
 export function snapAll() { document.querySelectorAll('.tinko-pixel-grid:not(.is-win)').forEach(g => snapGrid(g, g.parentElement.offsetWidth)); }
 function initPixels() {

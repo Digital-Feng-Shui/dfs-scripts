@@ -1,12 +1,14 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.1.0/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.2.0/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
-   Focus mode: a corner button on the video (FOCUS MODE). It slides the menu (and the progress above it) away and the video grows into the
-   room it leaves, up to a height that still fits the screen (taller than that, black bars at the sides). A MENU box
-   takes the menu's place; it, the button again, Esc, or opening another lesson bring the menu back. Desktop only
-   (under 992px the menu is a bar above the lesson anyway) and only over a video, not over a card.
-   The menu: panels a step darker than the page, the open lesson's checkbox in blue.
+   Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top (the progress above it too),
+   then the video slides out into the room it left, up to a height that still fits the screen (taller than that,
+   black bars at the sides), then a MENU box slides out from behind the video's right edge into the page margin
+   (just the burger where the margin is narrow). The box, the button again, Esc or opening another lesson play it
+   back the other way. Desktop only (under 992px the menu is a bar above the lesson anyway) and only over a video.
+   The menu: panels a step darker than the page, lesson rows alternating darker / lighter, dashed chevron buttons
+   (blue on the open module), the open lesson's checkbox in blue.
    The open lesson's time: while its video plays, a small blue wave runs in its place; paused, it lies flat. */
 
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -16,10 +18,19 @@ root.classList.add('dfs-v2');
 
 const EYE = '<svg viewBox="0 0 16 12" fill="none" aria-hidden="true"><path d="M1 6s2.6-4.5 7-4.5S15 6 15 6s-2.6 4.5-7 4.5S1 6 1 6Z" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="6" r="1.9" stroke="currentColor" stroke-width="1.2"/></svg>';
 const BURGER = '<svg viewBox="0 0 14 10" fill="none" aria-hidden="true"><path d="M0 1h14M0 5h14M0 9h14" stroke="currentColor" stroke-width="1.3"/></svg>';
+const GAP = 12; // px between the video's edge and the MENU box
 
 const css = `
 :root.dfs-v2 .course_module:not(.is-active){background-color:var(--brand-colors--bage)}
-:root.dfs-v2 .c_item:not(.is-active){background-color:color-mix(in srgb,var(--brand-colors--light-bage) 55%,var(--brand-colors--bage))}
+/* lesson rows take turns: a shade darker, a shade lighter, so a long module still reads row by row */
+:root.dfs-v2 .c_item:not(.is-active){background-color:color-mix(in srgb,var(--brand-colors--light-bage) 35%,var(--brand-colors--bage))}
+:root.dfs-v2 .c_item:nth-child(even):not(.is-active){background-color:color-mix(in srgb,var(--brand-colors--light-bage) 90%,var(--brand-colors--bage))}
+/* the chevron buttons: a dashed outline; blue on the open module, and on a closed one under the pointer */
+:root.dfs-v2 .accordion-css__item-icon{border:1px dashed color-mix(in srgb,var(--brand-colors--dark_gray) 40%,transparent);
+  transition:transform .6s cubic-bezier(.625,.05,0,1),border-color .2s ease,color .2s ease,background-color .2s ease}
+:root.dfs-v2 .course_module.is-active .accordion-css__item-icon,
+:root.dfs-v2 .course_module:hover .accordion-css__item-icon{border-color:var(--brand-colors--blue);color:var(--brand-colors--blue)}
+:root.dfs-v2 .course_module.is-active .accordion-css__item-icon{background-color:transparent}
 :root.dfs-v2 .c_item .check_box{transition:border-color .25s ease}
 :root.dfs-v2 .c_item.is-active .check_box{border-color:var(--brand-colors--blue)}
 :root.dfs-v2 .c_item.is-active .check_fill{background-color:var(--brand-colors--blue)}
@@ -46,39 +57,27 @@ const css = `
   .v2-focus-btn:focus-visible{outline:none}
   .v2-focus-btn svg{width:1rem;height:.75rem;flex:none}
   .v2-focus-btn span{text-shadow:0 1px 6px rgba(0,0,0,.35)}
-  /* gone over a card, and while the video plays with its controls hidden */
+  /* gone over a card, and while the video plays with its controls hidden (but never from under the pointer) */
   .next_lesson_container:has(.v2-card.is-active) .v2-focus-btn,
   .next_lesson_container:has(.bunny-player:not([data-player-src])) .v2-focus-btn,
-  .next_lesson_container:has(.bunny-player[data-player-status="playing"]:not([data-player-hover="active"])) .v2-focus-btn{
+  .next_lesson_container:has(.bunny-player[data-player-status="playing"]:not([data-player-hover="active"])) .v2-focus-btn:not(:hover){
     opacity:0;visibility:hidden;transition:opacity .3s ease,visibility 0s linear .3s}
 
-  /* the menu leaves first, then the room it had closes up, then the MENU box comes in (back out: the other way round) */
-  :root.dfs-v2 .absolute_menu{transition:opacity .4s ease .5s,transform .5s cubic-bezier(.3,.7,.4,1) .45s,visibility 0s linear 0s}
-  :root.v2-focus .absolute_menu{opacity:0;transform:translateX(2.5rem);visibility:hidden;pointer-events:none;
-    transition:opacity .3s ease,transform .4s cubic-bezier(.6,0,.8,.4),visibility 0s linear .4s}
-  :root.dfs-v2 .course_progrpess_wrap{transition:opacity .4s ease .5s,visibility 0s linear 0s}
-  :root.v2-focus .course_progrpess_wrap{opacity:0;visibility:hidden;transition:opacity .3s ease,visibility 0s linear .3s}
-  :root.dfs-v2 .menu_spacing{display:flex;justify-content:flex-end;align-self:stretch;
-    transition:min-width .7s cubic-bezier(.65,0,.35,1) .1s}
-  :root.v2-focus .menu_spacing{min-width:6.5rem;transition-delay:.2s}
-  .v2-menu-box{position:sticky;top:6rem;display:flex;align-items:center;gap:.6rem;height:fit-content;
+  /* waits behind the video's right edge; focus mode slides it out into the margin */
+  .v2-menu-box{position:absolute;top:0;left:calc(100% + ${GAP}px);z-index:5;display:flex;align-items:center;gap:.6rem;
     padding:.75rem .9rem;border:1px solid var(--brand-colors--dark-bage);background-color:var(--brand-colors--bage);
-    color:var(--brand-colors--dark_gray);cursor:pointer;
+    color:var(--brand-colors--dark_gray);cursor:pointer;visibility:hidden;white-space:nowrap;
     font-family:var(--_typography---font-styles--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;line-height:1;
-    opacity:0;visibility:hidden;transform:translateX(.6rem);
-    transition:opacity .2s ease,transform .25s ease,visibility 0s linear .25s,background-color .2s ease}
+    transition:background-color .2s ease}
   .v2-menu-box svg{width:.875rem;height:.625rem;flex:none}
   .v2-menu-box:hover{background-color:var(--brand-colors--dark-bage)}
-  :root.v2-focus .v2-menu-box{opacity:1;visibility:visible;transform:none;
-    transition:opacity .35s ease .75s,transform .45s cubic-bezier(.3,.7,.4,1) .75s,visibility 0s linear .75s,background-color .2s ease}
+  .v2-menu-box.is-compact{padding:.75rem}
+  .v2-menu-box.is-compact span{display:none}
 
   /* bigger, but never taller than the screen: past that the video keeps its height and gets black sides */
   :root.v2-focus .bunny-player{background-color:#000}
   :root.v2-focus .bunny-player__before{padding-top:min(56.25%,calc(100svh - 7rem))}
   :root.v2-focus .bunny-player__placeholder{object-fit:contain}
-}
-@media (prefers-reduced-motion:reduce){
-  :root.dfs-v2 .absolute_menu,:root.v2-focus .absolute_menu,:root.dfs-v2 .course_progrpess_wrap,:root.v2-focus .course_progrpess_wrap,:root.dfs-v2 .menu_spacing,.v2-menu-box,:root.v2-focus .v2-menu-box{transition:none}
 }`;
 const style = document.createElement('style');
 style.id = 'dfs-course-v2-css';
@@ -89,6 +88,9 @@ document.head.appendChild(style);
 
 const stage = document.querySelector('.next_lesson_container');
 const spacing = document.querySelector('.menu_spacing');
+const menu = document.querySelector('.absolute_menu');
+const progress = document.querySelector('.course_progrpess_wrap');
+const course = document.querySelector('.course');
 
 const button = document.createElement('button');
 button.type = 'button';
@@ -102,32 +104,103 @@ box.className = 'v2-menu-box';
 box.innerHTML = '<span>Menu</span>' + BURGER;
 box.setAttribute('aria-label', 'Show the course menu');
 
-if (stage && spacing) {
+const ready = !!(stage && spacing && menu && course);
+if (ready) {
   stage.appendChild(button);
-  spacing.appendChild(box);
+  stage.appendChild(box);
 }
 
 let focused = false;
+let tl = null;
+
+// The full box needs the margin right of the course; where that's narrow, the burger alone
+function fitBox() {
+  box.classList.remove('is-compact');
+  const room = root.clientWidth - course.getBoundingClientRect().right;
+  if (room < box.offsetWidth + GAP + 12) box.classList.add('is-compact');
+}
+
+// Rolling an element up to its top (or back down) only over the part that's on screen, so it starts moving at once
+function rollRange(el) {
+  const r = el.getBoundingClientRect();
+  const shown = Math.min(r.height, Math.max(0, innerHeight - r.top)); // from its top down to the screen's bottom
+  const gone = r.height - Math.max(0, Math.min(r.height, -r.top));    // its bottom edge up at its top (or the screen's)
+  return { open: `inset(0px 0px ${r.height - shown}px 0px)`, shut: `inset(0px 0px ${gone}px 0px)` };
+}
+
+function bringVideoIntoView() {
+  const player = document.getElementById('video-player');
+  if (!player) return;
+  const r = player.getBoundingClientRect();
+  if (r.bottom <= innerHeight - 16 && r.top >= 0) return;
+  if (window.lenis && typeof window.lenis.scrollTo === 'function') window.lenis.scrollTo(player, { offset: -24, duration: 0.8 });
+  else window.scrollBy({ top: r.top - 24, behavior: reduce ? 'auto' : 'smooth' });
+}
+
+function enter() {
+  const g = window.gsap;
+  if (tl) tl.kill();
+  root.classList.add('v2-focus');
+  fitBox();
+  const away = -(box.offsetWidth + GAP);
+  const from = spacing.getBoundingClientRect().width;
+  if (!g || reduce) {
+    if (g) g.set([menu, progress], { visibility: 'hidden' });
+    else { menu.style.visibility = 'hidden'; if (progress) progress.style.visibility = 'hidden'; }
+    spacing.style.minWidth = '0px';
+    box.style.visibility = 'visible';
+    box.style.transform = 'none';
+    bringVideoIntoView();
+    return;
+  }
+  const m = rollRange(menu);
+  tl = g.timeline();
+  // 1. the menu rolls up to its top, the progress above it after
+  tl.fromTo(menu, { clipPath: m.open }, { clipPath: m.shut, duration: 0.55, ease: 'power2.inOut' }, 0);
+  if (progress) tl.fromTo(progress, { clipPath: 'inset(0px 0px 0px 0px)' },
+    { clipPath: `inset(0px 0px ${progress.offsetHeight}px 0px)`, duration: 0.3, ease: 'power2.in' }, 0.3);
+  tl.set([menu, progress].filter(Boolean), { visibility: 'hidden' });
+  // 2. the video slides out into the room
+  tl.fromTo(spacing, { minWidth: from }, { minWidth: 0, duration: 0.75, ease: 'power3.inOut' }, 0.45);
+  // 3. the MENU box comes out from behind it
+  tl.fromTo(box, { x: away, visibility: 'visible' }, { x: 0, duration: 0.5, ease: 'power3.out' }, 1.1);
+  tl.add(bringVideoIntoView, 1.2);
+}
+
+function leave() {
+  const g = window.gsap;
+  if (tl) tl.kill();
+  const done = () => {
+    root.classList.remove('v2-focus');
+    if (g) g.set([menu, progress, spacing, box].filter(Boolean), { clearProps: 'clipPath,visibility,minWidth,transform' });
+    else [menu, progress, spacing, box].filter(Boolean).forEach((el) => el.removeAttribute('style'));
+  };
+  if (!g || reduce) { done(); return; }
+  // where the room goes back to: the spacing's own width, measured without the tween's value
+  const now = spacing.getBoundingClientRect().width;
+  spacing.style.minWidth = '';
+  const to = spacing.getBoundingClientRect().width;
+  spacing.style.minWidth = now + 'px';
+  g.set([menu, progress].filter(Boolean), { visibility: 'visible' });
+  const m = rollRange(menu);
+  if (!menu.style.clipPath) g.set(menu, { clipPath: m.shut });
+  if (progress && !progress.style.clipPath) g.set(progress, { clipPath: `inset(0px 0px ${progress.offsetHeight}px 0px)` });
+  tl = g.timeline({ onComplete: done });
+  // the same three steps backwards: the box slides back in behind the video, the video draws in, the menu rolls down
+  tl.to(box, { x: -(box.offsetWidth + GAP), duration: 0.35, ease: 'power2.in' }, 0);
+  tl.set(box, { visibility: 'hidden' });
+  tl.fromTo(spacing, { minWidth: now }, { minWidth: to, duration: 0.7, ease: 'power3.inOut' }, 0.25);
+  if (progress) tl.to(progress, { clipPath: 'inset(0px 0px 0px 0px)', duration: 0.3, ease: 'power2.out' }, 0.8);
+  tl.to(menu, { clipPath: m.open, duration: 0.55, ease: 'power2.inOut' }, 0.85);
+}
 
 function setFocus(on) {
-  on = !!on && desktop.matches;
+  on = !!on && desktop.matches && ready;
   if (on === focused) return;
   focused = on;
-  root.classList.toggle('v2-focus', on);
   label.textContent = on ? 'Exit focus' : 'Focus mode';
   button.setAttribute('aria-pressed', on ? 'true' : 'false');
-  if (on) {
-    // once the video has grown (.2s wait + .7s), bring all of it into view if it runs past the bottom
-    setTimeout(() => {
-      if (!focused) return;
-      const player = document.getElementById('video-player');
-      if (!player) return;
-      const r = player.getBoundingClientRect();
-      if (r.bottom <= innerHeight - 16 && r.top >= 0) return;
-      if (window.lenis && typeof window.lenis.scrollTo === 'function') window.lenis.scrollTo(player, { offset: -24, duration: 0.8 });
-      else window.scrollBy({ top: r.top - 24, behavior: reduce ? 'auto' : 'smooth' });
-    }, reduce ? 0 : 950);
-  }
+  if (on) enter(); else leave();
 }
 
 button.addEventListener('click', () => setFocus(!focused));
@@ -138,6 +211,7 @@ document.addEventListener('keydown', (e) => {
   setFocus(false);
 });
 desktop.addEventListener('change', () => { if (!desktop.matches) setFocus(false); });
+addEventListener('resize', () => { if (focused) fitBox(); });
 
 /* ---------- the open lesson ---------- */
 

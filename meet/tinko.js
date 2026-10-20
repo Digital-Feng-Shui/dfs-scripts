@@ -1074,12 +1074,7 @@ const DEMO_CSS = `
 /* on a phone the menus go (as in the demos), the status items stay: the busy ones fewer */
 .tkd.tkd-ba .tkd-scene.is-ba.is-tall .tkd-bar span.tkb-st{display:flex;gap:9px}.tkd.tkd-ba .tkd-scene.is-tall .tkd-bar span.tkb-rec{display:grid}.tkd.tkd-ba .tkd-scene.is-tall .tkd-bar span.tkb-timer{display:flex}
 .tkd-scene.is-before.is-tall .tkb-st>:nth-child(n+4):nth-child(-n+8){display:none!important}
-.tkb-desk{position:absolute;inset:0;z-index:1}
-.tkb-ic{position:absolute;width:52px;display:grid;justify-items:center;gap:2px;text-align:center}
-.tkb-ic i{width:36px;height:34px;display:grid;place-items:center}
-.tkb-ic img{display:block;max-width:36px;max-height:34px;box-shadow:0 0 0 .5px rgba(0,0,0,.22),0 1px 2px rgba(0,0,0,.22)}
-.tkb-ic span{max-width:50px;overflow:hidden;font-size:6.4px;line-height:7.8px;white-space:nowrap;letter-spacing:-.1px;color:rgba(0,0,0,.86);text-shadow:0 0 4px rgba(255,255,255,.75)}
-.dfs-night .tkb-ic span{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.7)}
+.tkb-desk{position:absolute;left:0;top:0;z-index:1;display:block}
 .tkd-your{margin-top:12px;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--c-calm)}
 .tkd-key{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;box-sizing:border-box;border-radius:3px;box-shadow:inset 0 0 0 1px color-mix(in srgb,currentColor 50%,transparent);font-size:10px;letter-spacing:0}
 .tkd-key svg{width:11px;height:9px;fill:none;stroke:currentColor;stroke-width:1.3}
@@ -1213,15 +1208,31 @@ const baDock = (apps, full) => `<div class="tkd-dock">${apps.map(([id, run, badg
 // the desk, the way macOS piles it: columns from the top right, each one full before the next
 const BA_GRID = { wide: { W: 960, cols: 18, rows: 10, n: 176 }, tall: { W: 520, cols: 9, rows: 10, n: 86 } };
 const PITCH = [52, 56], SHOTS = 18;
-const baDesk = L => { const g = BA_GRID[L]; let h = '', seed = 7;
+// one canvas for the whole pile instead of 176 elements (Rim, 20 Oct: "did this become a really heavy element?"),
+// drawn once the slider is near the screen, again as the thumbnails come in, on a new size and on day/night
+const shotImgs = [];
+const loadShots = () => { if (!shotImgs.length) for (let n = 1; n <= SHOTS; n++) { const im = new Image(); im.decoding = 'async'; im.src = SHOT(n); shotImgs.push(im); } return shotImgs; };
+function drawDesk(cv, L, k) {
+  const g = BA_GRID[L], W = g.W, H = L === 'tall' ? 650 : 640, imgs = loadShots(), night = document.documentElement.classList.contains('dfs-night');
+  cv.width = Math.round(W * k); cv.height = Math.round(H * k); cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  const c = cv.getContext('2d');
+  c.setTransform(k, 0, 0, k, 0, 0); c.clearRect(0, 0, W, H);
+  c.textAlign = 'center'; c.font = '6.4px -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif';
   // a shuffled order of the thumbnails, so no two neighbours repeat in stripes (a fixed Park-Miller sequence: the same pile every visit)
-  const pick = Array.from({ length: g.n }, () => (seed = seed * 16807 % 2147483647) % SHOTS);
-  for (let k = 0; k < g.n; k++) {
-    const c = Math.floor(k / g.rows), r = k % g.rows, x = g.W - 6 - (c + 1) * PITCH[0], y = 28 + r * PITCH[1];
-    const time = `${(k * 7 + 2) % 10}.${String((k * 37 + 11) % 60).padStart(2, '0')}`;
-    h += `<div class="tkb-ic" style="left:${x}px;top:${y}px"><i><img src="${SHOT(pick[k] + 1)}" alt="" loading="lazy"></i><span>Screenshot<br>2026…${time}.png</span></div>`;
+  let seed = 7;
+  for (let n = 0; n < g.n; n++) {
+    const col = Math.floor(n / g.rows), r = n % g.rows, x = W - 6 - (col + 1) * PITCH[0] + 26, y = 28 + r * PITCH[1];
+    const im = imgs[(seed = seed * 16807 % 2147483647) % SHOTS];
+    if (im.complete && im.naturalWidth) {
+      const f = Math.min(36 / im.naturalWidth, 34 / im.naturalHeight), w = im.naturalWidth * f, h = im.naturalHeight * f, ix = x - w / 2, iy = y + 17 - h / 2;
+      c.save(); c.shadowColor = 'rgba(0,0,0,.25)'; c.shadowBlur = 2 * k; c.shadowOffsetY = k; c.drawImage(im, ix, iy, w, h); c.restore();
+      c.lineWidth = .5; c.strokeStyle = 'rgba(0,0,0,.22)'; c.strokeRect(ix, iy, w, h);
+    }
+    const time = `${(n * 7 + 2) % 10}.${String((n * 37 + 11) % 60).padStart(2, '0')}`;
+    c.save(); c.fillStyle = night ? '#fff' : 'rgba(0,0,0,.86)'; c.shadowColor = night ? 'rgba(0,0,0,.7)' : 'rgba(255,255,255,.8)'; c.shadowBlur = (night ? 2 : 4) * k; c.shadowOffsetY = night ? k : 0;
+    c.fillText('Screenshot', x, y + 42); c.fillText(`2026…${time}.png`, x, y + 50); c.restore();
   }
-  return h; };
+}
 
 function initBA(host) {
   const after = host.dataset.tinkoBa === 'after';
@@ -1234,16 +1245,26 @@ function initBA(host) {
   host.setAttribute('role', 'img');
   host.setAttribute('aria-label', after ? 'The same Mac after Tinko: nothing on the desktop, a quiet menu bar, a Dock of Finder and Arc and a full Bin.' : 'A cluttered Mac: the desktop packed with screenshots, a busy menu bar, three notifications and a Dock of 24 apps with badges.');
   const scene = host.querySelector('.tkd-scene'), ctx = host.querySelector('.tkd-ctx');
-  let L = '';
+  let L = '', k = 0, near = false, queued = 0, cv = null;
+  const draw = () => { queued = 0; if (cv && near) drawDesk(cv, L, k); };
+  const redraw = () => { if (!queued) queued = requestAnimationFrame(draw); };
   const fit = () => {
     const tall = host.clientHeight > host.clientWidth, W = tall ? 520 : 960, H = tall ? 650 : 640;
     if ((tall ? 'tall' : 'wide') !== L) {
       L = tall ? 'tall' : 'wide'; scene.classList.toggle('is-tall', tall);
-      ctx.innerHTML = after ? baDock(BA_AFTER, true) : `${BA_NOTES.slice(0, tall ? 2 : 3).map(([id, app, line, when], i) => `<div class="tkb-note" style="${tall ? `left:12px;right:12px;top:${86 + i * 58}px` : `right:12px;width:268px;top:${32 + i * 66}px`}"><img src="${MAC(id)}" alt=""><div><b>${app}</b><span>${line}</span></div><em>${when}</em></div>`).join('')}<div class="tkb-desk">${baDesk(L)}</div>${baDock(BA_BEFORE, false)}`;
+      ctx.innerHTML = after ? baDock(BA_AFTER, true) : `${BA_NOTES.slice(0, tall ? 2 : 3).map(([id, app, line, when], i) => `<div class="tkb-note" style="${tall ? `left:12px;right:12px;top:${86 + i * 58}px` : `right:12px;width:268px;top:${32 + i * 66}px`}"><img src="${MAC(id)}" alt=""><div><b>${app}</b><span>${line}</span></div><em>${when}</em></div>`).join('')}<canvas class="tkb-desk"></canvas>${baDock(BA_BEFORE, false)}`;
+      cv = ctx.querySelector('canvas'); k = 0;
     }
-    scene.style.width = W + 'px'; scene.style.height = H + 'px'; scene.style.transform = `scale(${host.clientWidth / W})`;
+    const scale = host.clientWidth / W, nk = Math.min(3, scale * (devicePixelRatio || 1));
+    scene.style.width = W + 'px'; scene.style.height = H + 'px'; scene.style.transform = `scale(${scale})`;
+    if (cv && Math.abs(nk - k) > .05) { k = nk; redraw(); }
   };
   new ResizeObserver(fit).observe(host); fit();
+  if (!after) {
+    new IntersectionObserver(([e]) => { if (e.isIntersecting && !near) { near = true; loadShots().forEach(im => { if (!im.complete) im.addEventListener('load', redraw, { once: true }); }); redraw(); } }, { rootMargin: '800px 0px' }).observe(host);
+    let night = document.documentElement.classList.contains('dfs-night');   // (the smooth scroll toggles classes on <html> too: only day/night counts)
+    new MutationObserver(() => { const n = document.documentElement.classList.contains('dfs-night'); if (n !== night) { night = n; redraw(); } }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  }
 }
 
 /* ---------- the pixel cursor (Osmo's Interactive Pixel Grid, its script in the page footer code) ----------

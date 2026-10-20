@@ -223,8 +223,11 @@ function init(root) {
       el.cue.classList.toggle('is-alt', p > .005);   // at the very top it reads "Scroll down" (hover shows "Continue")
       el.cue.setAttribute('aria-label', p > .005 ? 'Continue to the closing sentence' : 'Scroll down to the first sentence');
     }
-    setState(el.end, p < endAt ? 'pre' : 'in');
-    setState(el.end2, p < endAt + .1 ? 'pre' : 'in');
+    // once the dive lets go and the closing sentence starts to move up with the page, its words rise out of their
+    // boxes into the sky, as the first sentence did (Rim, 20 Oct 2026); back down, they come back in
+    const rb = root.getBoundingClientRect(), past = Math.max(0, (innerHeight - rb.bottom) / innerHeight);
+    setState(el.end, p < endAt ? 'pre' : past > .18 ? 'out' : 'in');
+    setState(el.end2, p < endAt + .1 ? 'pre' : past > .18 ? 'out' : 'in');
     if (el.fade) el.fade.style.opacity = dark;
   }
   /* ---- the cue is also a button: the label rolls to "Continue" (hover, or the click itself on touch).
@@ -800,8 +803,10 @@ function initTime(root) {
       P = PAL[isNight() ? 'night' : 'day'];
       p = progress();
       const t = now / 1000;
-      // words
-      setState(lines[0], p < .03 ? 'pre' : p < .43 ? 'in' : 'out');
+      // words. The first line rises in while the section is still coming up (two thirds in), not once it's pinned: the
+      // empty stretch after the dive's closing sentence rises out is then about 10% shorter (Rim, 20 Oct 2026)
+      const top = root.getBoundingClientRect().top, coming = top > 0 ? 1 - top / innerHeight : 1;
+      setState(lines[0], coming < .68 ? 'pre' : p < .43 ? 'in' : 'out');
       setState(lines[1], p < .45 ? 'pre' : p < .6 ? 'in' : 'out');
       setState(lines[2], p < .62 ? 'pre' : p < .78 ? 'in' : 'out');
       setState(lines[3], p < .8 ? 'pre' : 'in');

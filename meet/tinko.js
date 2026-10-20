@@ -355,7 +355,7 @@ function initStage(host) {
   }
   /* The page-load intro (Rim, 19 Oct): Tinko on his own in the middle of the screen, larger. His pixels come in,
      he wakes up and says hello, then he glides down to his place while his box opens out around him and the
-     title rises. Any scroll, click or key skips to the end. */
+     title rises. A click, Space, Enter or Esc skips to the end; scrolling lets it play on (he scrolls with the page). */
   // the intro's beats, in ms at full speed (Rim, 19 Oct: calmer, a longer hello before the glide). The glide waits
   // for his arrival and his hello, whichever arrival it is: hold = how long he looks at you before he goes
   const BEAT = { wake: .85, hold: 650, glideDur: 1150, title: 150, box: 400, boxDur: 1200 };
@@ -364,6 +364,8 @@ function initStage(host) {
     const cell = tinkoEl.offsetWidth / 16;
     const ov = document.createElement('div'); ov.className = 'tkh-intro'; ov.innerHTML = '<div class="tkh-tinko"></div>';
     ov.style.setProperty('--tkh-cell', cell + 'px');
+    // on the page, not on the screen: if you scroll, he scrolls with the page and still lands in his box
+    ov.style.top = scrollY + 'px'; ov.style.height = innerHeight + 'px';
     document.body.append(ov);
     const it = ov.firstChild, twin = makeTinko(it, shared);
     it.querySelector('.tkh-sway').style.animationDelay = `-${((performance.now() - swayBorn) / 1000).toFixed(3)}s`;
@@ -378,7 +380,7 @@ function initStage(host) {
     function finish() {
       if (done) return; done = true;
       timers.forEach(clearTimeout); anims.forEach(a => a.cancel());   // their end state is the page's own state, so nothing stays stuck on (a replay starts clean)
-      removeEventListener('wheel', skip); removeEventListener('touchstart', skip); removeEventListener('keydown', skip, true); removeEventListener('pointerdown', skip, true);
+      removeEventListener('keydown', skip, true); removeEventListener('pointerdown', skip, true);
       win.style.clipPath = ''; win.classList.remove('is-boxed', 'is-clipping'); win.style.opacity = ''; win.style.transition = '';
       tinko.awakeNow(true); tinko.show(true); tinkoEl.style.visibility = ''; twin.show(false); ov.remove(); introOn = false;
       heroTitle.play(0, true);
@@ -386,8 +388,13 @@ function initStage(host) {
       running = null; tune.stop();
     }
     running = finish;
-    const skip = e => { if (e?.target?.closest?.('.tkh-tune')) return; finish(); };
-    addEventListener('wheel', skip, { passive: true }); addEventListener('touchstart', skip, { passive: true });
+    // a click, Space, Enter or Esc skips to the end; scrolling doesn't (Rim, 20 Oct: it cut the intro short)
+    const skip = e => {
+      if (e?.target?.closest?.('.tkh-tune')) return;
+      if (e.type === 'keydown' && ![' ', 'Enter', 'Escape'].includes(e.key)) return;
+      if (e.type === 'pointerdown' && e.pointerType !== 'mouse') return;   // a finger on a phone is a scroll
+      finish();
+    };
     addEventListener('keydown', skip, true); addEventListener('pointerdown', skip, true);
     twin.wakeUp(BEAT.wake * f, style);
     // the glide down into his place, with the box opening out from around him
@@ -1318,7 +1325,7 @@ function injectCSS() {
 .tkh-tools>*{all:unset;width:clamp(30px,3.8cqw,38px);aspect-ratio:1;box-sizing:border-box;display:grid;place-items:center;border:1px solid var(--c-line);border-radius:4px;background:var(--c-card)}
 .tkh-tools svg{width:36%;height:36%;display:block;fill:var(--c-ink)}
 .tkh-sun{display:none}.dfs-night .tkh-sun{display:block}.dfs-night .tkh-moon{display:none}.tkh-moon,.tkh-sun{width:100%;height:100%;place-items:center}.tkh-moon{display:grid}.dfs-night .tkh-sun{display:grid}
-.tkh-intro{--c-card:#fbf7ef;--c-ink:#3d3a36;position:fixed;inset:0;z-index:60;display:grid;place-items:center;pointer-events:none}
+.tkh-intro{--c-card:#fbf7ef;--c-ink:#3d3a36;position:absolute;left:0;width:100%;z-index:60;display:grid;place-items:center;pointer-events:none}
 .dfs-night .tkh-intro{--c-card:#292724;--c-ink:#fbf7ef}
 .tkh-intro .tkh-tinko{transform-origin:50% 50%}
 .tkh-win.is-boxed{opacity:0}

@@ -1175,9 +1175,9 @@ const DEMO_CSS = `
    Rim, 20 Oct: crazier before, a calm after. [data-tinko-ba="before"]: the desk packed with screenshots the way macOS
    piles them (columns from the top right, about three times his own 64; the thumbnails are real screenshots of the
    DFS site, meet/media/shots), a busy menu bar, three banners in the corner, a 24-app Dock with badges.
-   [data-tinko-ba="after"]: the same Mac after Tinko: nothing on the desk, his own cleaned-up menu bar (•••, the Timer
-   diamond, battery, Control Center), a Dock of Finder, Arc and Raycast, then Downloads and the Bin (full: he moves
-   things to the Bin, nothing is deleted). No badges. Wide 3:2 on a desktop, tall 4:5 on a phone (by the slider's shape). */
+   [data-tinko-ba="after"]: the same Mac after Tinko: nothing on the desk, a quiet menu bar (the menu bar manager's •••, the
+   Personal Hotspot link, the battery), a Dock of Finder and Arc, then the Bin (full: he moves things to the Bin,
+   nothing is deleted). No badges. (Rim, 20 Oct: no Raycast, no Downloads: people use their software of choice.) Wide 3:2 on a desktop, tall 4:5 on a phone (by the slider's shape). */
 const SHOT = n => new URL(`./media/shots/s${String(n).padStart(2, '0')}.webp`, import.meta.url).href;
 const G = (d, w = 16) => `<svg viewBox="0 0 ${w} 16" aria-hidden="true">${d}</svg>`;
 const ST = {   // menu bar status items, drawn like SF Symbols (currentColor)
@@ -1190,19 +1190,19 @@ const ST = {   // menu bar status items, drawn like SF Symbols (currentColor)
   diamond: G('<path d="M8 2.4l5.2 5.6L8 13.6 2.8 8z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>'),
   bt: G('<path d="M5 5.2l6 5.6-3 2.6V2.6l3 2.6-6 5.6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>'),
   wifi: G('<path d="M2 6.6a9 9 0 0 1 12 0M4.2 8.9a6 6 0 0 1 7.6 0M6.4 11.1a3 3 0 0 1 3.2 0" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="13.1" r="1" fill="currentColor"/>'),
-  battery: G('<rect x="1" y="4.8" width="15" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".55"/><rect x="2.5" y="6.3" width="9" height="4" rx="1" fill="currentColor"/><path d="M17.4 7v3" stroke="currentColor" stroke-width="1.3" opacity=".55"/>', 19),
+  battery: G('<rect x=".8" y="3.3" width="21" height="9.4" rx="3.2" fill="none" stroke="currentColor" stroke-width="1" opacity=".45"/><rect x="2.4" y="4.9" width="5.4" height="6.2" rx="1.7" fill="currentColor"/><path d="M23.5 6.3v3.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" opacity=".45"/>', 25),
   search: G('<circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M10.2 10.2L13.8 13.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'),
   cc: G('<rect x="1.5" y="2.8" width="13" height="4.6" rx="2.3" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="12.2" cy="5.1" r="1.4" fill="currentColor"/><rect x="1.5" y="8.6" width="13" height="4.6" rx="2.3" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="3.8" cy="10.9" r="1.4" fill="currentColor"/>'),
   siri: G('<circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4.6 8.4c1.4-2 2.4 2 3.4 0s2-2 3.4 0" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>'),
   dots: G('<circle cx="3" cy="8" r="1.5" fill="currentColor"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/><circle cx="13" cy="8" r="1.5" fill="currentColor"/>'),
-  link: G('<path d="M6.6 9.4l2.8-2.8M5.3 7.6L4 8.9a2.3 2.3 0 0 0 3.2 3.2l1.3-1.3M10.7 8.4L12 7.1a2.3 2.3 0 0 0-3.2-3.2L7.5 5.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>'),
+  link: G('<rect x="1.4" y="4.6" width="11.2" height="6.8" rx="3.4" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="9.4" y="4.6" width="11.2" height="6.8" rx="3.4" fill="none" stroke="currentColor" stroke-width="1.5"/>', 22),
 };
-const BA_BAR = { before: ['rec', 'video', 'cloud', 'note', 'plus', 'timer', 'bt', 'wifi', 'battery', 'search', 'cc', 'siri'], after: ['dots', 'diamond', 'link', 'battery', 'cc'] };
+const BA_BAR = { before: ['rec', 'video', 'cloud', 'note', 'plus', 'timer', 'bt', 'wifi', 'battery', 'search', 'cc', 'siri'], after: ['dots', 'link', 'battery'] };
 const BA_NOTES = [['slack', 'Slack', '#general · 3 new messages', 'now'], ['news', 'News', 'Top stories for you', '2m ago'], ['appstore', 'App Store', '12 updates available', '5m ago']];
 const BA_BEFORE = [['finder', 1], ['safari'], ['messages', 0, 2], ['mail', 1, '8,214'], ['maps'], ['photos'], ['facetime'], ['calendar'], ['contacts'], ['reminders'], ['notes'], ['tv'], ['music'], ['news', 0, 5], ['appstore', 0, 12], ['settings', 0, 1], ['arc', 1], ['figma', 1], ['claude', 1], ['slack', 1, 3], ['chrome', 1], ['spotify', 1], ['zoom'], ['tinko', 1]];
-const BA_AFTER = [['finder', 1], ['arc', 1], ['raycast']];
+const BA_AFTER = [['finder', 1], ['arc', 1]];
 const DL_ARROW = G('<path d="M8 4.2v6.6M5.2 8.2L8 11l2.8-2.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>');
-const baDock = (apps, full) => `<div class="tkd-dock">${apps.map(([id, run, badge]) => `<div class="tkd-dapp${run ? ' is-run' : ''}"><img src="${MAC(id)}" alt="">${badge ? `<b class="tkb-badge">${badge}</b>` : ''}<i></i></div>`).join('')}<b class="tkd-dsep"></b><div class="tkd-dapp tkb-dl"><img src="${MAC('file-folder')}" alt="">${DL_ARROW}</div><div class="tkd-dapp tkd-trash"><img src="${MAC(full ? 'trash-full' : 'trash-empty')}" alt=""></div></div>`;
+const baDock = (apps, full) => `<div class="tkd-dock">${apps.map(([id, run, badge]) => `<div class="tkd-dapp${run ? ' is-run' : ''}"><img src="${MAC(id)}" alt="">${badge ? `<b class="tkb-badge">${badge}</b>` : ''}<i></i></div>`).join('')}<b class="tkd-dsep"></b>${full ? '' : `<div class="tkd-dapp tkb-dl"><img src="${MAC('file-folder')}" alt="">${DL_ARROW}</div>`}<div class="tkd-dapp tkd-trash"><img src="${MAC(full ? 'trash-full' : 'trash-empty')}" alt=""></div></div>`;
 // the desk, the way macOS piles it: columns from the top right, each one full before the next
 const BA_GRID = { wide: { W: 960, cols: 18, rows: 10, n: 176 }, tall: { W: 520, cols: 9, rows: 10, n: 86 } };
 const PITCH = [52, 56], SHOTS = 18;
@@ -1225,7 +1225,7 @@ function initBA(host) {
     <div class="tkd-ctx"></div>
   </div></div>`;
   host.setAttribute('role', 'img');
-  host.setAttribute('aria-label', after ? 'The same Mac after Tinko: nothing on the desktop, a quiet menu bar, a Dock of Finder, Arc and Raycast, Downloads and a full Bin.' : 'A cluttered Mac: the desktop packed with screenshots, a busy menu bar, three notifications and a Dock of 24 apps with badges.');
+  host.setAttribute('aria-label', after ? 'The same Mac after Tinko: nothing on the desktop, a quiet menu bar, a Dock of Finder and Arc and a full Bin.' : 'A cluttered Mac: the desktop packed with screenshots, a busy menu bar, three notifications and a Dock of 24 apps with badges.');
   const scene = host.querySelector('.tkd-scene'), ctx = host.querySelector('.tkd-ctx');
   let L = '';
   const fit = () => {

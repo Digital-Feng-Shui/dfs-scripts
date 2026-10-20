@@ -1,12 +1,14 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.2.0/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.3.0/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
-   Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top (the progress above it too),
-   then the video slides out into the room it left, up to a height that still fits the screen (taller than that,
-   black bars at the sides), then a MENU box slides out from behind the video's right edge into the page margin
-   (just the burger where the margin is narrow). The box, the button again, Esc or opening another lesson play it
-   back the other way. Desktop only (under 992px the menu is a bar above the lesson anyway) and only over a video.
+   Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
+   the lesson folds up into the line under the top bar, so the video rises to sit right under it; then the video
+   slides out into the room the menu left, sized so it and the Previous / Next bar fill the screen (never taller than
+   MAX_H: past that, black bars at the sides); then a MENU box slides out from behind the video's right edge into
+   the page margin (just the burger where the margin is narrow). The box, the button again, Esc or opening another
+   lesson play it back the other way. Desktop only (under 992px the menu is a bar above the lesson anyway) and only
+   over a video. While the pointer rests on the button, the video keeps its darker hover layer under it.
    The menu: panels a step darker than the page, lesson rows alternating darker / lighter, dashed chevron buttons
    (blue on the open module), the open lesson's checkbox in blue.
    The open lesson's time: while its video plays, a small blue wave runs in its place; paused, it lies flat. */
@@ -18,18 +20,18 @@ root.classList.add('dfs-v2');
 
 const EYE = '<svg viewBox="0 0 16 12" fill="none" aria-hidden="true"><path d="M1 6s2.6-4.5 7-4.5S15 6 15 6s-2.6 4.5-7 4.5S1 6 1 6Z" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="6" r="1.9" stroke="currentColor" stroke-width="1.2"/></svg>';
 const BURGER = '<svg viewBox="0 0 14 10" fill="none" aria-hidden="true"><path d="M0 1h14M0 5h14M0 9h14" stroke="currentColor" stroke-width="1.3"/></svg>';
-const GAP = 12; // px between the video's edge and the MENU box
+const GAP = 12;     // px between the video's edge and the MENU box
+const MAX_H = 820; // px, the tallest the video gets in focus mode (a big screen would otherwise be all video)
 
 const css = `
 :root.dfs-v2 .course_module:not(.is-active){background-color:var(--brand-colors--bage)}
 /* lesson rows take turns: a shade darker, a shade lighter, so a long module still reads row by row */
 :root.dfs-v2 .c_item:not(.is-active){background-color:color-mix(in srgb,var(--brand-colors--light-bage) 35%,var(--brand-colors--bage))}
 :root.dfs-v2 .c_item:nth-child(even):not(.is-active){background-color:color-mix(in srgb,var(--brand-colors--light-bage) 90%,var(--brand-colors--bage))}
-/* the chevron buttons: a dashed outline; blue on the open module, and on a closed one under the pointer */
+/* the chevron buttons: a dashed outline, blue on the open module */
 :root.dfs-v2 .accordion-css__item-icon{border:1px dashed color-mix(in srgb,var(--brand-colors--dark_gray) 40%,transparent);
   transition:transform .6s cubic-bezier(.625,.05,0,1),border-color .2s ease,color .2s ease,background-color .2s ease}
-:root.dfs-v2 .course_module.is-active .accordion-css__item-icon,
-:root.dfs-v2 .course_module:hover .accordion-css__item-icon{border-color:var(--brand-colors--blue);color:var(--brand-colors--blue)}
+:root.dfs-v2 .course_module.is-active .accordion-css__item-icon{border-color:var(--brand-colors--blue);color:var(--brand-colors--blue)}
 :root.dfs-v2 .course_module.is-active .accordion-css__item-icon{background-color:transparent}
 :root.dfs-v2 .c_item .check_box{transition:border-color .25s ease}
 :root.dfs-v2 .c_item.is-active .check_box{border-color:var(--brand-colors--blue)}
@@ -74,9 +76,9 @@ const css = `
   .v2-menu-box.is-compact{padding:.75rem}
   .v2-menu-box.is-compact span{display:none}
 
-  /* bigger, but never taller than the screen: past that the video keeps its height and gets black sides */
+  /* as big as fits between the top bar and Previous / Next (--v2-fit, set by fitVideo); past that, black sides */
   :root.v2-focus .bunny-player{background-color:#000}
-  :root.v2-focus .bunny-player__before{padding-top:min(56.25%,calc(100svh - 7rem))}
+  :root.v2-focus .bunny-player__before{padding-top:min(56.25%,var(--v2-fit,calc(100svh - 10rem)))}
   :root.v2-focus .bunny-player__placeholder{object-fit:contain}
 }`;
 const style = document.createElement('style');
@@ -89,7 +91,8 @@ document.head.appendChild(style);
 const stage = document.querySelector('.next_lesson_container');
 const spacing = document.querySelector('.menu_spacing');
 const menu = document.querySelector('.absolute_menu');
-const progress = document.querySelector('.course_progrpess_wrap');
+const block = document.querySelector('.progress_top');          // the progress block above the lesson (grid, title, bar)
+const blockInner = document.querySelector('.course_title_box');
 const course = document.querySelector('.course');
 
 const button = document.createElement('button');
@@ -128,70 +131,89 @@ function rollRange(el) {
   return { open: `inset(0px 0px ${r.height - shown}px 0px)`, shut: `inset(0px 0px ${gone}px 0px)` };
 }
 
-function bringVideoIntoView() {
-  const player = document.getElementById('video-player');
-  if (!player) return;
-  const r = player.getBoundingClientRect();
-  if (r.bottom <= innerHeight - 16 && r.top >= 0) return;
-  if (window.lenis && typeof window.lenis.scrollTo === 'function') window.lenis.scrollTo(player, { offset: -24, duration: 0.8 });
-  else window.scrollBy({ top: r.top - 24, behavior: reduce ? 'auto' : 'smooth' });
+// The room between the top bar and the Previous / Next bar, so the two fill the screen together
+function fitVideo() {
+  const nav = document.querySelector('.navbar_component');
+  const bar = document.querySelector('.course_navigation_bar');
+  const room = innerHeight - (nav ? nav.offsetHeight : 0) - (bar ? bar.offsetHeight : 0) - 2;
+  root.style.setProperty('--v2-fit', Math.round(Math.min(MAX_H, Math.max(320, room))) + 'px');
+}
+
+// Focus mode starts at the top of the page, with the video right under the top bar
+function toTop() {
+  if (window.scrollY < 1) return;
+  if (window.lenis && typeof window.lenis.scrollTo === 'function') window.lenis.scrollTo(0, { duration: reduce ? 0 : 0.7 });
+  else window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
 }
 
 function enter() {
   const g = window.gsap;
   if (tl) tl.kill();
   root.classList.add('v2-focus');
+  fitVideo();
   fitBox();
+  toTop();
   const away = -(box.offsetWidth + GAP);
   const from = spacing.getBoundingClientRect().width;
   if (!g || reduce) {
-    if (g) g.set([menu, progress], { visibility: 'hidden' });
-    else { menu.style.visibility = 'hidden'; if (progress) progress.style.visibility = 'hidden'; }
+    menu.style.visibility = 'hidden';
+    if (block) block.style.height = '0px';
     spacing.style.minWidth = '0px';
     box.style.visibility = 'visible';
     box.style.transform = 'none';
-    bringVideoIntoView();
     return;
   }
   const m = rollRange(menu);
   tl = g.timeline();
-  // 1. the menu rolls up to its top, the progress above it after
+  // 1. the menu rolls up to its top, and the progress block folds up into the line under the top bar
   tl.fromTo(menu, { clipPath: m.open }, { clipPath: m.shut, duration: 0.55, ease: 'power2.inOut' }, 0);
-  if (progress) tl.fromTo(progress, { clipPath: 'inset(0px 0px 0px 0px)' },
-    { clipPath: `inset(0px 0px ${progress.offsetHeight}px 0px)`, duration: 0.3, ease: 'power2.in' }, 0.3);
-  tl.set([menu, progress].filter(Boolean), { visibility: 'hidden' });
+  tl.set(menu, { visibility: 'hidden' }, 0.55);
+  if (block) {
+    if (blockInner) tl.to(blockInner, { opacity: 0, duration: 0.35, ease: 'power1.in' }, 0);
+    tl.to(block, { height: 0, duration: 0.6, ease: 'power2.inOut' }, 0.05);
+  }
   // 2. the video slides out into the room
-  tl.fromTo(spacing, { minWidth: from }, { minWidth: 0, duration: 0.75, ease: 'power3.inOut' }, 0.45);
+  tl.fromTo(spacing, { minWidth: from }, { minWidth: 0, duration: 0.75, ease: 'power3.inOut' }, 0.55);
   // 3. the MENU box comes out from behind it
-  tl.fromTo(box, { x: away, visibility: 'visible' }, { x: 0, duration: 0.5, ease: 'power3.out' }, 1.1);
-  tl.add(bringVideoIntoView, 1.2);
+  tl.fromTo(box, { x: away, visibility: 'visible' }, { x: 0, duration: 0.5, ease: 'power3.out' }, 1.2);
 }
 
 function leave() {
   const g = window.gsap;
   if (tl) tl.kill();
+  const parts = [menu, block, blockInner, spacing, box].filter(Boolean);
   const done = () => {
     root.classList.remove('v2-focus');
-    if (g) g.set([menu, progress, spacing, box].filter(Boolean), { clearProps: 'clipPath,visibility,minWidth,transform' });
-    else [menu, progress, spacing, box].filter(Boolean).forEach((el) => el.removeAttribute('style'));
+    if (g) g.set(parts, { clearProps: 'clipPath,visibility,minWidth,transform,height,opacity' });
+    else parts.forEach((el) => el.removeAttribute('style'));
   };
   if (!g || reduce) { done(); return; }
-  // where the room goes back to: the spacing's own width, measured without the tween's value
+  // what the room and the progress block go back to: their own sizes, measured without the tweens' values
   const now = spacing.getBoundingClientRect().width;
   spacing.style.minWidth = '';
   const to = spacing.getBoundingClientRect().width;
   spacing.style.minWidth = now + 'px';
-  g.set([menu, progress].filter(Boolean), { visibility: 'visible' });
+  let blockH = 0;
+  if (block) {
+    const h = block.style.height;
+    block.style.height = '';
+    blockH = block.offsetHeight;
+    block.style.height = h;
+  }
+  g.set(menu, { visibility: 'visible' });
   const m = rollRange(menu);
   if (!menu.style.clipPath) g.set(menu, { clipPath: m.shut });
-  if (progress && !progress.style.clipPath) g.set(progress, { clipPath: `inset(0px 0px ${progress.offsetHeight}px 0px)` });
   tl = g.timeline({ onComplete: done });
-  // the same three steps backwards: the box slides back in behind the video, the video draws in, the menu rolls down
+  // the same steps backwards: the box slides back in behind the video, the video draws in, then the progress
+  // block opens out of the line and the menu rolls down
   tl.to(box, { x: -(box.offsetWidth + GAP), duration: 0.35, ease: 'power2.in' }, 0);
   tl.set(box, { visibility: 'hidden' });
   tl.fromTo(spacing, { minWidth: now }, { minWidth: to, duration: 0.7, ease: 'power3.inOut' }, 0.25);
-  if (progress) tl.to(progress, { clipPath: 'inset(0px 0px 0px 0px)', duration: 0.3, ease: 'power2.out' }, 0.8);
-  tl.to(menu, { clipPath: m.open, duration: 0.55, ease: 'power2.inOut' }, 0.85);
+  if (block) {
+    tl.to(block, { height: blockH, duration: 0.6, ease: 'power2.inOut' }, 0.8);
+    if (blockInner) tl.to(blockInner, { opacity: 1, duration: 0.4, ease: 'power1.out' }, 1.1);
+  }
+  tl.to(menu, { clipPath: m.open, duration: 0.55, ease: 'power2.inOut' }, 0.95);
 }
 
 function setFocus(on) {
@@ -211,7 +233,18 @@ document.addEventListener('keydown', (e) => {
   setFocus(false);
 });
 desktop.addEventListener('change', () => { if (!desktop.matches) setFocus(false); });
-addEventListener('resize', () => { if (focused) fitBox(); });
+addEventListener('resize', () => { if (focused) { fitVideo(); fitBox(); } });
+
+// The player darkens the video while the pointer moves over it and lifts that after 3 s of stillness. Resting on
+// the (white) button would lift it too, so while the pointer is on the button it keeps telling the player it's there.
+let keepAwake = 0;
+button.addEventListener('pointerenter', (e) => {
+  const poke = () => window.dispatchEvent(new PointerEvent('pointermove', { clientX: e.clientX, clientY: e.clientY }));
+  poke();
+  clearInterval(keepAwake);
+  keepAwake = setInterval(poke, 1000);
+});
+button.addEventListener('pointerleave', () => clearInterval(keepAwake));
 
 /* ---------- the open lesson ---------- */
 

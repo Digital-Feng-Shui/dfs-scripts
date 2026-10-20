@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.3.0/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.4.0/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -11,7 +11,8 @@
    over a video. While the pointer rests on the button, the video keeps its darker hover layer under it.
    The menu: panels a step darker than the page, lesson rows alternating darker / lighter, dashed chevron buttons
    (blue on the open module), the open lesson's checkbox in blue.
-   The open lesson's time: while its video plays, a small blue wave runs in its place; paused, it lies flat. */
+   The open lesson's time: while its video plays, a small blue wave runs in its place; paused, it lies flat.
+   The instructor panel in 0.1 Welcome: turning dashed circles while it's on screen, and a first-view reveal. */
 
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const desktop = matchMedia('(min-width: 992px)');
@@ -41,6 +42,21 @@ const css = `
 .v2-wave svg{display:block;width:100%;height:100%;overflow:visible}
 .c_item.v2-wave-on .c_time{display:none}
 .c_item.v2-wave-on .v2-wave{display:block}
+
+/* the instructor panel (0.1): its two dashed circles turn slowly, the way the homepage's do, but only while the panel
+   is on screen; the first time it comes into view the photo builds up row by row and the name tag slides in */
+@keyframes v2-turn{to{transform:rotate(360deg)}}
+.v2-instructor_panel .instructor_circle{animation:v2-turn 70s linear infinite paused}
+.v2-instructor_panel .instructor_circle.v2-circle-top{animation-duration:90s;animation-direction:reverse}
+.v2-instructor_panel.is-shown .instructor_circle{animation-play-state:running}
+.v2-instructor_panel.v2-reveal .instructor_image{clip-path:inset(100% 0 0 0)}
+.v2-instructor_panel.v2-reveal .instructor_tag.v2-name{opacity:0;transform:translateX(1rem)}
+.v2-instructor_panel.v2-reveal .instructor_circle{opacity:0}
+.v2-instructor_panel.v2-reveal.is-seen .instructor_image{clip-path:inset(0 0 0 0);transition:clip-path .9s steps(12,end) .1s}
+.v2-instructor_panel.v2-reveal.is-seen .instructor_tag.v2-name{opacity:1;transform:none;
+  transition:opacity .4s ease 1s,transform .5s cubic-bezier(.3,.7,.4,1) 1s}
+.v2-instructor_panel.v2-reveal.is-seen .instructor_circle{opacity:1;transition:opacity 1.2s ease .5s}
+@media (prefers-reduced-motion:reduce){.v2-instructor_panel .instructor_circle{animation:none}}
 
 .v2-focus-btn,.v2-menu-box{display:none}
 @media (min-width:992px){
@@ -332,3 +348,16 @@ new MutationObserver((records) => {
   }
   if (lesson) onLesson();
 }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['data-player-status', 'class'] });
+
+/* ---------- the instructor (0.1) ---------- */
+
+const panel = document.querySelector('.v2-instructor_panel');
+if (panel && !reduce) {
+  panel.classList.add('v2-reveal');
+  new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      panel.classList.toggle('is-shown', e.isIntersecting); // the circles only turn while someone can see them
+      if (e.isIntersecting) panel.classList.add('is-seen');
+    }
+  }, { threshold: 0.25 }).observe(panel);
+}

@@ -1,13 +1,13 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.9.3/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.10.0/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
    the lesson folds up into the line under the top bar, so the video rises to sit right under it; then the video
    slides out into the room the menu left, sized so it and the Previous / Next bar fill the screen (never taller than
    MAX_H: past that, black bars at the sides); then a MENU box slides out from behind the video's right edge into
-   the page margin (just the burger where the margin is narrow). The box, the button again, Esc or opening another
-   lesson play it back the other way. The box sits on the same line as the button and is just as tall (Rim, 21 Oct):
+   the page margin (just the burger where the margin is narrow). The box, the button again or Esc play it back the
+   other way. It stays on from lesson to lesson (Rim, 21 Oct): cards and actions just show bigger in it. The box sits on the same line as the button and is just as tall (Rim, 21 Oct):
    same job, same row. Desktop only (under 992px the menu is a bar above the lesson anyway) and only
    over a video. While the pointer rests on the button, the video keeps its hover look (darker, controls) under it.
    Its corner marks point out (bigger); in focus mode they flip to point in (smaller).
@@ -84,6 +84,13 @@ const css = `
 .v2-text_links .v2-link{min-height:7.5rem}
 
 .v2-focus-btn,.v2-menu-box{display:none}
+.next_lesson_container.v2-no-video::after{content:"Video coming soon";position:absolute;inset:0;z-index:12;display:flex;
+  align-items:center;justify-content:center;background-color:#f1ebe1;color:#3d3a35;
+  background-image:linear-gradient(#3d3a3512 1px,#0000 1px),linear-gradient(90deg,#3d3a3512 1px,#0000 1px);background-size:32px 32px;
+  border:1px solid var(--brand-colors--dark-bage);
+  font-family:var(--_typography---font-styles--mono);font-size:.75rem;letter-spacing:.1em;text-transform:uppercase}
+html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--brand-colors--bage);color:var(--brand-colors--dark_gray);
+  background-image:linear-gradient(#ddd8cc12 1px,#0000 1px),linear-gradient(90deg,#ddd8cc12 1px,#0000 1px)}
 @media (min-width:992px){
   .v2-focus-btn{position:absolute;top:1.25rem;right:1.25rem;z-index:15;display:flex;align-items:center;gap:.6rem;
     box-sizing:border-box;height:2.25rem;padding:0 1rem;border:0;background:none;color:#fff;cursor:pointer;
@@ -119,6 +126,10 @@ const css = `
   .next_lesson_container:has(.bunny-player[data-player-status="playing"]:not([data-player-hover="active"])) .v2-focus-btn:not(:hover){
     opacity:0;visibility:hidden;transition:opacity .3s ease,visibility 0s linear .3s}
 
+  /* cards in focus mode: the frame is bigger, so their columns sit in its middle instead of hugging the top */
+  :root.v2-focus .v2-card>.tinko-stage_copy,:root.v2-focus .v2-card>.v2-card_links{justify-content:center}
+  /* a lesson without a video yet (and without a card): a quiet panel instead of the last lesson's video */
+  .next_lesson_container.v2-no-video .bunny-player,.next_lesson_container.v2-no-video .v2-focus-btn{visibility:hidden}
   /* waits behind the video's right edge; focus mode slides it out into the margin */
   .v2-menu-box{position:absolute;top:1.25rem;left:calc(100% + ${GAP}px);z-index:5;display:flex;align-items:center;gap:.6rem;
     box-sizing:border-box;height:2.25rem;padding:0 .9rem;border:1px solid var(--brand-colors--dark-bage);background-color:var(--brand-colors--bage);
@@ -353,11 +364,20 @@ function onStatus(player) {
   // loading (buffering) keeps the wave as it is
 }
 
+// A lesson with no video (and no card over the player) would keep showing the last lesson's video: hide it, pause it
+function markNoVideo() {
+  if (!stage) return;
+  const item = openItem;
+  const none = !!item && !item.hasAttribute('data-video-src') && !document.querySelector(`[data-lesson-stage="${item.id}"]`);
+  stage.classList.toggle('v2-no-video', none);
+  if (none) { const v = document.querySelector('#video-player video'); if (v && !v.paused) v.pause(); }
+}
+
 function onLesson() {
   const now = document.querySelector('.c_item.is-active');
   if (now === openItem) return;
   openItem = now;
-  setFocus(false); // focus mode is for one video, not the course
+  markNoVideo();
   if (waveItem && waveItem !== openItem) {
     waveItem.classList.remove('v2-wave-on');
     waveItem = null; path = null;

@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.7.1/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.8.0/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -13,7 +13,7 @@
    (blue on the open module), the open lesson's checkbox in blue.
    The open lesson's time: while its video plays, a small blue wave runs in its place; paused, it lies flat.
    The instructor panel in 0.1 Welcome: the photo floats, the dashed circles turn.
-   Lesson texts: the tag is a plain label in the bottom right corner; in 0.1 the intro paragraphs sit side by side. */
+   Lesson texts: the tag sits top right on the title's line, with the same inset as the text. */
 
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const desktop = matchMedia('(min-width: 992px)');
@@ -57,28 +57,21 @@ const css = `
 @media (max-width:767px){.v2-instructor_body>*{max-width:none}}
 @media (prefers-reduced-motion:reduce){.v2-instructor_panel .instructor_circle,.v2-instructor_panel .instructor_component{animation:none}}
 
-/* lesson text: the tag is a plain blue label in the bottom right corner of the text (in 0.1 it closes the intro,
-   just above the instructor panel); more room above the title and under it; body lines a touch tighter than 2 */
-:root.dfs-v2 .course_content .hero_tag.is-course{background:none;padding:0}
-:root.dfs-v2 .course_content .hero_tag-text.is-course{font-size:1rem;letter-spacing:.06em}
+/* lesson text: the tag sits top right on the title's line, as far in from the right as the text is from the left,
+   the same on every lesson (on phones it stays above the title). The title never runs under it. A little more room
+   above the title and under it; body lines a touch tighter than the site's 2 */
 @media (min-width:768px){
   :root.dfs-v2 .course_content.is-active{padding-top:3rem}
   :root.dfs-v2 .course_content{position:relative}
-  :root.dfs-v2 .course_content>.tags_box{position:absolute;right:1.5rem;bottom:1.25rem}
-  :root.dfs-v2 .v2-welcome_flow .tags_box{margin-right:-2.5rem}
+  :root.dfs-v2 .course_content>.tags_box{position:absolute;top:3rem;right:4rem;height:3rem;align-items:center}
+  :root.dfs-v2 .course_content .heading-style-h3{max-width:calc(100% - 10rem)}
 }
-:root.dfs-v2 .v2-welcome_flow .tags_box{justify-content:flex-end;margin-top:1.5rem}
-:root.dfs-v2 .v2-welcome_flow .tags_box+.v2-instructor_panel{margin-top:1.25rem}
+@media (min-width:768px) and (max-width:991px){
+  :root.dfs-v2 .course_content>.tags_box{right:1.5rem;height:2.7rem}
+}
 :root.dfs-v2 .course_content .heading-style-h3{margin-bottom:.75rem}
 :root.dfs-v2 .v2-welcome_flow>.heading-style-h3{margin-bottom:1.25rem}
 :root.dfs-v2 .course_content .p_course{line-height:1.85}
-/* 0.1: the two intro paragraphs side by side once the text is wide enough for two real columns */
-:root.dfs-v2 .v2-welcome_flow{container-type:inline-size}
-@container (min-width:44rem){
-  :root.dfs-v2 .v2-welcome_flow>div{display:grid;grid-template-columns:1fr 1fr;column-gap:3rem;align-items:start}
-  :root.dfs-v2 .v2-welcome_flow>div>*{grid-column:1/-1}
-  :root.dfs-v2 .v2-welcome_flow>div>.p_course:nth-child(-n+2){grid-column:auto;margin-top:0;max-width:none}
-}
 
 .v2-focus-btn,.v2-menu-box{display:none}
 @media (min-width:992px){

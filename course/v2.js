@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.11.0/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.11.1/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -96,10 +96,11 @@ const css = `
   background-color:#fbf7ee;color:#3d3a35;border-radius:.25rem;box-shadow:0 6px 24px rgba(0,0,0,.25);
   font-family:var(--_typography---font-styles--mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;line-height:1.5;
   opacity:0;translate:0 8px;transition:opacity .35s ease,translate .45s cubic-bezier(.3,.7,.4,1)}
-.v2-speed-tip::after{content:"";position:absolute;bottom:-5px;right:var(--v2-tip-arrow,1.5rem);width:10px;height:10px;
+.v2-speed-tip::after{content:"";position:absolute;bottom:-5px;left:var(--v2-tip-arrow,50%);width:10px;height:10px;margin-left:-5px;
   background:inherit;rotate:45deg}
 .v2-speed-tip.is-in{opacity:1;translate:0 0}
-.bunny-player.v2-tip-on .bunny-player__interface{opacity:1;transform:translateY(0) rotate(.001deg)}
+/* the player hides its controls while a video plays; under the tip they stay, so the bubble points at something */
+.bunny-player.v2-tip-on[data-player-status] .bunny-player__interface{opacity:1;transform:translateY(0) rotate(.001deg)}
 @media (prefers-reduced-motion:reduce){.v2-speed-tip{translate:none;transition:opacity .3s ease}}
 html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--brand-colors--bage);color:var(--brand-colors--dark_gray);
   background-image:linear-gradient(#ddd8cc12 1px,#0000 1px),linear-gradient(90deg,#ddd8cc12 1px,#0000 1px)}
@@ -464,13 +465,23 @@ function showTip(player, video) {
   el.textContent = 'We recommend 1.5\u00d7 here';
   player.appendChild(el);
   player.classList.add('v2-tip-on'); // keep the controls (and the speed button) in view while it shows
-  // right above the speed control, its point on the button's middle
+  // centred over the "x" of the speed label, its point on the x; shifted only where the player's edge would cut it
   const p = player.getBoundingClientRect(), b = speed.getBoundingClientRect();
-  const fromRight = p.right - (b.left + b.width / 2);
-  const arrow = 24;
-  el.style.right = Math.max(8, fromRight - arrow) + 'px';
+  const label = speed.querySelector('[data-player-speed-label]') || speed;
+  let x = b.left + b.width / 2;
+  const text = label.firstChild;
+  if (text && text.nodeType === 3 && text.length) {
+    const range = document.createRange();
+    range.setStart(text, text.length - 1);
+    range.setEnd(text, text.length);
+    const r = range.getBoundingClientRect();
+    if (r.width) x = r.left + r.width / 2;
+  }
+  const w = el.offsetWidth, at = x - p.left;
+  const left = Math.min(Math.max(8, at - w / 2), p.width - w - 8);
+  el.style.left = left + 'px';
   el.style.bottom = (p.bottom - b.top + 12) + 'px';
-  el.style.setProperty('--v2-tip-arrow', (fromRight - Math.max(8, fromRight - arrow) - 5) + 'px');
+  el.style.setProperty('--v2-tip-arrow', (at - left) + 'px');
   el.addEventListener('click', () => {
     for (let i = 0; i < 4 && video.playbackRate !== 1.5; i++) speed.click(); // the control steps 1, 1.2, 1.5, 2
     hideTip();

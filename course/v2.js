@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.11.1/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.11.2/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -141,8 +141,11 @@ html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--
 
   /* action cards in focus mode: still top-aligned (the tag and the first link box start on one line), but with more
      room at the top and on both sides, so the two columns come in from the edges of the bigger frame */
-  :root.v2-focus .v2-card:has(>.v2-card_links)>.tinko-stage_copy{padding-top:4rem;padding-left:max(2.5rem,6%)}
-  :root.v2-focus .v2-card:has(>.v2-card_links)>.v2-card_links{padding-top:4rem;padding-right:max(2.5rem,6%)}
+  :root.v2-focus .v2-card:has(>.v2-card_links)>.tinko-stage_copy{padding-top:4rem;padding-left:max(2.5rem,10%)}
+  :root.v2-focus .v2-card:has(>.v2-card_links)>.v2-card_links{padding-top:4rem;padding-right:max(2.5rem,10%)}
+  /* every edge of a card already has a line next to it (the frame on top and left, the menu or the page's side line on
+     the right, the Previous / Next bar below), so the card's own border only doubled them: one line each */
+  :root.dfs-v2 .v2-card{border-width:0}
   /* a lesson without a video yet (and without a card): a quiet panel instead of the last lesson's video */
   .next_lesson_container.v2-no-video .bunny-player,.next_lesson_container.v2-no-video .v2-focus-btn{visibility:hidden}
   /* waits behind the video's right edge; focus mode slides it out into the margin */
@@ -479,8 +482,13 @@ function showTip(player, video) {
   }
   const w = el.offsetWidth, at = x - p.left;
   const left = Math.min(Math.max(8, at - w / 2), p.width - w - 8);
+  // the controls slide up 1em as they show, so measure where the speed control rests, not where it is right now
+  // (offsets ignore that slide; the bounding box would put the bubble on top of the label)
+  let top = 0, n = speed;
+  while (n && n !== player) { top += n.offsetTop; n = n.offsetParent; }
+  if (n !== player) top = b.top - p.top;
   el.style.left = left + 'px';
-  el.style.bottom = (p.bottom - b.top + 12) + 'px';
+  el.style.bottom = (player.offsetHeight - top + 14) + 'px';
   el.style.setProperty('--v2-tip-arrow', (at - left) + 'px');
   el.addEventListener('click', () => {
     for (let i = 0; i < 4 && video.playbackRate !== 1.5; i++) speed.click(); // the control steps 1, 1.2, 1.5, 2

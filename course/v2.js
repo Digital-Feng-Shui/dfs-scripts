@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.10.1/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.11.0/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -15,6 +15,7 @@
    The menu: panels a step darker than the page, lesson rows alternating darker / lighter, dashed chevron buttons
    (blue on the open module), the open lesson's checkbox in blue.
    The open lesson's time: while its video plays, a small blue wave runs in its place; paused, it lies flat.
+   Speed tip: on videos of 8+ minutes still playing at 1x, a short bubble over the speed control suggests 1.5x.
    The instructor panel in 0.1 Welcome: the photo floats, the dashed circles turn.
    Lesson texts: the tag sits top right on the title's line, with the same inset as the text; extra tags (workfile ↓,
    resources ↓) stack under it and glide down to the link boxes below the text. */
@@ -90,6 +91,16 @@ const css = `
   background-image:linear-gradient(#3d3a3512 1px,#0000 1px),linear-gradient(90deg,#3d3a3512 1px,#0000 1px);background-size:32px 32px;
   border:1px solid var(--brand-colors--dark-bage);
   font-family:var(--_typography---font-styles--mono);font-size:.75rem;letter-spacing:.1em;text-transform:uppercase}
+/* the speed tip: a small bubble over the speed control on long videos (see "speed tip" below) */
+.v2-speed-tip{position:absolute;z-index:16;pointer-events:auto;cursor:pointer;max-width:15rem;padding:.7rem .9rem;
+  background-color:#fbf7ee;color:#3d3a35;border-radius:.25rem;box-shadow:0 6px 24px rgba(0,0,0,.25);
+  font-family:var(--_typography---font-styles--mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;line-height:1.5;
+  opacity:0;translate:0 8px;transition:opacity .35s ease,translate .45s cubic-bezier(.3,.7,.4,1)}
+.v2-speed-tip::after{content:"";position:absolute;bottom:-5px;right:var(--v2-tip-arrow,1.5rem);width:10px;height:10px;
+  background:inherit;rotate:45deg}
+.v2-speed-tip.is-in{opacity:1;translate:0 0}
+.bunny-player.v2-tip-on .bunny-player__interface{opacity:1;transform:translateY(0) rotate(.001deg)}
+@media (prefers-reduced-motion:reduce){.v2-speed-tip{translate:none;transition:opacity .3s ease}}
 html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--brand-colors--bage);color:var(--brand-colors--dark_gray);
   background-image:linear-gradient(#ddd8cc12 1px,#0000 1px),linear-gradient(90deg,#ddd8cc12 1px,#0000 1px)}
 @media (min-width:992px){
@@ -381,6 +392,7 @@ function onLesson() {
   if (now === openItem) return;
   openItem = now;
   markNoVideo();
+  hideTip();
   if (waveItem && waveItem !== openItem) {
     waveItem.classList.remove('v2-wave-on');
     waveItem = null; path = null;
@@ -419,3 +431,63 @@ document.addEventListener('click', (e) => {
   if (window.lenis && typeof window.lenis.scrollTo === 'function') window.lenis.scrollTo(links, { offset: -96, duration: reduce ? 0 : 0.9 });
   else links.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
 });
+
+/* ---------- speed tip ---------- */
+
+// Long lessons (8+ minutes) go down better a little faster. A few seconds into one, while it still plays at 1x, a small
+// bubble over the speed control says so for a few seconds; a click on it sets 1.5x. Once per video per visit, and it
+// leaves early on pause, a speed change or another lesson. Media events don't bubble, so this listens in the capture
+// phase (the player element is swapped for every lesson).
+const TIP_LONG = 8 * 60, TIP_AT = 8, TIP_FOR = 6500; // s, s, ms
+const tipSeen = new Set();
+let tip = null, tipTimer = 0;
+
+function tipKey(player) { return player.getAttribute('data-player-src') || ''; }
+
+function hideTip() {
+  clearTimeout(tipTimer);
+  if (!tip) return;
+  const el = tip, player = el.closest('.bunny-player');
+  tip = null;
+  el.classList.remove('is-in');
+  if (player) player.classList.remove('v2-tip-on');
+  setTimeout(() => el.remove(), 450);
+}
+
+function showTip(player, video) {
+  const speed = player.querySelector('[data-player-control="speed"]');
+  if (!speed) return;
+  tipSeen.add(tipKey(player));
+  const el = document.createElement('div');
+  el.className = 'v2-speed-tip';
+  el.setAttribute('role', 'status');
+  el.textContent = 'We recommend 1.5\u00d7 here';
+  player.appendChild(el);
+  player.classList.add('v2-tip-on'); // keep the controls (and the speed button) in view while it shows
+  // right above the speed control, its point on the button's middle
+  const p = player.getBoundingClientRect(), b = speed.getBoundingClientRect();
+  const fromRight = p.right - (b.left + b.width / 2);
+  const arrow = 24;
+  el.style.right = Math.max(8, fromRight - arrow) + 'px';
+  el.style.bottom = (p.bottom - b.top + 12) + 'px';
+  el.style.setProperty('--v2-tip-arrow', (fromRight - Math.max(8, fromRight - arrow) - 5) + 'px');
+  el.addEventListener('click', () => {
+    for (let i = 0; i < 4 && video.playbackRate !== 1.5; i++) speed.click(); // the control steps 1, 1.2, 1.5, 2
+    hideTip();
+  });
+  tip = el;
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('is-in')));
+  tipTimer = setTimeout(hideTip, TIP_FOR);
+}
+
+document.addEventListener('timeupdate', (e) => {
+  const video = e.target;
+  if (!(video instanceof HTMLVideoElement) || tip) return;
+  const player = video.closest('[data-bunny-player-init]');
+  if (!player || video.paused || video.playbackRate > 1) return;
+  if (!(video.duration >= TIP_LONG) || video.currentTime < TIP_AT || video.currentTime > TIP_AT + 60) return;
+  if (tipSeen.has(tipKey(player))) return;
+  showTip(player, video);
+}, true);
+document.addEventListener('pause', hideTip, true);
+document.addEventListener('ratechange', (e) => { if (tip && e.target.playbackRate !== 1) hideTip(); }, true);

@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.9.2/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.9.3/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -9,7 +9,8 @@
    the page margin (just the burger where the margin is narrow). The box, the button again, Esc or opening another
    lesson play it back the other way. The box sits on the same line as the button and is just as tall (Rim, 21 Oct):
    same job, same row. Desktop only (under 992px the menu is a bar above the lesson anyway) and only
-   over a video. While the pointer rests on the button, the video keeps its darker hover layer under it.
+   over a video. While the pointer rests on the button, the video keeps its hover look (darker, controls) under it.
+   Its corner marks point out (bigger); in focus mode they flip to point in (smaller).
    The menu: panels a step darker than the page, lesson rows alternating darker / lighter, dashed chevron buttons
    (blue on the open module), the open lesson's checkbox in blue.
    The open lesson's time: while its video plays, a small blue wave runs in its place; paused, it lies flat.
@@ -88,14 +89,27 @@ const css = `
     box-sizing:border-box;height:2.25rem;padding:0 1rem;border:0;background:none;color:#fff;cursor:pointer;
     font-family:var(--_typography---font-styles--mono);font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;line-height:1;
     transition:opacity .3s ease,visibility 0s linear 0s}
-  .v2-focus-btn::before{content:"";position:absolute;inset:0;pointer-events:none;
-    --c:rgba(255,255,255,.9);--l:9px;--t:1.5px;
-    background:linear-gradient(var(--c),var(--c)) top left/var(--l) var(--t),linear-gradient(var(--c),var(--c)) top left/var(--t) var(--l),
-      linear-gradient(var(--c),var(--c)) top right/var(--l) var(--t),linear-gradient(var(--c),var(--c)) top right/var(--t) var(--l),
-      linear-gradient(var(--c),var(--c)) bottom left/var(--l) var(--t),linear-gradient(var(--c),var(--c)) bottom left/var(--t) var(--l),
-      linear-gradient(var(--c),var(--c)) bottom right/var(--l) var(--t),linear-gradient(var(--c),var(--c)) bottom right/var(--t) var(--l);
-    background-repeat:no-repeat;transition:inset .35s cubic-bezier(.3,.7,.4,1)}
-  .v2-focus-btn:hover::before,.v2-focus-btn:focus-visible::before{inset:-4px}
+  /* the four corners: outside focus mode they point out (bigger) and step out on hover; in focus mode they flip to
+     point in (smaller), like an exit-fullscreen icon, and step in on hover */
+  .v2-fc{position:absolute;width:9px;height:9px;pointer-events:none;border:0 solid rgba(255,255,255,.9);
+    transition:scale .4s cubic-bezier(.6,0,.3,1),translate .35s cubic-bezier(.3,.7,.4,1)}
+  .v2-fc.is-tl{top:0;left:0;border-top-width:1.5px;border-left-width:1.5px}
+  .v2-fc.is-tr{top:0;right:0;border-top-width:1.5px;border-right-width:1.5px}
+  .v2-fc.is-bl{bottom:0;left:0;border-bottom-width:1.5px;border-left-width:1.5px}
+  .v2-fc.is-br{bottom:0;right:0;border-bottom-width:1.5px;border-right-width:1.5px}
+  .v2-focus-btn:is(:hover,:focus-visible) .v2-fc.is-tl{translate:-4px -4px}
+  .v2-focus-btn:is(:hover,:focus-visible) .v2-fc.is-tr{translate:4px -4px}
+  .v2-focus-btn:is(:hover,:focus-visible) .v2-fc.is-bl{translate:-4px 4px}
+  .v2-focus-btn:is(:hover,:focus-visible) .v2-fc.is-br{translate:4px 4px}
+  :root.v2-focus .v2-fc{scale:-1}
+  :root.v2-focus .v2-focus-btn:is(:hover,:focus-visible) .v2-fc.is-tl{translate:3px 3px}
+  :root.v2-focus .v2-focus-btn:is(:hover,:focus-visible) .v2-fc.is-tr{translate:-3px 3px}
+  :root.v2-focus .v2-focus-btn:is(:hover,:focus-visible) .v2-fc.is-bl{translate:3px -3px}
+  :root.v2-focus .v2-focus-btn:is(:hover,:focus-visible) .v2-fc.is-br{translate:-3px -3px}
+  /* the button sits over the player, not in it, so reaching it counts as leaving the player: while the pointer is on
+     it, hold the player's hover look (darker video, controls) so the white label keeps its ground */
+  .next_lesson_container:has(.v2-focus-btn:hover) .bunny-player[data-player-status="playing"] .bunny-player__dark{opacity:.3}
+  .next_lesson_container:has(.v2-focus-btn:hover) .bunny-player[data-player-status] .bunny-player__interface{opacity:1;transform:translateY(0) rotate(.001deg)}
   .v2-focus-btn:focus-visible{outline:none}
   .v2-focus-btn svg{width:1rem;height:.75rem;flex:none}
   .v2-focus-btn span{text-shadow:0 1px 6px rgba(0,0,0,.35)}
@@ -138,7 +152,7 @@ const course = document.querySelector('.course');
 const button = document.createElement('button');
 button.type = 'button';
 button.className = 'v2-focus-btn';
-button.innerHTML = EYE + '<span>Focus mode</span>';
+button.innerHTML = '<i class="v2-fc is-tl"></i><i class="v2-fc is-tr"></i><i class="v2-fc is-bl"></i><i class="v2-fc is-br"></i>' + EYE + '<span>Focus mode</span>';
 const label = button.querySelector('span');
 
 const box = document.createElement('button');
@@ -274,17 +288,6 @@ document.addEventListener('keydown', (e) => {
 });
 desktop.addEventListener('change', () => { if (!desktop.matches) setFocus(false); });
 addEventListener('resize', () => { if (focused) { fitVideo(); fitBox(); } });
-
-// The player darkens the video while the pointer moves over it and lifts that after 3 s of stillness. Resting on
-// the (white) button would lift it too, so while the pointer is on the button it keeps telling the player it's there.
-let keepAwake = 0;
-button.addEventListener('pointerenter', (e) => {
-  const poke = () => window.dispatchEvent(new PointerEvent('pointermove', { clientX: e.clientX, clientY: e.clientY }));
-  poke();
-  clearInterval(keepAwake);
-  keepAwake = setInterval(poke, 1000);
-});
-button.addEventListener('pointerleave', () => clearInterval(keepAwake));
 
 /* ---------- the open lesson ---------- */
 

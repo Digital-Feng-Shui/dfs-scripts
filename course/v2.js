@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.9.1/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.9.2/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -55,7 +55,7 @@ const css = `
 .v2-instructor_panel .instructor_circle{animation:v2-turn 70s linear infinite paused}
 .v2-instructor_panel .instructor_circle.v2-circle-top{animation-duration:90s;animation-direction:reverse}
 .v2-instructor_panel .instructor_image{animation:v2-float 6s ease-in-out infinite paused}
-.v2-instructor_panel .instructor_tag{animation:v2-float-tag 6s ease-in-out -1.4s infinite paused}
+.v2-instructor_panel .instructor_tag{animation:v2-float-tag 6s ease-in-out -4.6s infinite paused}
 .v2-instructor_panel.is-shown .instructor_circle,.v2-instructor_panel.is-shown .instructor_image,.v2-instructor_panel.is-shown .instructor_tag{animation-play-state:running}
 /* the text sits in a narrower column, centred in its half */
 .v2-instructor_body>*{width:100%;max-width:25rem}

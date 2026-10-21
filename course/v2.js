@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.10.0/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.10.1/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -7,7 +7,8 @@
    slides out into the room the menu left, sized so it and the Previous / Next bar fill the screen (never taller than
    MAX_H: past that, black bars at the sides); then a MENU box slides out from behind the video's right edge into
    the page margin (just the burger where the margin is narrow). The box, the button again or Esc play it back the
-   other way. It stays on from lesson to lesson (Rim, 21 Oct): cards and actions just show bigger in it. The box sits on the same line as the button and is just as tall (Rim, 21 Oct):
+   other way. It stays on from lesson to lesson (Rim, 21 Oct): cards and actions show bigger in it, actions with more
+   room around their two columns. The box sits on the same line as the button and is just as tall (Rim, 21 Oct):
    same job, same row. Desktop only (under 992px the menu is a bar above the lesson anyway) and only
    over a video. While the pointer rests on the button, the video keeps its hover look (darker, controls) under it.
    Its corner marks point out (bigger); in focus mode they flip to point in (smaller).
@@ -126,8 +127,10 @@ html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--
   .next_lesson_container:has(.bunny-player[data-player-status="playing"]:not([data-player-hover="active"])) .v2-focus-btn:not(:hover){
     opacity:0;visibility:hidden;transition:opacity .3s ease,visibility 0s linear .3s}
 
-  /* cards in focus mode: the frame is bigger, so their columns sit in its middle instead of hugging the top */
-  :root.v2-focus .v2-card>.tinko-stage_copy,:root.v2-focus .v2-card>.v2-card_links{justify-content:center}
+  /* action cards in focus mode: still top-aligned (the tag and the first link box start on one line), but with more
+     room at the top and on both sides, so the two columns come in from the edges of the bigger frame */
+  :root.v2-focus .v2-card:has(>.v2-card_links)>.tinko-stage_copy{padding-top:4rem;padding-left:max(2.5rem,6%)}
+  :root.v2-focus .v2-card:has(>.v2-card_links)>.v2-card_links{padding-top:4rem;padding-right:max(2.5rem,6%)}
   /* a lesson without a video yet (and without a card): a quiet panel instead of the last lesson's video */
   .next_lesson_container.v2-no-video .bunny-player,.next_lesson_container.v2-no-video .v2-focus-btn{visibility:hidden}
   /* waits behind the video's right edge; focus mode slides it out into the margin */

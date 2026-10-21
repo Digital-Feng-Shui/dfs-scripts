@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.5.0/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.6.0/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -12,7 +12,7 @@
    The menu: panels a step darker than the page, lesson rows alternating darker / lighter, dashed chevron buttons
    (blue on the open module), the open lesson's checkbox in blue.
    The open lesson's time: while its video plays, a small blue wave runs in its place; paused, it lies flat.
-   The instructor panel in 0.1 Welcome: the photo floats and leans towards the pointer, the dashed circles turn.
+   The instructor panel in 0.1 Welcome: the photo floats, the dashed circles turn.
    Lesson texts: the tag stands upright in the left margin beside the title. */
 
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -44,16 +44,14 @@ const css = `
 .c_item.v2-wave-on .c_time{display:none}
 .c_item.v2-wave-on .v2-wave{display:block}
 
-/* the instructor panel (0.1): the photo floats up and down the way the homepage's does and leans a little towards
-   the pointer (with a spring, so it settles with a small bounce); the name tag rides on it, a touch further out, for
-   depth. The two dashed circles turn slowly, opposite ways. All of it only moves while the panel is on screen. */
+/* the instructor panel (0.1): the photo (with its name tag) floats up and down the way the homepage's does, and the
+   two dashed circles turn slowly, opposite ways. Both only move while the panel is on screen. */
 @keyframes v2-turn{to{transform:rotate(360deg)}}
 @keyframes v2-float{0%,100%{translate:0 0}50%{translate:0 -12px}}
 .v2-instructor_panel .instructor_circle{animation:v2-turn 70s linear infinite paused}
 .v2-instructor_panel .instructor_circle.v2-circle-top{animation-duration:90s;animation-direction:reverse}
 .v2-instructor_panel .instructor_component{animation:v2-float 6s ease-in-out infinite paused}
 .v2-instructor_panel.is-shown .instructor_circle,.v2-instructor_panel.is-shown .instructor_component{animation-play-state:running}
-.v2-instructor_panel .instructor_image{transform-origin:50% 50%}
 /* the text sits in a narrower column, centred in its half */
 .v2-instructor_body>*{width:100%;max-width:25rem}
 @media (max-width:767px){.v2-instructor_body>*{max-width:none}}
@@ -368,30 +366,4 @@ if (panel && !reduce) {
   new IntersectionObserver((entries) => {
     for (const e of entries) panel.classList.toggle('is-shown', e.isIntersecting); // moves only while it can be seen
   }, { threshold: 0.1 }).observe(panel);
-
-  // The lean: the pointer's place over the photo's half (-1..1 both ways) pulls the photo round a little in 3D.
-  // A spring follows it, so a quick move overshoots and settles; frames only run while it's still moving.
-  const grid = panel.querySelector('.v2-instructor_grid');
-  const photo = panel.querySelector('.instructor_image');
-  const tag = panel.querySelector('.instructor_tag');
-  if (grid && photo && matchMedia('(pointer: fine)').matches) {
-    const LEAN = 7, K = 0.06, DAMP = 0.8; // degrees at the edge, spring pull, spring damping
-    let tx = 0, ty = 0, x = 0, y = 0, vx = 0, vy = 0, frame = 0;
-    const step = () => {
-      vx = (vx + (tx - x) * K) * DAMP; x += vx;
-      vy = (vy + (ty - y) * K) * DAMP; y += vy;
-      photo.style.transform = `perspective(900px) rotateY(${(x * LEAN).toFixed(2)}deg) rotateX(${(-y * LEAN).toFixed(2)}deg)`;
-      if (tag) tag.style.translate = `${(x * 6).toFixed(1)}px ${(y * 4).toFixed(1)}px`;
-      const moving = Math.abs(tx - x) + Math.abs(ty - y) + Math.abs(vx) + Math.abs(vy) > 0.0005;
-      frame = moving ? requestAnimationFrame(step) : 0;
-    };
-    const go = () => { if (!frame) frame = requestAnimationFrame(step); };
-    grid.addEventListener('pointermove', (e) => {
-      const r = grid.getBoundingClientRect();
-      tx = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1));
-      ty = Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height) * 2 - 1));
-      go();
-    });
-    grid.addEventListener('pointerleave', () => { tx = 0; ty = 0; go(); });
-  }
 }

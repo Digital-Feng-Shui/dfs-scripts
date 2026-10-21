@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.12.0/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.13.0/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -16,6 +16,7 @@
    (blue on the open module), the open lesson's checkbox in blue.
    The open lesson's time: while its video plays, a small blue wave runs in its place; paused, it lies flat.
    End of a video: the Complete and Continue field is darker and flows down behind the controls as a gradient.
+   Copy (0.2 install line): a bubble over the button says it's on the clipboard.
    Speed tip: on videos of 8+ minutes still playing at 1x, a short bubble over the speed control suggests 1.5x.
    The instructor panel in 0.1 Welcome: the photo floats, the dashed circles turn.
    Lesson texts: the tag sits top right on the title's line, with the same inset as the text; extra tags (workfile ↓,
@@ -103,16 +104,17 @@ const css = `
   background-image:linear-gradient(rgba(24,23,22,.94),rgba(24,23,22,.3));opacity:0;transition:opacity .2s ease}
 :root.dfs-v2 .next_lesson_container:has(#finish_video[style*="flex"]) .bunny-player__interface::before{opacity:1;transition:opacity .5s ease .3s}
 /* the speed tip: a small bubble over the speed control on long videos (see "speed tip" below) */
-.v2-speed-tip{position:absolute;z-index:16;pointer-events:auto;cursor:pointer;max-width:15rem;padding:.7rem .9rem;
+.v2-speed-tip,.v2-copy-pop{position:absolute;z-index:16;pointer-events:auto;cursor:pointer;max-width:15rem;padding:.7rem .9rem;
   background-color:#fbf7ee;color:#3d3a35;border-radius:.25rem;box-shadow:0 6px 24px rgba(0,0,0,.25);
   font-family:var(--_typography---font-styles--mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;line-height:1.5;
   opacity:0;translate:0 8px;transition:opacity .35s ease,translate .45s cubic-bezier(.3,.7,.4,1)}
-.v2-speed-tip::after{content:"";position:absolute;bottom:-5px;left:var(--v2-tip-arrow,50%);width:10px;height:10px;margin-left:-5px;
+.v2-speed-tip::after,.v2-copy-pop::after{content:"";position:absolute;bottom:-5px;left:var(--v2-tip-arrow,50%);width:10px;height:10px;margin-left:-5px;
   background:inherit;rotate:45deg}
-.v2-speed-tip.is-in{opacity:1;translate:0 0}
+.v2-speed-tip.is-in,.v2-copy-pop.is-in{opacity:1;translate:0 0}
+.v2-copy-pop{z-index:60;pointer-events:none;white-space:nowrap}
 /* the player hides its controls while a video plays; under the tip they stay, so the bubble points at something */
 .bunny-player.v2-tip-on[data-player-status] .bunny-player__interface{opacity:1;transform:translateY(0) rotate(.001deg)}
-@media (prefers-reduced-motion:reduce){.v2-speed-tip{translate:none;transition:opacity .3s ease}}
+@media (prefers-reduced-motion:reduce){.v2-speed-tip,.v2-copy-pop{translate:none;transition:opacity .3s ease}}
 html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--brand-colors--bage);color:var(--brand-colors--dark_gray);
   background-image:linear-gradient(#ddd8cc12 1px,#0000 1px),linear-gradient(90deg,#ddd8cc12 1px,#0000 1px)}
 @media (min-width:992px){
@@ -527,3 +529,46 @@ document.addEventListener('timeupdate', (e) => {
 }, true);
 document.addEventListener('pause', hideTip, true);
 document.addEventListener('ratechange', (e) => { if (tip && e.target.playbackRate !== 1) hideTip(); }, true);
+
+/* ---------- copied ---------- */
+
+// The install line's Copy button (main.js copies it and turns the label into "Copied"): once it has, the same kind of
+// bubble as the speed tip rises over the button and says so, then goes. Listens on window in the capture phase, like
+// main.js, whose handler stops the click there.
+const COPY_FOR = 1900; // ms
+let copyPop = null, copyTimer = 0;
+
+function showCopied(button) {
+  clearTimeout(copyTimer);
+  if (copyPop) copyPop.remove();
+  const el = document.createElement('div');
+  el.className = 'v2-copy-pop';
+  el.setAttribute('role', 'status');
+  el.textContent = 'Copied to clipboard';
+  document.body.appendChild(el);
+  const b = button.getBoundingClientRect();
+  const w = el.offsetWidth;
+  const x = b.left + b.width / 2 + scrollX;
+  const left = Math.max(scrollX + 8, Math.min(x - w / 2, scrollX + innerWidth - w - 8));
+  el.style.left = left + 'px';
+  el.style.top = (b.top + scrollY - el.offsetHeight - 14) + 'px';
+  el.style.setProperty('--v2-tip-arrow', (x - left) + 'px');
+  copyPop = el;
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('is-in')));
+  copyTimer = setTimeout(() => {
+    el.classList.remove('is-in');
+    setTimeout(() => { el.remove(); if (copyPop === el) copyPop = null; }, 450);
+  }, COPY_FOR);
+}
+
+addEventListener('click', (e) => {
+  const button = e.target.closest && e.target.closest('[data-helper-copy]');
+  if (!button) return;
+  // the clipboard answers in a moment; the bubble only comes once the label says it worked
+  let tries = 0;
+  const check = () => {
+    if (/copied/i.test(button.textContent)) showCopied(button);
+    else if (++tries < 8) setTimeout(check, 60);
+  };
+  setTimeout(check, 30);
+}, true);

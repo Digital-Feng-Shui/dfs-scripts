@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.7.0/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.7.1/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -19,7 +19,6 @@ const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const desktop = matchMedia('(min-width: 992px)');
 const root = document.documentElement;
 root.classList.add('dfs-v2');
-if (new URLSearchParams(location.search).get('intro') === 'stack') root.classList.add('v2-intro-stack');
 
 const EYE = '<svg viewBox="0 0 16 12" fill="none" aria-hidden="true"><path d="M1 6s2.6-4.5 7-4.5S15 6 15 6s-2.6 4.5-7 4.5S1 6 1 6Z" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="6" r="1.9" stroke="currentColor" stroke-width="1.2"/></svg>';
 const BURGER = '<svg viewBox="0 0 14 10" fill="none" aria-hidden="true"><path d="M0 1h14M0 5h14M0 9h14" stroke="currentColor" stroke-width="1.3"/></svg>';
@@ -73,13 +72,12 @@ const css = `
 :root.dfs-v2 .course_content .heading-style-h3{margin-bottom:.75rem}
 :root.dfs-v2 .v2-welcome_flow>.heading-style-h3{margin-bottom:1.25rem}
 :root.dfs-v2 .course_content .p_course{line-height:1.85}
-/* 0.1: the two intro paragraphs side by side once the text is wide enough for two real columns
-   (?intro=stack shows them one under the other, to compare) */
+/* 0.1: the two intro paragraphs side by side once the text is wide enough for two real columns */
 :root.dfs-v2 .v2-welcome_flow{container-type:inline-size}
 @container (min-width:44rem){
-  :root.dfs-v2:not(.v2-intro-stack) .v2-welcome_flow>div{display:grid;grid-template-columns:1fr 1fr;column-gap:3rem;align-items:start}
-  :root.dfs-v2:not(.v2-intro-stack) .v2-welcome_flow>div>*{grid-column:1/-1}
-  :root.dfs-v2:not(.v2-intro-stack) .v2-welcome_flow>div>.p_course:nth-child(-n+2){grid-column:auto;margin-top:0;max-width:none}
+  :root.dfs-v2 .v2-welcome_flow>div{display:grid;grid-template-columns:1fr 1fr;column-gap:3rem;align-items:start}
+  :root.dfs-v2 .v2-welcome_flow>div>*{grid-column:1/-1}
+  :root.dfs-v2 .v2-welcome_flow>div>.p_course:nth-child(-n+2){grid-column:auto;margin-top:0;max-width:none}
 }
 
 .v2-focus-btn,.v2-menu-box{display:none}

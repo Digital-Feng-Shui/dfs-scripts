@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.11.2/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.11.4/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -305,6 +305,7 @@ function setFocus(on) {
   focused = on;
   label.textContent = on ? 'Exit focus' : 'Focus mode';
   button.setAttribute('aria-pressed', on ? 'true' : 'false');
+  hideTip(); // the player is about to change size under it
   if (on) enter(); else leave();
 }
 
@@ -316,7 +317,7 @@ document.addEventListener('keydown', (e) => {
   setFocus(false);
 });
 desktop.addEventListener('change', () => { if (!desktop.matches) setFocus(false); });
-addEventListener('resize', () => { if (focused) { fitVideo(); fitBox(); } });
+addEventListener('resize', () => { hideTip(); if (focused) { fitVideo(); fitBox(); } });
 
 /* ---------- the open lesson ---------- */
 
@@ -450,12 +451,12 @@ function tipKey(player) { return player.getAttribute('data-player-src') || ''; }
 
 function hideTip() {
   clearTimeout(tipTimer);
-  if (!tip) return;
-  const el = tip, player = el.closest('.bunny-player');
+  const el = tip;
   tip = null;
-  el.classList.remove('is-in');
-  if (player) player.classList.remove('v2-tip-on');
-  setTimeout(() => el.remove(), 450);
+  // a lesson switch copies the whole player, a showing tip included: clear those copies too, and the controls hold
+  document.querySelectorAll('.v2-speed-tip').forEach((t) => { t.classList.remove('is-in'); if (t !== el) t.remove(); });
+  document.querySelectorAll('.bunny-player.v2-tip-on').forEach((p) => p.classList.remove('v2-tip-on'));
+  if (el) setTimeout(() => el.remove(), 450);
 }
 
 function showTip(player, video) {
@@ -468,7 +469,18 @@ function showTip(player, video) {
   el.textContent = 'We recommend 1.5\u00d7 here';
   player.appendChild(el);
   player.classList.add('v2-tip-on'); // keep the controls (and the speed button) in view while it shows
-  // centred over the "x" of the speed label, its point on the x; shifted only where the player's edge would cut it
+  tip = el;
+  // placed on the next frame, once the layout has settled, then faded in
+  requestAnimationFrame(() => { if (tip !== el) return; placeTip(el, player, speed); requestAnimationFrame(() => el.classList.add('is-in')); });
+  el.addEventListener('click', () => {
+    for (let i = 0; i < 4 && video.playbackRate !== 1.5; i++) speed.click(); // the control steps 1, 1.2, 1.5, 2
+    hideTip();
+  });
+  tipTimer = setTimeout(hideTip, TIP_FOR);
+}
+
+// Centred over the "x" of the speed label, its point on the x; shifted only where the player's edge would cut it
+function placeTip(el, player, speed) {
   const p = player.getBoundingClientRect(), b = speed.getBoundingClientRect();
   const label = speed.querySelector('[data-player-speed-label]') || speed;
   let x = b.left + b.width / 2;
@@ -484,19 +496,13 @@ function showTip(player, video) {
   const left = Math.min(Math.max(8, at - w / 2), p.width - w - 8);
   // the controls slide up 1em as they show, so measure where the speed control rests, not where it is right now
   // (offsets ignore that slide; the bounding box would put the bubble on top of the label)
-  let top = 0, n = speed;
+  // (measured from the "1.0x" label itself, not its button, so the button's own padding can't bring it down)
+  let top = 0, n = label;
   while (n && n !== player) { top += n.offsetTop; n = n.offsetParent; }
-  if (n !== player) top = b.top - p.top;
+  if (n !== player) top = label.getBoundingClientRect().top - p.top;
   el.style.left = left + 'px';
-  el.style.bottom = (player.offsetHeight - top + 14) + 'px';
+  el.style.bottom = (player.offsetHeight - top + 18) + 'px';
   el.style.setProperty('--v2-tip-arrow', (at - left) + 'px');
-  el.addEventListener('click', () => {
-    for (let i = 0; i < 4 && video.playbackRate !== 1.5; i++) speed.click(); // the control steps 1, 1.2, 1.5, 2
-    hideTip();
-  });
-  tip = el;
-  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('is-in')));
-  tipTimer = setTimeout(hideTip, TIP_FOR);
 }
 
 document.addEventListener('timeupdate', (e) => {

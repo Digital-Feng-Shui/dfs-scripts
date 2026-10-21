@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.8.0/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.9.0/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -14,7 +14,8 @@
    (blue on the open module), the open lesson's checkbox in blue.
    The open lesson's time: while its video plays, a small blue wave runs in its place; paused, it lies flat.
    The instructor panel in 0.1 Welcome: the photo floats, the dashed circles turn.
-   Lesson texts: the tag sits top right on the title's line, with the same inset as the text. */
+   Lesson texts: the tag sits top right on the title's line, with the same inset as the text; extra tags (workfile ↓,
+   resources ↓) stack under it and glide down to the link boxes below the text. */
 
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const desktop = matchMedia('(min-width: 992px)');
@@ -59,20 +60,24 @@ const css = `
 @media (prefers-reduced-motion:reduce){.v2-instructor_panel .instructor_circle,.v2-instructor_panel .instructor_component{animation:none}}
 
 /* lesson text: the tag sits top right on the title's line, as far in from the right as the text is from the left,
-   the same on every lesson (on phones it stays above the title). The title never runs under it. A little more room
-   above the title and under it; body lines a touch tighter than the site's 2 */
+   the same on every lesson (on phones it stays above the title). Extra tags (workfile ↓, resources ↓, ...) stack
+   under it, right-aligned, and lead to the link boxes below the text. Title and text never run under the tags.
+   A little more room above the title and under it; body lines a touch tighter than the site's 2 */
 @media (min-width:768px){
   :root.dfs-v2 .course_content.is-active{padding-top:3rem}
   :root.dfs-v2 .course_content{position:relative}
-  :root.dfs-v2 .course_content>.tags_box{position:absolute;top:3rem;right:4rem;height:3rem;align-items:center}
+  :root.dfs-v2 .course_content>.tags_box{position:absolute;top:calc(3rem + .625rem);right:4rem;flex-direction:column;align-items:flex-end;row-gap:.5rem}
+  :root.dfs-v2 .course_content:has(>.tags_box>.hero_tag+.hero_tag) .p_course{max-width:min(32rem,calc(100% - 10rem))}
   :root.dfs-v2 .course_content .heading-style-h3{max-width:calc(100% - 10rem)}
 }
 @media (min-width:768px) and (max-width:991px){
-  :root.dfs-v2 .course_content>.tags_box{right:1.5rem;height:2.7rem}
+  :root.dfs-v2 .course_content>.tags_box{top:calc(3rem + .475rem);right:1.5rem}
 }
 :root.dfs-v2 .course_content .heading-style-h3{margin-bottom:.75rem}
 :root.dfs-v2 .v2-welcome_flow>.heading-style-h3{margin-bottom:1.25rem}
 :root.dfs-v2 .course_content .p_course{line-height:1.85}
+:root.dfs-v2 .course_content .hero_tag.is-template,:root.dfs-v2 .course_content .hero_tag.is-work{cursor:pointer}
+.v2-text_links .v2-link{min-height:7.5rem}
 
 .v2-focus-btn,.v2-menu-box{display:none}
 @media (min-width:992px){
@@ -373,3 +378,15 @@ if (panel && !reduce) {
     for (const e of entries) panel.classList.toggle('is-shown', e.isIntersecting); // moves only while it can be seen
   }, { threshold: 0.1 }).observe(panel);
 }
+
+/* ---------- lesson tags ---------- */
+
+// workfile ↓, resources ↓ and the like point at the link boxes under the text: a click glides there
+document.addEventListener('click', (e) => {
+  const tag = e.target.closest && e.target.closest('.course_content .hero_tag.is-template, .course_content .hero_tag.is-work');
+  if (!tag) return;
+  const links = tag.closest('.course_content').querySelector('.v2-text_links');
+  if (!links) return;
+  if (window.lenis && typeof window.lenis.scrollTo === 'function') window.lenis.scrollTo(links, { offset: -96, duration: reduce ? 0 : 0.9 });
+  else links.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+});

@@ -1,17 +1,18 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.14.0/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.15.0/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
    the lesson folds up into the line under the top bar, so the video rises to sit right under it; then the video
    slides out into the room the menu left, sized so it and the Previous / Next bar fill the screen (never taller than
-   MAX_H: past that, black bars at the sides); then a MENU box slides out from behind the video's right edge into
-   the page margin (just the burger where the margin is narrow). The box, the button again or Esc play it back the
-   other way. It stays on from lesson to lesson (Rim, 21 Oct): cards and actions show bigger in it, actions with more
-   room around their two columns. The box sits on the same line as the button and is just as tall (Rim, 21 Oct):
-   same job, same row. Desktop only (under 992px the menu is a bar above the lesson anyway) and only
-   over a video. While the pointer rests on the button, the video keeps its hover look (darker, controls) under it.
-   Its corner marks point out (bigger); in focus mode they flip to point in (smaller).
+   MAX_H: past that, black bars at the sides); then a menu tab (three bars) slides out from behind the video's right
+   edge and stays hanging on it. The tab, the button again or Esc play it back the other way. It stays on from lesson
+   to lesson (Rim, 21 Oct): cards and actions show bigger in it, actions with more room around their two columns.
+   The tab sits on the same line as the button and is just as tall: same job, same row. The button is 1.25rem in from
+   the video's edges and the tab hangs on the edge, so the two are 1.25rem apart too (Rim, 21 Oct). Desktop only
+   (under 992px the menu is a bar above the lesson anyway) and only over a video. While the pointer rests on the
+   button, the video keeps its hover look (darker, controls) under it.
+   No icon but its corner marks: they point out (bigger); in focus mode they flip to point in (smaller).
    The menu: panels a step darker than the page, lesson rows alternating darker / lighter, dashed chevron buttons
    (blue on the open module), the open lesson's checkbox in blue.
    The open lesson's time: while its video plays, a small blue wave runs in its place; paused, it lies flat.
@@ -29,9 +30,8 @@ const desktop = matchMedia('(min-width: 992px)');
 const root = document.documentElement;
 root.classList.add('dfs-v2');
 
-const EYE = '<svg viewBox="0 0 16 12" fill="none" aria-hidden="true"><path d="M1 6s2.6-4.5 7-4.5S15 6 15 6s-2.6 4.5-7 4.5S1 6 1 6Z" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="6" r="1.9" stroke="currentColor" stroke-width="1.2"/></svg>';
-const BURGER = '<svg viewBox="0 0 14 10" fill="none" aria-hidden="true"><path d="M0 1h14M0 5h14M0 9h14" stroke="currentColor" stroke-width="1.3"/></svg>';
-const GAP = 12;     // px between the video's edge and the MENU box
+// three bars on whole pixels, as thick as the focus button's corner marks
+const BURGER = '<svg viewBox="0 0 15 10" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true"><rect width="15" height="1.5"/><rect y="4" width="15" height="1.5"/><rect y="8" width="15" height="1.5"/></svg>';
 const MAX_H = 820; // px, the tallest the video gets in focus mode (a big screen would otherwise be all video)
 const FRAME = 1760; // px, the widest the page's frame gets (big screens get wider margins instead)
 const CARD_W = 1100, CARD_MAX = 1.3; // a card wider than CARD_W px grows its contents with it, up to CARD_MAX times
@@ -122,8 +122,11 @@ const css = `
 html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--brand-colors--bage);color:var(--brand-colors--dark_gray);
   background-image:linear-gradient(#ddd8cc12 1px,#0000 1px),linear-gradient(90deg,#ddd8cc12 1px,#0000 1px)}
 @media (min-width:992px){
-  .v2-focus-btn{position:absolute;top:1.25rem;right:1.25rem;z-index:15;display:flex;align-items:center;gap:.6rem;
-    box-sizing:border-box;height:2.25rem;padding:0 1rem;border:0;background:none;color:#fff;cursor:pointer;
+  /* one step, 1.25rem, sets the corner: the button sits that far in from the video's top and right edges, and the menu
+     tab (focus mode) hangs on the video's edge, so the two are that far apart too, on one line and equally tall.
+     No icon: the corner marks are the icon (out = make it big, in = make it small again) */
+  .v2-focus-btn{position:absolute;top:1.25rem;right:1.25rem;z-index:15;display:flex;align-items:center;justify-content:center;
+    box-sizing:border-box;width:6.5rem;height:2.25rem;padding:0;border:0;background:none;color:#fff;cursor:pointer;
     font-family:var(--_typography---font-styles--mono);font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;line-height:1;
     transition:opacity .3s ease,visibility 0s linear 0s}
   /* the four corners: outside focus mode they point out (bigger) and step out on hover; in focus mode they flip to
@@ -148,8 +151,9 @@ html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--
   .next_lesson_container:has(.v2-focus-btn:hover) .bunny-player[data-player-status="playing"] .bunny-player__dark{opacity:.3}
   .next_lesson_container:has(.v2-focus-btn:hover) .bunny-player[data-player-status] .bunny-player__interface{opacity:1;transform:translateY(0) rotate(.001deg)}
   .v2-focus-btn:focus-visible{outline:none}
-  .v2-focus-btn svg{width:1rem;height:.75rem;flex:none}
-  .v2-focus-btn span{text-shadow:0 1px 6px rgba(0,0,0,.35)}
+  /* the letter spacing also trails the last letter; taking it back centres the word between the marks. The capitals
+     sit a third of a pixel high in their line, so half a pixel down (one screen pixel on a Retina screen) */
+  .v2-focus-btn span{margin-right:-.1em;translate:0 .5px;text-shadow:0 1px 6px rgba(0,0,0,.35)}
   /* gone over a card, and while the video plays with its controls hidden (but never from under the pointer) */
   .next_lesson_container:has(.v2-card.is-active) .v2-focus-btn,
   .next_lesson_container:has(.bunny-player:not([data-player-src])) .v2-focus-btn,
@@ -165,16 +169,14 @@ html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--
   :root.dfs-v2 .v2-card{border-width:0}
   /* a lesson without a video yet (and without a card): a quiet panel instead of the last lesson's video */
   .next_lesson_container.v2-no-video .bunny-player,.next_lesson_container.v2-no-video .v2-focus-btn{visibility:hidden}
-  /* waits behind the video's right edge; focus mode slides it out into the margin */
-  .v2-menu-box{position:absolute;top:1.25rem;left:calc(100% + ${GAP}px);z-index:5;display:flex;align-items:center;gap:.6rem;
-    box-sizing:border-box;height:2.25rem;padding:0 .9rem;border:1px solid var(--brand-colors--dark-bage);background-color:var(--brand-colors--bage);
-    color:var(--brand-colors--dark_gray);cursor:pointer;visibility:hidden;white-space:nowrap;
-    font-family:var(--_typography---font-styles--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;line-height:1;
+  /* the menu tab: waits behind the video's right edge; focus mode slides it out and it stays hanging on that edge, a
+     square as tall as the focus button, open on the video's side */
+  .v2-menu-box{position:absolute;top:1.25rem;left:100%;z-index:5;display:flex;align-items:center;justify-content:center;
+    box-sizing:border-box;width:2.25rem;height:2.25rem;padding:0;border:1px solid var(--brand-colors--dark-bage);border-left:0;
+    background-color:var(--brand-colors--bage);color:var(--brand-colors--dark_gray);cursor:pointer;visibility:hidden;
     transition:background-color .2s ease}
-  .v2-menu-box svg{width:.875rem;height:.625rem;flex:none}
+  .v2-menu-box svg{width:.9375rem;height:.625rem;flex:none}
   .v2-menu-box:hover{background-color:var(--brand-colors--dark-bage)}
-  .v2-menu-box.is-compact{padding:0 .75rem}
-  .v2-menu-box.is-compact span{display:none}
 
   /* as big as fits between the top bar and Previous / Next (--v2-fit, set by fitVideo); past that, black sides */
   :root.v2-focus .bunny-player{background-color:#000}
@@ -188,6 +190,10 @@ html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--
   :root.dfs-v2{--v2-frame:min(${FRAME}px,max(1000px,calc((100vh - 21.25rem) * 16 / 9 + 20rem)));
     --_ui-styles---stroke--padding:max(7%,calc((100% - var(--v2-frame)) / 2))}
   :root.dfs-v2 .absolute_menu{right:var(--_ui-styles---stroke--padding)}
+  /* on whole pixels, so every edge in the frame (and the marks on the video) lands sharp */
+  @supports (width:round(1.5px,1px)){
+    :root.dfs-v2{--_ui-styles---stroke--padding:round(down,max(7%,calc((100% - var(--v2-frame)) / 2)),1px)}
+  }
   /* cards grow with the frame (see "big cards" below) */
   .v2-card>*{zoom:var(--v2-zoom,1)}
 }`;
@@ -208,13 +214,14 @@ const course = document.querySelector('.course');
 const button = document.createElement('button');
 button.type = 'button';
 button.className = 'v2-focus-btn';
-button.innerHTML = '<i class="v2-fc is-tl"></i><i class="v2-fc is-tr"></i><i class="v2-fc is-bl"></i><i class="v2-fc is-br"></i>' + EYE + '<span>Focus mode</span>';
+button.innerHTML = '<i class="v2-fc is-tl"></i><i class="v2-fc is-tr"></i><i class="v2-fc is-bl"></i><i class="v2-fc is-br"></i><span>Focus mode</span>';
 const label = button.querySelector('span');
 
 const box = document.createElement('button');
 box.type = 'button';
 box.className = 'v2-menu-box';
-box.innerHTML = '<span>Menu</span>' + BURGER;
+box.innerHTML = BURGER;
+box.title = 'Menu';
 box.setAttribute('aria-label', 'Show the course menu');
 
 const ready = !!(stage && spacing && menu && course);
@@ -225,13 +232,6 @@ if (ready) {
 
 let focused = false;
 let tl = null;
-
-// The full box needs the margin right of the course; where that's narrow, the burger alone
-function fitBox() {
-  box.classList.remove('is-compact');
-  const room = root.clientWidth - course.getBoundingClientRect().right;
-  if (room < box.offsetWidth + GAP + 12) box.classList.add('is-compact');
-}
 
 // Rolling an element up to its top (or back down) only over the part that's on screen, so it starts moving at once
 function rollRange(el) {
@@ -261,9 +261,8 @@ function enter() {
   if (tl) tl.kill();
   root.classList.add('v2-focus');
   fitVideo();
-  fitBox();
   toTop();
-  const away = -(box.offsetWidth + GAP);
+  const away = -box.offsetWidth;
   const from = spacing.getBoundingClientRect().width;
   if (!g || reduce) {
     menu.style.visibility = 'hidden';
@@ -316,7 +315,7 @@ function leave() {
   tl = g.timeline({ onComplete: done });
   // the same steps backwards: the box slides back in behind the video, the video draws in, then the progress
   // block opens out of the line and the menu rolls down
-  tl.to(box, { x: -(box.offsetWidth + GAP), duration: 0.35, ease: 'power2.in' }, 0);
+  tl.to(box, { x: -box.offsetWidth, duration: 0.35, ease: 'power2.in' }, 0);
   tl.set(box, { visibility: 'hidden' });
   tl.fromTo(spacing, { minWidth: now }, { minWidth: to, duration: 0.7, ease: 'power3.inOut' }, 0.25);
   if (block) {
@@ -344,7 +343,7 @@ document.addEventListener('keydown', (e) => {
   setFocus(false);
 });
 desktop.addEventListener('change', () => { if (!desktop.matches) setFocus(false); });
-addEventListener('resize', () => { hideTip(); if (focused) { fitVideo(); fitBox(); } });
+addEventListener('resize', () => { hideTip(); if (focused) fitVideo(); });
 
 /* ---------- the open lesson ---------- */
 

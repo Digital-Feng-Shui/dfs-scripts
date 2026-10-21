@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.11.4/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.12.0/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -15,6 +15,7 @@
    The menu: panels a step darker than the page, lesson rows alternating darker / lighter, dashed chevron buttons
    (blue on the open module), the open lesson's checkbox in blue.
    The open lesson's time: while its video plays, a small blue wave runs in its place; paused, it lies flat.
+   End of a video: the Complete and Continue field is darker and flows down behind the controls as a gradient.
    Speed tip: on videos of 8+ minutes still playing at 1x, a short bubble over the speed control suggests 1.5x.
    The instructor panel in 0.1 Welcome: the photo floats, the dashed circles turn.
    Lesson texts: the tag sits top right on the title's line, with the same inset as the text; extra tags (workfile ↓,
@@ -91,6 +92,16 @@ const css = `
   background-image:linear-gradient(#3d3a3512 1px,#0000 1px),linear-gradient(90deg,#3d3a3512 1px,#0000 1px);background-size:32px 32px;
   border:1px solid var(--brand-colors--dark-bage);
   font-family:var(--_typography---font-styles--mono);font-size:.75rem;letter-spacing:.1em;text-transform:uppercase}
+/* the end of a video ("Complete and Continue"): a darker field, and instead of stopping hard above the controls it
+   carries on down behind them as a gradient (as dark as the field right under its edge, lighter towards the bottom),
+   so field and player read as one; it fades in with the field. Hover nudges the arrow instead of changing the shade,
+   which would open a seam */
+:root.dfs-v2 .lesson-complete_overlay,:root.dfs-v2 .lesson-complete_overlay:hover{background-color:rgba(24,23,22,.94)}
+:root.dfs-v2 .lesson-complete_overlay .svg_arrow{transition:translate .35s cubic-bezier(.3,.7,.4,1)}
+:root.dfs-v2 .lesson-complete_overlay:hover .svg_arrow{translate:6px 0}
+:root.dfs-v2 .bunny-player__interface::before{content:"";position:absolute;left:0;right:0;bottom:0;height:3.5rem;pointer-events:none;
+  background-image:linear-gradient(rgba(24,23,22,.94),rgba(24,23,22,.3));opacity:0;transition:opacity .2s ease}
+:root.dfs-v2 .next_lesson_container:has(#finish_video[style*="flex"]) .bunny-player__interface::before{opacity:1;transition:opacity .5s ease .3s}
 /* the speed tip: a small bubble over the speed control on long videos (see "speed tip" below) */
 .v2-speed-tip{position:absolute;z-index:16;pointer-events:auto;cursor:pointer;max-width:15rem;padding:.7rem .9rem;
   background-color:#fbf7ee;color:#3d3a35;border-radius:.25rem;box-shadow:0 6px 24px rgba(0,0,0,.25);

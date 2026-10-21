@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.15.0/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.16.0/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -13,6 +13,8 @@
    (under 992px the menu is a bar above the lesson anyway) and only over a video. While the pointer rests on the
    button, the video keeps its hover look (darker, controls) under it.
    No icon but its corner marks: they point out (bigger); in focus mode they flip to point in (smaller).
+   Corner lab (?lab=corner, Rim choosing): the button's label (short, long, the word gone in focus mode, marks alone)
+   and the menu tab on the video's edge or a little off it; ?label= and ?tab= hold the choice.
    The menu: panels a step darker than the page, lesson rows alternating darker / lighter, dashed chevron buttons
    (blue on the open module), the open lesson's checkbox in blue.
    The open lesson's time: while its video plays, a small blue wave runs in its place; paused, it lies flat.
@@ -35,6 +37,7 @@ const BURGER = '<svg viewBox="0 0 15 10" fill="currentColor" shape-rendering="cr
 const MAX_H = 820; // px, the tallest the video gets in focus mode (a big screen would otherwise be all video)
 const FRAME = 1760; // px, the widest the page's frame gets (big screens get wider margins instead)
 const CARD_W = 1100, CARD_MAX = 1.3; // a card wider than CARD_W px grows its contents with it, up to CARD_MAX times
+const TAB_GAP = 12; // px between the video's edge and the menu tab, in the lab's "gap" variant
 
 const css = `
 :root.dfs-v2 .course_module:not(.is-active){background-color:var(--brand-colors--bage)}
@@ -128,7 +131,11 @@ html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--
   .v2-focus-btn{position:absolute;top:1.25rem;right:1.25rem;z-index:15;display:flex;align-items:center;justify-content:center;
     box-sizing:border-box;width:6.5rem;height:2.25rem;padding:0;border:0;background:none;color:#fff;cursor:pointer;
     font-family:var(--_typography---font-styles--mono);font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;line-height:1;
-    transition:opacity .3s ease,visibility 0s linear 0s}
+    transition:width .45s cubic-bezier(.6,0,.3,1),opacity .3s ease,visibility 0s linear 0s}
+  /* widths for the mono label: 10 letters, 15 letters, or none (the marks alone, a square like the menu tab); switching
+     between them the marks close in or open out around the word */
+  .v2-focus-btn.is-long{width:8.75rem}
+  .v2-focus-btn.is-icon{width:2.25rem}
   /* the four corners: outside focus mode they point out (bigger) and step out on hover; in focus mode they flip to
      point in (smaller), like an exit-fullscreen icon, and step in on hover */
   .v2-fc{position:absolute;width:9px;height:9px;pointer-events:none;border:0 solid rgba(255,255,255,.9);
@@ -153,7 +160,8 @@ html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--
   .v2-focus-btn:focus-visible{outline:none}
   /* the letter spacing also trails the last letter; taking it back centres the word between the marks. The capitals
      sit a third of a pixel high in their line, so half a pixel down (one screen pixel on a Retina screen) */
-  .v2-focus-btn span{margin-right:-.1em;translate:0 .5px;text-shadow:0 1px 6px rgba(0,0,0,.35)}
+  .v2-focus-btn span{margin-right:-.1em;translate:0 .5px;white-space:nowrap;text-shadow:0 1px 6px rgba(0,0,0,.35);transition:opacity .25s ease}
+  .v2-focus-btn.is-icon span{opacity:0;visibility:hidden;transition:opacity .15s ease,visibility 0s linear .15s}
   /* gone over a card, and while the video plays with its controls hidden (but never from under the pointer) */
   .next_lesson_container:has(.v2-card.is-active) .v2-focus-btn,
   .next_lesson_container:has(.bunny-player:not([data-player-src])) .v2-focus-btn,
@@ -177,6 +185,7 @@ html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--
     transition:background-color .2s ease}
   .v2-menu-box svg{width:.9375rem;height:.625rem;flex:none}
   .v2-menu-box:hover{background-color:var(--brand-colors--dark-bage)}
+  .v2-menu-box.is-gap{left:calc(100% + ${TAB_GAP}px);border-left-width:1px}
 
   /* as big as fits between the top bar and Previous / Next (--v2-fit, set by fitVideo); past that, black sides */
   :root.v2-focus .bunny-player{background-color:#000}
@@ -196,7 +205,16 @@ html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--
   }
   /* cards grow with the frame (see "big cards" below) */
   .v2-card>*{zoom:var(--v2-zoom,1)}
-}`;
+}
+/* the corner lab (?lab=corner): a small panel to flip between the focus button's and the menu tab's variants */
+.v2-lab{position:fixed;left:1rem;bottom:1rem;z-index:10000;display:grid;gap:.5rem;padding:.75rem;
+  background-color:var(--brand-colors--bage);border:1px solid var(--brand-colors--dark-bage);color:var(--brand-colors--dark_gray);
+  font-family:var(--_typography---font-styles--mono);font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;line-height:1}
+.v2-lab div{display:flex;flex-wrap:wrap;align-items:center;gap:.25rem}
+.v2-lab b{width:3.25rem;font-weight:400;opacity:.6}
+.v2-lab button{padding:.45rem .55rem;border:1px solid var(--brand-colors--dark-bage);background:none;color:inherit;cursor:pointer;
+  font:inherit;letter-spacing:inherit;text-transform:inherit}
+.v2-lab button.is-on{background-color:var(--brand-colors--blue);border-color:var(--brand-colors--blue);color:#fff}`;
 const style = document.createElement('style');
 style.id = 'dfs-course-v2-css';
 style.textContent = css;
@@ -230,8 +248,61 @@ if (ready) {
   stage.appendChild(box);
 }
 
+// The corner's variants (Rim, 21 Oct: to see them side by side). label: short = FOCUS MODE / EXIT FOCUS,
+// long = FOCUS MODE / EXIT FOCUS MODE, exit-icon = the word goes in focus mode (the marks alone, shrink icon),
+// icon = the marks alone in both. tab: edge = hangs on the video's edge, gap = TAB_GAP px off it.
+const LABELS = ['short', 'long', 'exit-icon', 'icon'], TABS = ['edge', 'gap'];
+const params = new URLSearchParams(location.search);
+const corner = {
+  label: LABELS.includes(params.get('label')) ? params.get('label') : 'short',
+  tab: TABS.includes(params.get('tab')) ? params.get('tab') : 'edge',
+};
+const tabGap = () => (corner.tab === 'gap' ? TAB_GAP : 0);
+
+function dressCorner() {
+  const icon = corner.label === 'icon' || (corner.label === 'exit-icon' && focused);
+  const name = focused ? 'Exit focus mode' : 'Focus mode';
+  label.textContent = focused && corner.label === 'short' ? 'Exit focus' : name;
+  button.classList.toggle('is-icon', icon);
+  button.classList.toggle('is-long', !icon && label.textContent.length > 10);
+  button.setAttribute('aria-label', name);
+  button.title = icon ? name : '';
+  box.classList.toggle('is-gap', corner.tab === 'gap');
+}
+
 let focused = false;
 let tl = null;
+if (ready) dressCorner();
+
+// ?lab=corner: a panel to flip through the variants; the choice goes into the address, so a link shows the same
+if (ready && params.get('lab') === 'corner') {
+  const lab = document.createElement('div');
+  lab.className = 'v2-lab';
+  const rows = [
+    ['label', 'Button', [['short', 'Exit focus'], ['long', 'Exit focus mode'], ['exit-icon', 'Icon in focus'], ['icon', 'Icon only']]],
+    ['tab', 'Menu', [['edge', 'On the edge'], ['gap', 'With a gap']]],
+  ];
+  for (const [key, title, options] of rows) {
+    const row = document.createElement('div');
+    row.innerHTML = `<b>${title}</b>`;
+    for (const [value, text] of options) {
+      const pick = document.createElement('button');
+      pick.type = 'button';
+      pick.textContent = text;
+      pick.classList.toggle('is-on', corner[key] === value);
+      pick.addEventListener('click', () => {
+        corner[key] = value;
+        row.querySelectorAll('button').forEach((b) => b.classList.toggle('is-on', b === pick));
+        params.set(key, value);
+        history.replaceState(null, '', location.pathname + '?' + params + location.hash);
+        dressCorner();
+      });
+      row.appendChild(pick);
+    }
+    lab.appendChild(row);
+  }
+  document.body.appendChild(lab);
+}
 
 // Rolling an element up to its top (or back down) only over the part that's on screen, so it starts moving at once
 function rollRange(el) {
@@ -262,7 +333,7 @@ function enter() {
   root.classList.add('v2-focus');
   fitVideo();
   toTop();
-  const away = -box.offsetWidth;
+  const away = -(box.offsetWidth + tabGap());
   const from = spacing.getBoundingClientRect().width;
   if (!g || reduce) {
     menu.style.visibility = 'hidden';
@@ -315,7 +386,7 @@ function leave() {
   tl = g.timeline({ onComplete: done });
   // the same steps backwards: the box slides back in behind the video, the video draws in, then the progress
   // block opens out of the line and the menu rolls down
-  tl.to(box, { x: -box.offsetWidth, duration: 0.35, ease: 'power2.in' }, 0);
+  tl.to(box, { x: -(box.offsetWidth + tabGap()), duration: 0.35, ease: 'power2.in' }, 0);
   tl.set(box, { visibility: 'hidden' });
   tl.fromTo(spacing, { minWidth: now }, { minWidth: to, duration: 0.7, ease: 'power3.inOut' }, 0.25);
   if (block) {
@@ -329,7 +400,7 @@ function setFocus(on) {
   on = !!on && desktop.matches && ready;
   if (on === focused) return;
   focused = on;
-  label.textContent = on ? 'Exit focus' : 'Focus mode';
+  dressCorner();
   button.setAttribute('aria-pressed', on ? 'true' : 'false');
   hideTip(); // the player is about to change size under it
   if (on) enter(); else leave();

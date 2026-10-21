@@ -7,7 +7,8 @@
    slides out into the room the menu left, sized so it and the Previous / Next bar fill the screen (never taller than
    MAX_H: past that, black bars at the sides); then a MENU box slides out from behind the video's right edge into
    the page margin (just the burger where the margin is narrow). The box, the button again, Esc or opening another
-   lesson play it back the other way. Desktop only (under 992px the menu is a bar above the lesson anyway) and only
+   lesson play it back the other way. The box sits on the same line as the button and is just as tall (Rim, 21 Oct):
+   same job, same row. Desktop only (under 992px the menu is a bar above the lesson anyway) and only
    over a video. While the pointer rests on the button, the video keeps its darker hover layer under it.
    The menu: panels a step darker than the page, lesson rows alternating darker / lighter, dashed chevron buttons
    (blue on the open module), the open lesson's checkbox in blue.
@@ -76,7 +77,7 @@ const css = `
 .v2-focus-btn,.v2-menu-box{display:none}
 @media (min-width:992px){
   .v2-focus-btn{position:absolute;top:1.25rem;right:1.25rem;z-index:15;display:flex;align-items:center;gap:.6rem;
-    padding:.7rem 1rem;border:0;background:none;color:#fff;cursor:pointer;
+    box-sizing:border-box;height:2.25rem;padding:0 1rem;border:0;background:none;color:#fff;cursor:pointer;
     font-family:var(--_typography---font-styles--mono);font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;line-height:1;
     transition:opacity .3s ease,visibility 0s linear 0s}
   .v2-focus-btn::before{content:"";position:absolute;inset:0;pointer-events:none;
@@ -97,14 +98,14 @@ const css = `
     opacity:0;visibility:hidden;transition:opacity .3s ease,visibility 0s linear .3s}
 
   /* waits behind the video's right edge; focus mode slides it out into the margin */
-  .v2-menu-box{position:absolute;top:0;left:calc(100% + ${GAP}px);z-index:5;display:flex;align-items:center;gap:.6rem;
-    padding:.75rem .9rem;border:1px solid var(--brand-colors--dark-bage);background-color:var(--brand-colors--bage);
+  .v2-menu-box{position:absolute;top:1.25rem;left:calc(100% + ${GAP}px);z-index:5;display:flex;align-items:center;gap:.6rem;
+    box-sizing:border-box;height:2.25rem;padding:0 .9rem;border:1px solid var(--brand-colors--dark-bage);background-color:var(--brand-colors--bage);
     color:var(--brand-colors--dark_gray);cursor:pointer;visibility:hidden;white-space:nowrap;
     font-family:var(--_typography---font-styles--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;line-height:1;
     transition:background-color .2s ease}
   .v2-menu-box svg{width:.875rem;height:.625rem;flex:none}
   .v2-menu-box:hover{background-color:var(--brand-colors--dark-bage)}
-  .v2-menu-box.is-compact{padding:.75rem}
+  .v2-menu-box.is-compact{padding:0 .75rem}
   .v2-menu-box.is-compact span{display:none}
 
   /* as big as fits between the top bar and Previous / Next (--v2-fit, set by fitVideo); past that, black sides */

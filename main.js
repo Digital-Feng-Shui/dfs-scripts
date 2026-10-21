@@ -372,6 +372,12 @@
   // (was Slater GLOBAL.js)
   // =========================================================
   function dfsGlobal() {
+    // Images can't be dragged out of the page (Rim, 21 Oct). styles.css does this for Chrome and Safari
+    // (-webkit-user-drag); Firefox ignores that, so the drag is stopped here as well
+    document.addEventListener('dragstart', function (e) {
+      if (e.target && e.target.nodeName === 'IMG') e.preventDefault();
+    });
+
     // single interval timer (updates all [data-timer] elements)
     (function () {
       const deadline = COUNTDOWN_DEADLINE;

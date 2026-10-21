@@ -12,6 +12,10 @@
    CLIENT-FIRST BASE — global helpers (was Global Styles › style-overrides)
    ========================================================= */
 
+/* Images can't be dragged out of the page or selected like text (Rim, 21 Oct): clicking and pulling a
+   photo no longer lifts a ghost copy of it. Firefox ignores -webkit-user-drag; main.js stops it there */
+img{-webkit-user-drag:none;-webkit-user-select:none;user-select:none}
+
 /* Ensure all elements inherit the color from its parent */
 a,
 .w-input,

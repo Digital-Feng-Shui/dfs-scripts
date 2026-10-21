@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.9.0/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.9.1/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -46,18 +46,21 @@ const css = `
 .c_item.v2-wave-on .c_time{display:none}
 .c_item.v2-wave-on .v2-wave{display:block}
 
-/* the instructor panel (0.1): the photo (with its name tag) floats up and down the way the homepage's does, and the
-   two dashed circles turn slowly, opposite ways. Both only move while the panel is on screen. */
+/* the instructor panel (0.1): the photo floats up and down the way the homepage's does; the name tag floats on its own,
+   less far and a beat behind, so the two drift against each other (depth). The two dashed circles turn slowly,
+   opposite ways. All of it only moves while the panel is on screen. */
 @keyframes v2-turn{to{transform:rotate(360deg)}}
 @keyframes v2-float{0%,100%{translate:0 0}50%{translate:0 -12px}}
+@keyframes v2-float-tag{0%,100%{translate:0 0}50%{translate:0 -5px}}
 .v2-instructor_panel .instructor_circle{animation:v2-turn 70s linear infinite paused}
 .v2-instructor_panel .instructor_circle.v2-circle-top{animation-duration:90s;animation-direction:reverse}
-.v2-instructor_panel .instructor_component{animation:v2-float 6s ease-in-out infinite paused}
-.v2-instructor_panel.is-shown .instructor_circle,.v2-instructor_panel.is-shown .instructor_component{animation-play-state:running}
+.v2-instructor_panel .instructor_image{animation:v2-float 6s ease-in-out infinite paused}
+.v2-instructor_panel .instructor_tag{animation:v2-float-tag 6s ease-in-out -1.4s infinite paused}
+.v2-instructor_panel.is-shown .instructor_circle,.v2-instructor_panel.is-shown .instructor_image,.v2-instructor_panel.is-shown .instructor_tag{animation-play-state:running}
 /* the text sits in a narrower column, centred in its half */
 .v2-instructor_body>*{width:100%;max-width:25rem}
 @media (max-width:767px){.v2-instructor_body>*{max-width:none}}
-@media (prefers-reduced-motion:reduce){.v2-instructor_panel .instructor_circle,.v2-instructor_panel .instructor_component{animation:none}}
+@media (prefers-reduced-motion:reduce){.v2-instructor_panel .instructor_circle,.v2-instructor_panel .instructor_image,.v2-instructor_panel .instructor_tag{animation:none}}
 
 /* lesson text: the tag sits top right on the title's line, as far in from the right as the text is from the left,
    the same on every lesson (on phones it stays above the title). Extra tags (workfile ↓, resources ↓, ...) stack

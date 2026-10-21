@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.13.0/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.14.0/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -17,6 +17,8 @@
    The open lesson's time: while its video plays, a small blue wave runs in its place; paused, it lies flat.
    End of a video: the Complete and Continue field is darker and flows down behind the controls as a gradient.
    Copy (0.2 install line): a bubble over the button says it's on the clipboard.
+   Big screens: the frame stops at FRAME wide and never so wide that the video and Previous / Next leave the screen;
+   cards grow their contents with the card.
    Speed tip: on videos of 8+ minutes still playing at 1x, a short bubble over the speed control suggests 1.5x.
    The instructor panel in 0.1 Welcome: the photo floats, the dashed circles turn.
    Lesson texts: the tag sits top right on the title's line, with the same inset as the text; extra tags (workfile ↓,
@@ -31,6 +33,8 @@ const EYE = '<svg viewBox="0 0 16 12" fill="none" aria-hidden="true"><path d="M1
 const BURGER = '<svg viewBox="0 0 14 10" fill="none" aria-hidden="true"><path d="M0 1h14M0 5h14M0 9h14" stroke="currentColor" stroke-width="1.3"/></svg>';
 const GAP = 12;     // px between the video's edge and the MENU box
 const MAX_H = 820; // px, the tallest the video gets in focus mode (a big screen would otherwise be all video)
+const FRAME = 1760; // px, the widest the page's frame gets (big screens get wider margins instead)
+const CARD_W = 1100, CARD_MAX = 1.3; // a card wider than CARD_W px grows its contents with it, up to CARD_MAX times
 
 const css = `
 :root.dfs-v2 .course_module:not(.is-active){background-color:var(--brand-colors--bage)}
@@ -176,6 +180,16 @@ html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--
   :root.v2-focus .bunny-player{background-color:#000}
   :root.v2-focus .bunny-player__before{padding-top:min(56.25%,var(--v2-fit,calc(100svh - 10rem)))}
   :root.v2-focus .bunny-player__placeholder{object-fit:contain}
+
+  /* big screens: the page's frame (side lines, top bar, course) stops growing at FRAME wide, the way the Rhythms page's
+     content does, and stays narrow enough that the video and Previous / Next fit under the top bar and the progress
+     block (4 + 10 + 6rem, plus a little air). Every part of the frame hangs off Webflow's stroke padding, so that's the
+     one thing to move; only the menu has its own 7% */
+  :root.dfs-v2{--v2-frame:min(${FRAME}px,max(1000px,calc((100vh - 21.25rem) * 16 / 9 + 20rem)));
+    --_ui-styles---stroke--padding:max(7%,calc((100% - var(--v2-frame)) / 2))}
+  :root.dfs-v2 .absolute_menu{right:var(--_ui-styles---stroke--padding)}
+  /* cards grow with the frame (see "big cards" below) */
+  .v2-card>*{zoom:var(--v2-zoom,1)}
 }`;
 const style = document.createElement('style');
 style.id = 'dfs-course-v2-css';
@@ -572,3 +586,16 @@ addEventListener('click', (e) => {
   };
   setTimeout(check, 30);
 }, true);
+
+/* ---------- big cards ---------- */
+// A card fills the whole video frame, which on a big screen (and in focus mode) is far bigger than the size it was set
+// in, while its text stays put. Past CARD_W wide, everything in it grows with the card (padding too), up to CARD_MAX,
+// so it reads as the same card, just closer. Hidden cards measure 0 and are left alone.
+const cardSize = new ResizeObserver((entries) => {
+  for (const entry of entries) {
+    const w = entry.contentRect.width;
+    if (!w) continue;
+    entry.target.style.setProperty('--v2-zoom', Math.min(CARD_MAX, Math.max(1, w / CARD_W)).toFixed(3));
+  }
+});
+document.querySelectorAll('.v2-card').forEach((card) => cardSize.observe(card));

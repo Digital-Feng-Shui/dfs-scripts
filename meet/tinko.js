@@ -611,6 +611,7 @@ function tilt(el, { max = 4, p = 1800 } = {}) {
   new IntersectionObserver(([e]) => { t.on = e.isIntersecting; if (t.on) tiltKick(); }).observe(el);
   el.addEventListener('pointerdown', e => { if (e.target.closest('[data-splitter="handle"]')) t.hold = true; });
   addEventListener('pointerup', () => { if (t.hold) { t.hold = false; tiltKick(); } });
+  return t;   // (max = 0 and a kick settles it flat)
 }
 
 /* A demo, ready to play: its scene, its Tinko, and a clock that only runs while it's on screen and switched on.
@@ -1363,7 +1364,7 @@ function initOutro(host) {
   win.querySelector('.tko-screen').append(...copy);
   const box = win.querySelector('.tkh-win'), tinkoEl = win.querySelector('.tkh-tinko'), tinko = makeTinko(tinkoEl, {});
   tinko.sleep();
-  tilt(win.querySelector('.tko-tilt'));
+  const lean = tilt(win.querySelector('.tko-tilt'));
   // the key: its words in a cap that travels down, and the ring round it, sized to the key so the corners stay round
   key.classList.add('tko-key');
   const cap = document.createElement('span'); cap.className = 'tko-cap'; cap.append(...key.childNodes);
@@ -1419,26 +1420,46 @@ function initOutro(host) {
     e.preventDefault(); autoPress();
   });
 
-  // the click: he cheers and goes, his box opens out over everything, and Fundamentals opens
+  // the click: he cheers and goes, and his window, empty now, opens out to the whole screen (over the nav too). As it
+  // grows its chrome fades and it takes the page's own colour, the colour Fundamentals then opens out of (day or night)
   async function fire() {
-    fired = true; if (hint) hint.textContent = ' ';
+    fired = true; if (hint) hint.textContent = '\u00a0';
     key.style.setProperty('--travel', '0px'); key.classList.add('is-down');
+    if (lean) { lean.max = 0; tiltKick(); }   // he leans back to straight while he says goodbye
     if (tinko.mood === 'asleep' || tinko.mood === 'cheering') tinko.awakeNow();
-    if (!reduce) { await tinko.cheer(1, true); await tinko.goAway(.8); await new Promise(r => setTimeout(r, 100)); }
-    const r = box.getBoundingClientRect(), cs = getComputedStyle(box), bg = cs.backgroundColor, round = parseFloat(cs.borderTopLeftRadius) || 14;
-    cover = document.createElement('div'); cover.className = 'tko-cover'; cover.style.background = bg;
+    const words = win.querySelector('.tko-screen');
+    if (!reduce) { await tinko.cheer(1, true); words.classList.add('is-hidden'); await tinko.goAway(.8); await new Promise(r => setTimeout(r, 180)); }
+    const r = box.getBoundingClientRect(), cs = getComputedStyle(box), card = cs.backgroundColor, round = parseFloat(cs.borderTopLeftRadius) || 14;
+    const bg = pageColour();
+    cover = document.createElement('div'); cover.className = 'tkh tko-cover';
+    cover.innerHTML = `<div class="tkh-win is-on"><div class="tkh-grain"></div><div class="tkh-lights"><i></i><i></i><i></i></div><div class="tkh-dash is-top"></div><div class="tkh-dash is-bottom"></div><div class="tkh-col"></div></div>`;
+    Object.assign(cover.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
     document.body.append(cover);
-    if (!reduce) {
-      const from = `inset(${r.top}px ${innerWidth - r.right}px ${innerHeight - r.bottom}px ${r.left}px round ${round}px)`;
-      await cover.animate([{ clipPath: from }, { clipPath: 'inset(0px 0px 0px 0px round 0px)' }], { duration: 820, easing: 'cubic-bezier(.625,.05,0,1)', fill: 'forwards' }).finished;
+    const shell = cover.firstChild;
+    if (reduce) shell.style.background = bg;
+    else {
+      const D = 950, opts = { duration: D, easing: 'cubic-bezier(.625,.05,0,1)', fill: 'forwards' };
+      const grow = cover.animate([{ left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' }, { left: '0px', top: '0px', width: innerWidth + 'px', height: innerHeight + 'px' }], opts);
+      shell.animate([{ backgroundColor: card, borderRadius: round + 'px' }, { backgroundColor: card, offset: .2 }, { backgroundColor: bg, borderRadius: '0px' }], opts);
+      shell.querySelectorAll('.tkh-grain, .tkh-lights, .tkh-dash, .tkh-col').forEach(el => {
+        const o = getComputedStyle(el).opacity;
+        el.animate([{ opacity: o }, { opacity: o, offset: .3 }, { opacity: 0, offset: .85 }, { opacity: 0 }], { duration: D, fill: 'forwards' });
+      });
+      await grow.finished;
+      await new Promise(r => setTimeout(r, 60));
     }
     try { sessionStorage.setItem(HAND_OFF, JSON.stringify({ t: Date.now(), bg })); } catch (e) {}
     location.assign(href);
   }
+  // the page's colour here (the section wears the site's background), the same one Fundamentals is drawn on
+  function pageColour() {
+    for (const el of [host, document.body, document.documentElement]) { const c = getComputedStyle(el).backgroundColor; if (c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return c; }
+    return isNight() ? '#0e1628' : '#f1ede2';
+  }
   // back from Fundamentals (the page kept in the browser's memory): no cover, he's back, the key half way up again
   addEventListener('pageshow', e => {
     if (!e.persisted || !fired) return;
-    cover?.remove(); cover = null; fired = auto = armed = false; key.classList.remove('is-down');
+    cover?.remove(); cover = null; fired = auto = armed = false; key.classList.remove('is-down'); win.querySelector('.tko-screen').classList.remove('is-hidden');
     try { sessionStorage.removeItem(HAND_OFF); } catch (err) {}
     tinko.awakeNow(); tinko.show(true);
     const y = host.getBoundingClientRect().top + scrollY + (host.offsetHeight - innerHeight) * .5;
@@ -1465,7 +1486,8 @@ const OUTRO_CSS = `
 .tko-key.is-down .tko-cap{transition:transform .12s,box-shadow .12s}
 .dfs-night .tko-key{color:#fbf7ef}.dfs-night .tko-cap{background:#292724;border-color:#3d3a36;box-shadow:0 var(--travel,6px) 0 #3d3a36}
 .dfs-night .tko-cap .tinko-outro_key-label{border-color:#4a4640}.dfs-night .tko-ring rect{stroke:#1dabfa}
-.tko-cover{position:fixed;inset:0;z-index:2147483000;pointer-events:none}
+.tko-cover{position:fixed;z-index:2147483000;pointer-events:none;perspective:none;container-type:inline-size}
+.tko-cover .tkh-win{position:absolute;inset:0;aspect-ratio:auto;min-height:0;opacity:1;transform:none;transition:none;box-shadow:none}
 @media (prefers-reduced-motion:reduce){.tko-tilt{transform:none!important}}
 `;
 

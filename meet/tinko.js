@@ -1353,6 +1353,10 @@ function initOutro(host) {
   const win = host.querySelector('[data-tinko-outro-win]'), key = host.querySelector('[data-tinko-outro-key]'), hint = host.querySelector('[data-tinko-outro-hint]');
   if (!win || !key) return;
   const href = key.getAttribute('href') || '/';
+  // how the page changes: his box (default), or ?outro=cube / data-tinko-outro="cube": Osmo's 3D cube (Rim, 24 Oct),
+  // which lives in the page's footer code as window.tinkoCube (Osmo's code stays out of this public repo)
+  const mode = new URLSearchParams(location.search).get('outro') || host.dataset.tinkoOutro || 'box';
+  const cubeOn = () => mode === 'cube' && !reduce && window.tinkoCube;
   // his window, the hero's look, round the copy from Webflow
   const copy = [...win.childNodes];
   win.innerHTML = `<div class="tkh tko"><div class="tko-tilt"><div class="tkh-win is-on">
@@ -1397,6 +1401,7 @@ function initOutro(host) {
   }, { threshold: [0, .35] }).observe(box);
   new IntersectionObserver(([e]) => {
     if (!e.isIntersecting || fetched) return; fetched = true;
+    if (cubeOn()) return window.tinkoCube.preload(href);   // the cube's far face: the page itself, loading in a frame
     const l = document.createElement('link'); l.rel = 'prefetch'; l.href = href; document.head.append(l);
   }, { rootMargin: '150% 0px' }).observe(host);
 
@@ -1428,6 +1433,15 @@ function initOutro(host) {
     if (lean) { lean.max = 0; tiltKick(); }   // he leans back to straight while he says goodbye
     if (tinko.mood === 'asleep' || tinko.mood === 'cheering') tinko.awakeNow();
     const words = win.querySelector('.tko-screen');
+    if (cubeOn()) {   // the cube: he hops and stays on the page while it turns away, and Fundamentals turns in
+      await tinko.cheer(1, true);
+      const bg = pageColour();
+      const turned = await window.tinkoCube.play({ faces: [host.querySelector('.tinko-outro_pin'), document.querySelector('.navbar_component'), document.querySelector('.page_side-lines'), document.querySelector('.grain')], bg, voidColour: isNight() ? '#070c18' : '#e2dbcf', night: isNight() });
+      if (turned) {
+        try { sessionStorage.setItem(HAND_OFF, JSON.stringify({ t: Date.now(), bg, mode: 'cube' })); } catch (e) {}
+        return location.assign(href);
+      }
+    }
     if (!reduce) { await tinko.cheer(1, true); words.classList.add('is-hidden'); await tinko.goAway(.8); await new Promise(r => setTimeout(r, 180)); }
     const r = box.getBoundingClientRect(), cs = getComputedStyle(box), card = cs.backgroundColor, round = parseFloat(cs.borderTopLeftRadius) || 14;
     const bg = pageColour();
@@ -1459,7 +1473,7 @@ function initOutro(host) {
   // back from Fundamentals (the page kept in the browser's memory): no cover, he's back, the key half way up again
   addEventListener('pageshow', e => {
     if (!e.persisted || !fired) return;
-    cover?.remove(); cover = null; fired = auto = armed = false; key.classList.remove('is-down'); win.querySelector('.tko-screen').classList.remove('is-hidden');
+    window.tinkoCube?.undo(); cover?.remove(); cover = null; fired = auto = armed = false; key.classList.remove('is-down'); win.querySelector('.tko-screen').classList.remove('is-hidden');
     try { sessionStorage.removeItem(HAND_OFF); } catch (err) {}
     tinko.awakeNow(); tinko.show(true);
     const y = host.getBoundingClientRect().top + scrollY + (host.offsetHeight - innerHeight) * .5;

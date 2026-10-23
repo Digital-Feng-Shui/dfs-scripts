@@ -165,10 +165,11 @@ function makeTinko(host, shared) {
       const A = ARRIVALS[reveal.style], k = (now - reveal.t0) / reveal.A;
       for (const c of cells) {
         const s = c.at[reveal.style];
-        if (A.smooth) { const g = Math.max(0, Math.min(1, (k - s) / .38)); sizeCell(c, 2.1 * out(g)); }
+        if (reveal.back) sizeCell(c, k >= 1 - s ? 0 : 1.04);   // leaving: the last pixel in is the first out
+        else if (A.smooth) { const g = Math.max(0, Math.min(1, (k - s) / .38)); sizeCell(c, 2.1 * out(g)); }
         else sizeCell(c, k >= s ? 1.04 : 0);
       }
-      if (k >= 1) { reveal = null; masked(false); }
+      if (k >= 1) { if (!reveal.back) masked(false); reveal = null; }
     }
     if (tween) {
       const k = Math.min(1, (now - tween.t0) / tween.dur), f = tween.ease(k);
@@ -243,16 +244,19 @@ function makeTinko(host, shared) {
     later(() => set(E(-3.7, -.9, 1, 2), E(3.5, .2, 1, 1.8), .2, 'out'), 280);
     later(() => { if (mood === was && mood !== 'cheering') set({ ...HOME[0] }, { ...HOME[1] }, .3); gaze = { x: 0, y: 0 }; goofing = false; }, 750);
   }
-  // a win: happy slits and a double hop with a squash on landing (Tinko.swift cheer)
-  function cheer(times = 1) {
+  // a win: happy slits and a double hop with a squash on landing (Tinko.swift cheer); once: one hop, for a goodbye
+  function cheer(times = 1, once = false) {
     mood = 'cheering';
     set({ ...CHEER[0] }, { ...CHEER[1] }, .25, 'out');
     const c = parseFloat(getComputedStyle(host).getPropertyValue('--tkh-cell')) || 16;
-    const hop = blob.animate([
+    const hop = blob.animate(once ? [
+      { transform: 'translateY(0) scaleY(1)', offset: 0, easing: 'ease-out' }, { transform: `translateY(${-2.2 * c}px) scaleY(1.06)`, offset: .4, easing: 'ease-in' },
+      { transform: 'translateY(0) scaleY(.9)', offset: .78, easing: 'ease-out' }, { transform: 'translateY(0) scaleY(1)', offset: 1 },
+    ] : [
       { transform: 'translateY(0) scaleY(1)', offset: 0, easing: 'ease-out' }, { transform: `translateY(${-2.2 * c}px) scaleY(1.06)`, offset: .14 / .56, easing: 'ease-in' },
       { transform: 'translateY(0) scaleY(.9)', offset: .28 / .56, easing: 'ease-out' }, { transform: `translateY(${-1.1 * c}px) scaleY(1.03)`, offset: .38 / .56, easing: 'ease-in' },
       { transform: 'translateY(0) scaleY(.94)', offset: .49 / .56 }, { transform: 'translateY(0) scaleY(1)', offset: 1 },
-    ], { duration: 1120, iterations: times });
+    ], { duration: once ? 620 : 1120, iterations: times });
     return hop.finished.then(() => { mood = 'idle'; gaze = { x: 9, y: 9 }; });
   }
   function squint() {   // ⌫ on his first screen: nothing to remove yet
@@ -292,9 +296,21 @@ function makeTinko(host, shared) {
     mood = 'idle'; nextGoof = performance.now() + 7000; gaze = { x: 9, y: 9 };
   }
   function home(dur = .3) { if (mood !== 'asleep') set({ ...HOME[0] }, { ...HOME[1] }, dur); }
+  // leaving: his arrival backwards. The eyes shut, then his pixels go, the middle first and the outline last
+  function goAway(k = 1, style = 'outline') {
+    return new Promise(done => {
+      timers.forEach(clearTimeout); timers.clear(); goofing = blinking = false; mood = 'asleep';
+      set({ ...HOME[0], y: HOME[0].y + .8, h: .25 }, { ...HOME[1], y: HOME[1].y + .8, h: .25 }, .12, 'in');
+      cells.forEach(c => sizeCell(c, 1.04)); masked(true);
+      if (reduce) { cells.forEach(c => sizeCell(c, 0)); return done(); }
+      const A = ARRIVALS[style].dur * .55 * k;
+      reveal = { t0: performance.now() + 160 * k, A, style, back: true }; wake();
+      later(() => { host.classList.add('is-asleep'); host.classList.remove('is-awake'); done(); }, 160 * k + A + 40);
+    });
+  }
 
   svg.addEventListener('click', bwoop);
-  return { show, sleep, wakeUp, awakeNow, home, cheer, squint, bwoop, get mood() { return mood; } };
+  return { show, sleep, wakeUp, awakeNow, home, cheer, squint, bwoop, goAway, get mood() { return mood; } };
 }
 
 /* ---------- the hero window: his first screen ---------- */
@@ -1322,6 +1338,137 @@ function initPixels() {
   });
 }
 
+/* ---------- the outro: on into Fundamentals (Rim, 24 Oct: "box opens", and the nav goes with the page) ----------
+   The page's last screen is pinned while you scroll through it: his window over one big SPACE key. The scroll draws
+   the key's outline (Osmo's Scroll to Next Page, its ring as the key's edge), then pushes the key down; at the bottom
+   it clicks. Space or a click on the key scrolls there for you. He cheers and goes, his box opens out over the whole
+   screen (over the nav too), and the key's own link opens Fundamentals. Right before, a one-time note in the tab
+   (sessionStorage, HAND_OFF) asks Fundamentals to open out of the same colour: its head code plays that half and
+   wipes the note, so a refresh or any other way in shows Fundamentals as it always is. Webflow holds the section,
+   its sticky pin, the copy and the link; this builds his window round the copy and makes the key press. */
+const HAND_OFF = 'dfs-hand-off';
+const clamp01 = v => Math.max(0, Math.min(1, v));
+function initOutro(host) {
+  const win = host.querySelector('[data-tinko-outro-win]'), key = host.querySelector('[data-tinko-outro-key]'), hint = host.querySelector('[data-tinko-outro-hint]');
+  if (!win || !key) return;
+  const href = key.getAttribute('href') || '/';
+  // his window, the hero's look, round the copy from Webflow
+  const copy = [...win.childNodes];
+  win.innerHTML = `<div class="tkh tko"><div class="tko-tilt"><div class="tkh-win is-on">
+    <div class="tkh-grain" aria-hidden="true"></div>
+    <div class="tkh-lights" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="tkh-dash is-top"></div><div class="tkh-dash is-bottom"></div>
+    <div class="tkh-col"><div class="tkh-stage"><div class="tkh-tinko" role="img" aria-label="Tinko, a white pixel creature with two eyes"></div><div class="tkh-screen tko-screen"></div></div></div>
+  </div></div></div>`;
+  win.querySelector('.tko-screen').append(...copy);
+  const box = win.querySelector('.tkh-win'), tinkoEl = win.querySelector('.tkh-tinko'), tinko = makeTinko(tinkoEl, {});
+  tinko.sleep();
+  tilt(win.querySelector('.tko-tilt'));
+  // the key: its words in a cap that travels down, and the ring round it, sized to the key so the corners stay round
+  key.classList.add('tko-key');
+  const cap = document.createElement('span'); cap.className = 'tko-cap'; cap.append(...key.childNodes);
+  key.innerHTML = '<svg class="tko-ring" aria-hidden="true"><rect pathLength="100" rx="11"/></svg>'; key.append(cap);
+  const svg = key.querySelector('svg'), ring = svg.firstChild;
+  const fit = () => { const w = svg.clientWidth, h = svg.clientHeight; svg.setAttribute('viewBox', `0 0 ${w} ${h}`); ring.setAttribute('x', 1); ring.setAttribute('y', 1); ring.setAttribute('width', Math.max(0, w - 2)); ring.setAttribute('height', Math.max(0, h - 2)); };
+  fit(); new ResizeObserver(fit).observe(key);
+
+  const touch = !finePointer, first = hint?.textContent.trim() || 'Scroll to press Space';
+  const words = p => p < .06 ? (touch ? 'Scroll to press the key' : first) : p < .78 ? (touch ? 'Keep going, or tap the key' : 'Keep going, or press Space') : p < .97 ? 'Almost there' : '';
+  let fired = false, armed = false, auto = false, cover = null, shown = '';
+  const progress = () => { const r = host.getBoundingClientRect(), run = r.height - innerHeight; return run > 0 ? clamp01(-r.top / run) : 0; };
+  function paint(p) {
+    const drawn = clamp01((p - .06) / .7), travel = clamp01((p - .78) / .18);
+    ring.style.strokeDashoffset = (100 * (1 - inOut(drawn))).toFixed(2);
+    key.style.setProperty('--travel', (6 - 5 * inOut(travel)).toFixed(2) + 'px');
+    const w = words(p); if (hint && w !== shown) { shown = w; hint.textContent = w || ' '; }
+    if (p < .95) armed = true;   // only a press you scrolled through counts (not a page that opens at its end)
+    if (p >= .985 && armed && !fired) fire();
+  }
+  let tick = 0;
+  addEventListener('scroll', () => { if (!tick && !fired) tick = requestAnimationFrame(() => { tick = 0; if (!fired) paint(progress()); }); }, { passive: true });
+  addEventListener('resize', () => { if (!fired) paint(progress()); });
+
+  // he wakes as his window comes into view; Fundamentals is fetched ahead while you're on the way
+  let woke = false, fetched = false;
+  new IntersectionObserver(([e]) => {
+    tinko.show(e.isIntersecting);
+    if (e.isIntersecting && e.intersectionRatio > .35 && !woke) { woke = true; tinko.wakeUp(1, 'outline'); }
+  }, { threshold: [0, .35] }).observe(box);
+  new IntersectionObserver(([e]) => {
+    if (!e.isIntersecting || fetched) return; fetched = true;
+    const l = document.createElement('link'); l.rel = 'prefetch'; l.href = href; document.head.append(l);
+  }, { rootMargin: '150% 0px' }).observe(host);
+
+  // Space, or a click on the key: the page scrolls itself to the end, so it's the same press as scrolling
+  function autoPress() {
+    if (fired || auto) return;
+    const to = host.getBoundingClientRect().bottom + scrollY - innerHeight;
+    auto = armed = true;
+    const done = () => { auto = false; paint(progress()); };
+    if (reduce) { scrollTo(0, to); window.lenis?.scrollTo?.(to, { immediate: true }); return done(); }
+    if (window.lenis?.scrollTo) { window.lenis.scrollTo(to, { duration: 1.1, easing: inOut, force: true, onComplete: done }); setTimeout(() => { if (auto) done(); }, 1400); return; }
+    const from = scrollY, t0 = performance.now();
+    const step = now => { const k = clamp01((now - t0) / 1100); scrollTo(0, from + (to - from) * inOut(k)); k < 1 ? requestAnimationFrame(step) : done(); };
+    requestAnimationFrame(step);
+  }
+  key.addEventListener('click', e => { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); autoPress(); });   // ⌘-click still opens a tab
+  addEventListener('keydown', e => {
+    if (e.key !== ' ' || e.repeat || e.metaKey || e.ctrlKey || e.altKey || fired) return;
+    const t = e.target; if (t !== key && t.closest?.('input, textarea, select, [contenteditable], button, a')) return;
+    const r = host.getBoundingClientRect(); if (r.top > innerHeight * .5 || r.bottom < innerHeight * .5) return;
+    e.preventDefault(); autoPress();
+  });
+
+  // the click: he cheers and goes, his box opens out over everything, and Fundamentals opens
+  async function fire() {
+    fired = true; if (hint) hint.textContent = ' ';
+    key.style.setProperty('--travel', '0px'); key.classList.add('is-down');
+    if (tinko.mood === 'asleep' || tinko.mood === 'cheering') tinko.awakeNow();
+    if (!reduce) { await tinko.cheer(1, true); await tinko.goAway(.8); await new Promise(r => setTimeout(r, 100)); }
+    const r = box.getBoundingClientRect(), cs = getComputedStyle(box), bg = cs.backgroundColor, round = parseFloat(cs.borderTopLeftRadius) || 14;
+    cover = document.createElement('div'); cover.className = 'tko-cover'; cover.style.background = bg;
+    document.body.append(cover);
+    if (!reduce) {
+      const from = `inset(${r.top}px ${innerWidth - r.right}px ${innerHeight - r.bottom}px ${r.left}px round ${round}px)`;
+      await cover.animate([{ clipPath: from }, { clipPath: 'inset(0px 0px 0px 0px round 0px)' }], { duration: 820, easing: 'cubic-bezier(.625,.05,0,1)', fill: 'forwards' }).finished;
+    }
+    try { sessionStorage.setItem(HAND_OFF, JSON.stringify({ t: Date.now(), bg })); } catch (e) {}
+    location.assign(href);
+  }
+  // back from Fundamentals (the page kept in the browser's memory): no cover, he's back, the key half way up again
+  addEventListener('pageshow', e => {
+    if (!e.persisted || !fired) return;
+    cover?.remove(); cover = null; fired = auto = armed = false; key.classList.remove('is-down');
+    try { sessionStorage.removeItem(HAND_OFF); } catch (err) {}
+    tinko.awakeNow(); tinko.show(true);
+    const y = host.getBoundingClientRect().top + scrollY + (host.offsetHeight - innerHeight) * .5;
+    scrollTo(0, y); window.lenis?.scrollTo?.(y, { immediate: true });
+    paint(progress());
+  });
+  paint(progress());
+}
+
+const OUTRO_CSS = `
+.tko{width:min(100%,calc((100svh - 17rem) * 1.67));margin-inline:auto}
+.tko-tilt{transform-origin:50% 50%;will-change:transform}
+.tko .tkh-win{aspect-ratio:720/430;--tkh-cell:clamp(7px,1.45cqw,12px)}
+.tko .tkh-stage{gap:clamp(14px,2.4cqw,26px)}
+@container (max-width:600px){.tko .tkh-win{aspect-ratio:4/4.3;min-height:0;--tkh-cell:clamp(7px,2.5cqw,10px)}.tko .tkh-stage{position:absolute;min-height:0;padding:2.5rem 1.25rem}}
+.tko .tinko-outro_tag{display:inline-block;margin:0 0 clamp(10px,1.4cqw,14px);font-size:clamp(10px,1.4cqw,12px);line-height:1.2;letter-spacing:.1em;text-transform:uppercase;color:var(--c-calm);background:var(--c-calmsoft);border-radius:2px;padding:.3em .7em}
+.tko .tinko-outro_line{margin:0;font-size:clamp(13px,2cqw,16px);line-height:1.7;max-width:30em;text-wrap:balance}
+.tko-key{position:relative;display:block;width:min(20rem,100%);height:4rem;margin-inline:auto;color:#3d3a36;text-decoration:none;-webkit-tap-highlight-color:transparent;cursor:pointer}
+.tko-cap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:.75rem;background:#fbf7ef;border:1px solid #dfd5ca;border-radius:8px;box-shadow:0 var(--travel,6px) 0 #dfd5ca;transform:translateY(calc(6px - var(--travel,6px)));text-transform:uppercase;letter-spacing:.1em;font-size:.875rem;line-height:1}
+.tko-cap .tinko-outro_key-label{font-size:.6875rem;padding:.3rem .5rem;border:1px solid #dfd5ca;border-radius:4px;letter-spacing:.08em}
+.tko-ring{position:absolute;left:-6px;top:-6px;width:calc(100% + 12px);height:calc(100% + 18px);overflow:visible;pointer-events:none}
+.tko-ring rect{fill:none;stroke:#1a97d7;stroke-width:2;stroke-dasharray:100;stroke-dashoffset:100}
+.tko-key:focus-visible{outline:none}.tko-key:focus-visible .tko-cap{outline:2px solid #1a97d7;outline-offset:4px}
+.tko-key.is-down .tko-cap{transition:transform .12s,box-shadow .12s}
+.dfs-night .tko-key{color:#fbf7ef}.dfs-night .tko-cap{background:#292724;border-color:#3d3a36;box-shadow:0 var(--travel,6px) 0 #3d3a36}
+.dfs-night .tko-cap .tinko-outro_key-label{border-color:#4a4640}.dfs-night .tko-ring rect{stroke:#1dabfa}
+.tko-cover{position:fixed;inset:0;z-index:2147483000;pointer-events:none}
+@media (prefers-reduced-motion:reduce){.tko-tilt{transform:none!important}}
+`;
+
 /* ---------- styles for what the script builds ---------- */
 
 function injectCSS() {
@@ -1390,7 +1537,7 @@ function injectCSS() {
 .tkh-roll b:nth-child(2){transition-delay:.01s}.tkh-roll b:nth-child(3){transition-delay:.02s}.tkh-roll b:nth-child(4){transition-delay:.03s}.tkh-roll b:nth-child(5){transition-delay:.04s}.tkh-roll b:nth-child(6){transition-delay:.05s}.tkh-roll b:nth-child(7){transition-delay:.06s}.tkh-roll b:nth-child(8){transition-delay:.07s}.tkh-roll b:nth-child(9){transition-delay:.08s}.tkh-roll b:nth-child(10){transition-delay:.09s}.tkh-roll b:nth-child(11){transition-delay:.1s}
 @media (prefers-reduced-motion:reduce){.tkh-sway{animation:none}.tkh-win{transition:opacity .3s}}
 `;
-  s.textContent += DEMO_CSS;
+  s.textContent += DEMO_CSS + OUTRO_CSS;
   document.head.append(s);
 }
 
@@ -1409,6 +1556,7 @@ function init() {
   document.querySelectorAll('[data-tinko-stage]').forEach(initStage);
   if (!document.querySelector('[data-tinko-stage]')) heroTitle.play(120);
   document.querySelectorAll('[data-tinko-ba]').forEach(initBA);
+  document.querySelectorAll('[data-tinko-outro]').forEach(initOutro);
   tilt(document.querySelector('.splitter-wrapper'), { max: 3, p: 2200 });
   initPixels();   // before the Osmo script in the footer starts (it waits for DOMContentLoaded)
   const rows = () => document.querySelectorAll('[data-tinko-demo]').forEach(initDemo);

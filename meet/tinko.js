@@ -461,7 +461,8 @@ function initStage(host) {
     btn.classList.add('is-press'); setTimeout(() => btn.classList.remove('is-press'), 160);
     const hop = tinko.cheer(1);
     setTimeout(() => {
-      const hero = host.closest('[data-tinko-hero]'), next = document.querySelector('#before-after') || document.querySelector('#features') || hero?.nextElementSibling;
+      const hero = host.closest('[data-tinko-hero]');
+      let next = hero?.nextElementSibling; while (next && !next.id) next = next.nextElementSibling;   // the next section (dividers have no id)
       const y = next ? next.getBoundingClientRect().top + scrollY : (hero ? hero.getBoundingClientRect().bottom + scrollY : innerHeight);
       if (window.lenis?.scrollTo) window.lenis.scrollTo(y, { duration: 1.6 }); else scrollTo({ top: y, behavior: 'smooth' });
     }, reduce ? 0 : 520);
@@ -1420,30 +1421,38 @@ function initOutro(host) {
   key.addEventListener('click', e => { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); autoPress(); });   // ⌘-click still opens a tab
   addEventListener('keydown', e => {
     if (e.key !== ' ' || e.repeat || e.metaKey || e.ctrlKey || e.altKey || fired) return;
-    const t = e.target; if (t !== key && t.closest?.('input, textarea, select, [contenteditable], button, a')) return;
+    const t = e.target; if (t.closest?.('input, textarea, select, [contenteditable]')) return;
+    // a focused button or link you can see keeps its Space; one scrolled away (Take a look, clicked earlier) doesn't
+    if (t !== key && t.closest?.('button, a')) { const b = t.getBoundingClientRect(); if (b.bottom > 0 && b.top < innerHeight) return; }
     const r = host.getBoundingClientRect(); if (r.top > innerHeight * .5 || r.bottom < innerHeight * .5) return;
-    e.preventDefault(); autoPress();
+    e.preventDefault(); if (t !== key) t.blur?.(); autoPress();
   });
 
-  // the click: he cheers and goes, and his window, empty now, opens out to the whole screen (over the nav too). As it
-  // grows its chrome fades and it takes the page's own colour, the colour Fundamentals then opens out of (day or night)
+  // the click: he hops. In the cube he stays on the page while it turns away and Fundamentals turns in; with the box he
+  // goes, and his window, empty now, opens out to the whole screen (over the nav too), taking the page's own colour as
+  // it grows, the colour Fundamentals then opens out of (day or night)
+  let viaNav = false;
   async function fire() {
     fired = true; if (hint) hint.textContent = '\u00a0';
     key.style.setProperty('--travel', '0px'); key.classList.add('is-down');
     if (lean) { lean.max = 0; tiltKick(); }   // he leans back to straight while he says goodbye
     if (tinko.mood === 'asleep' || tinko.mood === 'cheering') tinko.awakeNow();
-    const words = win.querySelector('.tko-screen');
-    if (cubeOn()) {   // the cube: he hops and stays on the page while it turns away, and Fundamentals turns in
-      await tinko.cheer(1, true);
-      const bg = pageColour();
-      const turned = await window.tinkoCube.play({ faces: [host.querySelector('.tinko-outro_pin'), document.querySelector('.navbar_component'), document.querySelector('.page_side-lines'), document.querySelector('.grain')], bg, voidColour: isNight() ? '#070c18' : '#e2dbcf', night: isNight() });
-      if (turned) {
-        try { sessionStorage.setItem(HAND_OFF, JSON.stringify({ t: Date.now(), bg, mode: 'cube' })); } catch (e) {}
-        return location.assign(href);
-      }
-    }
-    if (!reduce) { await tinko.cheer(1, true); words.classList.add('is-hidden'); await tinko.goAway(.8); await new Promise(r => setTimeout(r, 180)); }
-    const r = box.getBoundingClientRect(), cs = getComputedStyle(box), card = cs.backgroundColor, round = parseFloat(cs.borderTopLeftRadius) || 14;
+    if (!reduce) await tinko.cheer(1, true);
+    if (cubeOn() && await turn()) return;
+    if (!reduce) { win.querySelector('.tko-screen').classList.add('is-hidden'); await tinko.goAway(.8); await new Promise(r => setTimeout(r, 180)); }
+    const cs = getComputedStyle(box);
+    await openBox(box.getBoundingClientRect(), cs.backgroundColor, parseFloat(cs.borderTopLeftRadius) || 14);
+  }
+  // the cube (page code): the page as it is now turns away; true once Fundamentals faces you, and then it opens
+  async function turn() {
+    const bg = pageColour();
+    if (!await window.tinkoCube.play({ bg, voidColour: isNight() ? '#070c18' : '#e2dbcf', night: isNight() })) return false;
+    try { sessionStorage.setItem(HAND_OFF, JSON.stringify({ t: Date.now(), bg, mode: 'cube' })); } catch (e) {}
+    location.assign(href);
+    return true;
+  }
+  // the box: an empty window of his, growing from r to the whole screen
+  async function openBox(r, card, round) {
     const bg = pageColour();
     cover = document.createElement('div'); cover.className = 'tkh tko-cover';
     cover.innerHTML = `<div class="tkh-win is-on"><div class="tkh-grain"></div><div class="tkh-lights"><i></i><i></i><i></i></div><div class="tkh-dash is-top"></div><div class="tkh-dash is-bottom"></div><div class="tkh-col"></div></div>`;
@@ -1465,6 +1474,19 @@ function initOutro(host) {
     try { sessionStorage.setItem(HAND_OFF, JSON.stringify({ t: Date.now(), bg })); } catch (e) {}
     location.assign(href);
   }
+  // the nav's Fundamentals button: the same change from wherever you are (Rim, 24 Oct: a plain jump felt odd there).
+  // The cube turns the page as it is; the box opens from the button. Hovering it starts loading the cube's far face.
+  document.querySelectorAll('[data-tinko-to-fund]').forEach(a => {
+    const early = () => { if (cubeOn()) window.tinkoCube.preload(href); };
+    a.addEventListener('pointerenter', early); a.addEventListener('focus', early);
+    a.addEventListener('click', async e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || fired) return;
+      e.preventDefault(); fired = viaNav = true; early();
+      if (cubeOn() && await turn()) return;
+      const cs = getComputedStyle(box);
+      await openBox(a.getBoundingClientRect(), cs.backgroundColor, 4);
+    });
+  });
   // the page's colour here (the section wears the site's background), the same one Fundamentals is drawn on
   function pageColour() {
     for (const el of [host, document.body, document.documentElement]) { const c = getComputedStyle(el).backgroundColor; if (c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return c; }
@@ -1476,9 +1498,11 @@ function initOutro(host) {
     window.tinkoCube?.undo(); cover?.remove(); cover = null; fired = auto = armed = false; key.classList.remove('is-down'); win.querySelector('.tko-screen').classList.remove('is-hidden');
     try { sessionStorage.removeItem(HAND_OFF); } catch (err) {}
     tinko.awakeNow(); tinko.show(true);
-    const y = host.getBoundingClientRect().top + scrollY + (host.offsetHeight - innerHeight) * .5;
-    scrollTo(0, y); window.lenis?.scrollTo?.(y, { immediate: true });
-    paint(progress());
+    if (!viaNav) {   // from the key: back to half way up the press (from the nav you're where you were)
+      const y = host.getBoundingClientRect().top + scrollY + (host.offsetHeight - innerHeight) * .5;
+      scrollTo(0, y); window.lenis?.scrollTo?.(y, { immediate: true });
+    }
+    viaNav = false; paint(progress());
   });
   paint(progress());
 }

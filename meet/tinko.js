@@ -964,26 +964,48 @@ const DEMOS = {
   /* 6. The inbox (MailViews.swift, MailNewsletters.swift): the newsletters one by one, ⌫ unsubscribes; their old
         mails go too, and the unread count falls */
   inbox: {
-    label: 'Tinko going through the newsletters in Apple Mail one by one, unsubscribing with one key while the unread count falls.',
-    senders: [['Weekly Wins', 'Your 5 wins for the week', 47, 'del'], ['Shop Daily', 'Last chance: 40% off everything', 36, 'del'], ['Studio Notes', 'What we learned building in public', 22, 'space'], ['Deal Radar', 'Prices dropped on 12 items', 31, 'del'], ['The Long Read', 'Sunday edition', 9, 'space'], ['App Digest', 'New this week in apps', 19, 'del']],
+    label: 'Tinko going through the newsletters in a mail inbox one by one, unsubscribing with one key while their mails fold away and the unread count falls.',
+    // the senders from Tinko's own newsletter round (Rim's screen, 14 Oct, as on the upsell): name, subject, preview,
+    // mails in three months, the key, an older subject. Personal mail sits between them and stays.
+    senders: [
+      ['Daily Crypto Picks', '3 coins to watch this week', 'Not financial advice. Markets opened higher this morning and', 31, 'del', 'Breaking: one coin up 40% overnight'],
+      ['Shop Restock Alerts', 'It’s back: the item on your wishlist', 'Hurry, only a few left in your size. Free returns until', 27, 'del', 'Price drop on 2 items you viewed'],
+      ['Flash Sale Friday', '48 hours only: up to 60% off', 'Your favourites are back. Ends Sunday at midnight, so', 24, 'del', 'Last call: the sale ends tonight'],
+      ['The Productivity Letter', 'Issue 212: the three-minute reset', 'This week: why your to-do list keeps growing, and what to', 12, 'space', 'Issue 211: inbox zero is a myth'],
+      ['Webinar Invites', 'Save your seat: Thursday, 4 pm', 'Join 2,000 others for a free live session on', 18, 'del', 'Starting in 1 hour: your free session'],
+      ['Your Running Club', 'Sunday long run, 8:00 at the bridge', 'Route attached. Coffee after, as always. Bring a', 4, 'space', 'Results from Sunday, and a new route'],
+    ],
+    people: [['Lisa', 'Photos from Saturday', 'Finally sorted them, here’s the link. The one with the dog'], ['Calendar', 'Tomorrow: dentist at 9:30', 'Reminder: Dr. Smit, Kerkstraat 12. Bring your card.']],
     build(api) {
       api.app('Tinko');
-      const mails = this.senders.flatMap(([n, s], i) => [[n, s, i], [n, s.split(':')[0] + ' (2)', i]]);
-      api.ctx.insertAdjacentHTML('beforeend', macWin('is-mail', 'Inbox', `<div class="tkd-mail-head"><b>Inbox</b><span class="tkd-unread">8,214 unread</span></div><div class="tkd-mails">${mails.map(([n, s, i]) => `<div class="tkd-mrow" data-s="${i}"><i></i><b>${n}</b><span>${s}</span></div>`).join('')}</div>`));
+      const AV = ['#e2725b', '#5b8de2', '#e0ad45', '#8bbf86', '#a57fd4', '#59b3ab', '#d48aa6', '#7e8a99'];
+      const ini = n => n.split(/\s+/).filter(w => /^[A-Z]/.test(w)).slice(0, 2).map(w => w[0]).join('') || n[0];
+      const row = (key, name, sub, pre, time, c) => `<div class="tkd-mrow" data-s="${key}"><i class="tkd-mdot"></i><span class="tkd-mav" style="background:${c}">${ini(name)}</span><div class="tkd-mtxt"><div class="tkd-mtop"><b>${name}</b><time>${time}</time></div><div class="tkd-msub">${sub}</div><div class="tkd-mpre">${pre}</div></div></div>`;
+      const T = ['09:41', '09:12', '08:30', '07:55', '07:02', 'Yesterday', 'Yesterday', 'Yesterday', 'Mon', 'Mon', 'Mon', 'Sun', 'Sun', 'Sat'];
+      const rows = []; let t = 0;
+      this.senders.forEach(([name, sub, pre], i) => { rows.push(row(i, name, sub, pre, T[t++] || 'Fri', AV[i])); if (i === 1) rows.push(row('p', ...this.people[0], T[t++], AV[6])); if (i === 3) rows.push(row('p', ...this.people[1], T[t++], AV[7])); });
+      this.senders.forEach(([name, , pre, , , older], i) => rows.push(row(i, name, older, pre, T[t++] || 'Fri', AV[i])));
+      const box = (name, icon, on, n) => `<div class="tkd-mbox${on ? ' is-on' : ''}"><svg viewBox="0 0 12 12" aria-hidden="true">${icon}</svg>${name}${n ? `<b>${n}</b>` : ''}</div>`;
+      const I = { inbox: '<path d="M1.5 7.5h2.6l.9 1.4h2l.9-1.4h2.6"/><path d="M2.6 2.5h6.8l1.1 5v2.5h-9V7.5z"/>', flag: '<path d="M3 10.5V1.8M3 2.2h6l-1.4 2.3L9 6.8H3"/>', draft: '<path d="M2 10h8M3.2 7.8l5.2-5.2 1.1 1.1-5.2 5.2H3.2z"/>', sent: '<path d="M1.6 5.6l8.8-3.8-3.8 8.8-1.2-3.8z"/>', junk: '<path d="M2 2.5h8v7H2zM2 2.5l4 3.5 4-3.5"/>', bin: '<path d="M2.5 3.2h7M4.6 3.2V2h2.8v1.2M3.4 3.2l.5 7h4.2l.5-7"/>' };
+      api.ctx.insertAdjacentHTML('beforeend', macWin('is-mail', 'Inbox', `<div class="tkd-mside"><span class="tkd-mside-h">Favourites</span>${box('Inbox', I.inbox, true, '8,214')}${box('Flagged', I.flag)}${box('Drafts', I.draft)}${box('Sent', I.sent)}${box('Junk', I.junk)}${box('Bin', I.bin)}</div><div class="tkd-mlist"><div class="tkd-mlist-h"><b>Inbox</b><span>8,214 unread</span></div><div class="tkd-mails">${rows.join('')}</div></div>`));
     },
     layout(api, L) {
-      api.winAt(L === 'tall' ? 33 : 250, L === 'tall' ? 50 : 50);
-      Object.assign(api.ctx.querySelector('.is-mail').style, L === 'tall' ? { left: '33px', top: '480px', width: '454px', height: '280px' } : { left: '16px', top: '74px', width: '360px', height: '400px' });
+      // his window a little smaller here, low on the right, so the inbox has room to be read
+      const win = api.ctx.closest('.tkd-scene')?.querySelector('.tkd-win');
+      if (win) win.style.transform = L === 'tall' ? '' : 'scale(.64)';
+      api.winAt(L === 'tall' ? 33 : 318, L === 'tall' ? 40 : 150);
+      Object.assign(api.ctx.querySelector('.is-mail').style, L === 'tall' ? { left: '16px', top: '458px', width: '488px', height: '326px' } : { left: '14px', top: '34px', width: '452px', height: '472px' });
     },
     async play(api) {
-      const { S } = api, unread = api.ctx.querySelector('.tkd-unread');
-      let n = 8214; const count = to => { const from = n; n = to; const t0 = performance.now(); const step = now => { const k = Math.min(1, (now - t0) / 900); unread.textContent = Math.round(from + (to - from) * out(k)).toLocaleString('en') + ' unread'; if (k < 1) requestAnimationFrame(step); }; requestAnimationFrame(step); };
-      let t = 'These 6 senders send newsletters, busiest first. Does each one earn its place?';
-      api.show(S.tag('Newsletters') + S.words(t) + S.stats([[6, 'newsletters'], [164, 'mails in 3 months']]) + S.btns(S.btn('One by one', 'space')));
+      const { S } = api, badge = api.ctx.querySelector('.tkd-mbox.is-on b'), head = api.ctx.querySelector('.tkd-mlist-h span');
+      let n = 8214; const show = v => { badge.textContent = v.toLocaleString('en'); head.textContent = v.toLocaleString('en') + ' unread'; };
+      const count = to => { const from = n; n = to; const t0 = performance.now(); const step = now => { const k = Math.min(1, (now - t0) / 900); show(Math.round(from + (to - from) * out(k))); if (k < 1) requestAnimationFrame(step); }; requestAnimationFrame(step); };
+      let t = `These ${this.senders.length} senders send newsletters, busiest first. Does each one earn its place?`;
+      api.show(S.tag('Newsletters') + S.words(t) + S.stats([[this.senders.length, 'newsletters'], [this.senders.reduce((a, r) => a + r[3], 0), 'mails in 3 months']]) + S.btns(S.btn('One by one', 'space')));
       await api.wait(say(t)); await api.press('space');
       const gone = [];
       for (let i = 0; i < this.senders.length; i++) {
-        const [name, , mails, key] = this.senders[i];
+        const [name, , , mails, key] = this.senders[i];
         api.ctx.querySelectorAll(`.tkd-mrow[data-s="${i}"]`).forEach(r => r.classList.add('is-seen'));
         api.show(S.tag('Newsletters') + S.title(name) + S.words(`${mails} mails in three months. Does it earn its place?`) + S.btns(S.btn('Keep', 'space'), S.btn('Unsubscribe', 'del', true)) + S.count(`${i + 1} OF ${this.senders.length} · AN UNSUBSCRIBE CAN’T BE UNDONE`));
         await api.wait(YOU ? 0 : i < 2 ? 1700 : 900); const k = await api.press(key, key === 'del' ? 'space' : 'del');
@@ -1001,13 +1023,17 @@ const DEMOS = {
       t = `${n.toLocaleString('en')} mails older than three weeks are still unread. Mark them as read? The last three weeks stay as they are, for you to look through.`;
       api.show(S.tag('Your inbox') + S.words(t) + S.btns(S.btn('Mark them read', 'space'), S.btn('Skip', 's', true)));
       await api.wait(say(t) * .8);
-      const read = await api.press('space', 's') === 'space'; if (read) count(37);
+      const read = await api.press('space', 's') === 'space'; if (read) { count(37); api.ctx.querySelector('.tkd-mails').classList.add('is-read'); }
       await api.wait(1000);
       api.show(S.tag('Inbox, done') + S.words('Your inbox, cleared out. That’s a big one.') + S.fixes([`${gone.length} newsletter${gone.length === 1 ? '' : 's'} unsubscribed`, `${binned} mails to the Bin`, `8,214 unread → ${read ? 37 : n.toLocaleString('en')}`], 3));
       api.tinko.cheer(1);
     },
     hold: 3600,
-    async reset(api) { api.ctx.querySelectorAll('.tkd-mrow').forEach(r => r.classList.remove('is-gone', 'is-seen')); api.ctx.querySelector('.tkd-unread').textContent = '8,214 unread'; },
+    async reset(api) {
+      api.ctx.querySelectorAll('.tkd-mrow').forEach(r => r.classList.remove('is-gone', 'is-seen'));
+      api.ctx.querySelector('.tkd-mails').classList.remove('is-read');
+      api.ctx.querySelector('.tkd-mbox.is-on b').textContent = '8,214'; api.ctx.querySelector('.tkd-mlist-h span').textContent = '8,214 unread';
+    },
   },
 
   /* 7. Instant setup (SetupViews.swift, Essentials.swift): both downloaded from their makers, each checked, into Applications */
@@ -1170,14 +1196,29 @@ const DEMO_CSS = `
 .tkd-switch.is-on{background:#34c759}.tkd-switch.is-on::after{transform:translateX(12px)}
 .tkd-switch.is-small{transform:scale(.85)}
 .tkd-mw.is-settings{transition:opacity .25s}.tkd-mw.is-settings.is-flip{opacity:.4}
-.tkd-mail-head{display:flex;flex-direction:column;gap:3px;padding:10px 14px 8px;border-bottom:1px solid rgba(0,0,0,.06)}
-.tkd-mw.is-mail .tkd-mw-body{flex-direction:column}
-.tkd-mail-head b{font-size:15px}.tkd-unread{font-size:10px;color:rgba(127,127,127,1);font-variant-numeric:tabular-nums}
+.tkd-mw.is-mail .tkd-mw-body{flex-direction:row}
+.tkd-mside{width:98px;flex:none;display:flex;flex-direction:column;gap:1px;padding:10px 6px;background:rgba(0,0,0,.035);border-right:1px solid rgba(0,0,0,.07);font-size:10.5px}
+.tkd-mside-h{padding:1px 6px 5px;font-size:9px;font-weight:600;color:rgba(0,0,0,.4)}
+.tkd-mbox{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:5px;color:rgba(0,0,0,.72)}
+.tkd-mbox svg{width:12px;height:12px;flex:none;fill:none;stroke:#0a84ff;stroke-width:1.1;stroke-linejoin:round;stroke-linecap:round}
+.tkd-mbox.is-on{background:rgba(0,0,0,.07);color:#1d1d1f;font-weight:500}
+.tkd-mbox b{margin-left:auto;font-weight:500;font-size:9.5px;color:rgba(0,0,0,.45);font-variant-numeric:tabular-nums}
+.tkd-mlist{flex:1;min-width:0;display:flex;flex-direction:column}
+.tkd-mlist-h{display:flex;flex-direction:column;gap:1px;padding:9px 12px 7px;border-bottom:1px solid rgba(0,0,0,.07)}
+.tkd-mlist-h b{font-size:14px;font-weight:700}.tkd-mlist-h span{font-size:9.5px;color:rgba(0,0,0,.45);font-variant-numeric:tabular-nums}
 .tkd-mails{flex:1;overflow:hidden}
-.tkd-mrow{display:grid;grid-template-columns:8px auto 1fr;gap:8px;align-items:center;height:30px;padding:0 14px;border-bottom:1px solid rgba(0,0,0,.05);white-space:nowrap;overflow:hidden;transition:height .4s cubic-bezier(.625,.05,0,1),opacity .3s,background .3s}
-.dfs-night .tkd-mrow{border-color:rgba(255,255,255,.05)}
-.tkd-mrow i{width:7px;height:7px;border-radius:50%;background:#0a84ff}.tkd-mrow b{font-weight:600}.tkd-mrow span{overflow:hidden;text-overflow:ellipsis;opacity:.6}
-.tkd-mrow.is-seen{background:rgba(10,108,255,.12)}.tkd-mrow.is-gone{height:0;opacity:0;border-width:0}
+.tkd-mrow{display:grid;grid-template-columns:7px 24px minmax(0,1fr);gap:7px;align-items:start;height:57px;padding:8px 12px 0 7px;border-bottom:1px solid rgba(0,0,0,.055);overflow:hidden;transition:height .45s cubic-bezier(.625,.05,0,1),padding .45s cubic-bezier(.625,.05,0,1),opacity .3s,background .3s}
+.tkd-mdot{width:7px;height:7px;margin-top:5px;border-radius:50%;background:#0a84ff;transition:opacity .4s}
+.tkd-mav{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:9px;font-weight:600;letter-spacing:.02em}
+.tkd-mtxt{min-width:0}.tkd-mtop{display:flex;justify-content:space-between;gap:6px}
+.tkd-mtop b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:600}
+.tkd-mtop time{flex:none;font-size:9.5px;color:rgba(0,0,0,.42)}
+.tkd-msub,.tkd-mpre{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
+.tkd-msub{font-size:10.5px}.tkd-mpre{font-size:10px;color:rgba(0,0,0,.45)}
+.tkd-mrow.is-seen{background:rgba(10,132,255,.1)}.tkd-mrow.is-gone{height:0;padding-top:0;padding-bottom:0;opacity:0;border-width:0}
+.tkd-mails.is-read .tkd-mdot{opacity:0}
+.dfs-night .tkd-mside{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.08)}.dfs-night .tkd-mside-h,.dfs-night .tkd-mbox b,.dfs-night .tkd-mlist-h span,.dfs-night .tkd-mtop time,.dfs-night .tkd-mpre{color:rgba(255,255,255,.45)}
+.dfs-night .tkd-mrow{border-color:rgba(255,255,255,.06)}.dfs-night .tkd-mbox{color:rgba(255,255,255,.75)}.dfs-night .tkd-mbox.is-on{background:rgba(255,255,255,.1);color:#ececec}.dfs-night .tkd-mlist-h{border-color:rgba(255,255,255,.08)}
 /* the side panel (SidePanel: what goes with an app) */
 .tkd-panel{--c-card:#fbf7ef;--c-ink:#3d3a36;--c-soft:#7d776f;--c-line:#dfd5ca;--c-calm:#1a97d7;position:absolute;z-index:2;left:384px;top:62px;width:322px;padding:18px 18px 14px;border-radius:10px;background:var(--c-card);color:var(--c-ink);font-family:"Space Mono",monospace;font-size:10px;box-shadow:0 0 0 1px rgba(0,0,0,.1),0 18px 40px -12px rgba(0,0,0,.4);opacity:0;transform:translateX(-120px);transition:transform .7s cubic-bezier(.625,.05,0,1),opacity .4s}
 .dfs-night .tkd-panel{--c-card:#292724;--c-ink:#fbf7ef;--c-soft:#b3aca2;--c-line:#3d3a36;--c-calm:#1dabfa}

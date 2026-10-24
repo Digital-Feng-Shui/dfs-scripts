@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.16.0/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.17.0/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -8,13 +8,12 @@
    MAX_H: past that, black bars at the sides); then a menu tab (three bars) slides out from behind the video's right
    edge and stays hanging on it. The tab, the button again or Esc play it back the other way. It stays on from lesson
    to lesson (Rim, 21 Oct): cards and actions show bigger in it, actions with more room around their two columns.
-   The tab sits on the same line as the button and is just as tall: same job, same row. The button is 1.25rem in from
-   the video's edges and the tab hangs on the edge, so the two are 1.25rem apart too (Rim, 21 Oct). Desktop only
+   The tab sits centred on the button's line: same job, same row (Rim, 21 Oct). Desktop only
    (under 992px the menu is a bar above the lesson anyway) and only over a video. While the pointer rests on the
    button, the video keeps its hover look (darker, controls) under it.
-   No icon but its corner marks: they point out (bigger); in focus mode they flip to point in (smaller).
-   Corner lab (?lab=corner, Rim choosing): the button's label (short, long, the word gone in focus mode, marks alone)
-   and the menu tab on the video's edge or a little off it; ?label= and ?tab= hold the choice.
+   The button mirrors the player's fullscreen button (same marks, same line): FOCUS MODE between its marks; in focus
+   mode the word backs out letter by letter and the marks turn in, leaving the exit-fullscreen icon (Rim, 24 Oct).
+   Tab lab (?lab=corner, Rim choosing): the menu tab on the video's edge or a little off it; ?tab= holds the choice.
    The menu: panels a step darker than the page, lesson rows alternating darker / lighter, dashed chevron buttons
    (blue on the open module), the open lesson's checkbox in blue.
    The open lesson's time: while its video plays, a small blue wave runs in its place; paused, it lies flat.
@@ -23,7 +22,7 @@
    Big screens: the frame stops at FRAME wide and never so wide that the video and Previous / Next leave the screen;
    cards grow their contents with the card.
    Speed tip: on videos of 8+ minutes still playing at 1x, a short bubble over the speed control suggests 1.5x.
-   The instructor panel in 0.1 Welcome: the photo floats, the dashed circles turn.
+   The instructor panel in 0.1 Welcome: the photo floats, the dashed circles turn; on desktop it runs the full width.
    Lesson texts: the tag sits top right on the title's line, with the same inset as the text; extra tags (workfile ↓,
    resources ↓) stack under it and glide down to the link boxes below the text. */
 
@@ -38,6 +37,7 @@ const MAX_H = 820; // px, the tallest the video gets in focus mode (a big screen
 const FRAME = 1760; // px, the widest the page's frame gets (big screens get wider margins instead)
 const CARD_W = 1100, CARD_MAX = 1.3; // a card wider than CARD_W px grows its contents with it, up to CARD_MAX times
 const TAB_GAP = 12; // px between the video's edge and the menu tab, in the lab's "gap" variant
+const WORD = 'Focus mode', SIDE = 10, LETTER_MS = 30; // the button's word, px of air either side, ms per letter
 
 const css = `
 :root.dfs-v2 .course_module:not(.is-active){background-color:var(--brand-colors--bage)}
@@ -69,8 +69,16 @@ const css = `
 .v2-instructor_panel .instructor_image{animation:v2-float 6s ease-in-out infinite paused}
 .v2-instructor_panel .instructor_tag{animation:v2-float-tag 6s ease-in-out -4.6s infinite paused}
 .v2-instructor_panel.is-shown .instructor_circle,.v2-instructor_panel.is-shown .instructor_image,.v2-instructor_panel.is-shown .instructor_tag{animation-play-state:running}
-/* the text sits in a narrower column, centred in its half */
-.v2-instructor_body>*{width:100%;max-width:25rem}
+/* the text sits in a column as wide as the lesson text's, centred in its half */
+.v2-instructor_body>*{width:100%;max-width:32rem}
+/* on desktop the panel runs the course's full width, under the menu's column too, which is empty that far down
+   (Rim, 24 Oct); only while it clears the menu (is-wide, set below). The course text's dashed right edge would run
+   through it: a strip of page colour covers that stretch. In focus mode the text already has the menu's room */
+@media (min-width:992px){
+  :root:not(.v2-focus) .v2-instructor_panel.is-wide{position:relative;margin-right:calc(-4rem - 1px - 20rem)}
+  :root:not(.v2-focus) .v2-instructor_panel.is-wide::after{content:"";position:absolute;top:1px;bottom:1px;right:20rem;width:1px;
+    background-color:var(--brand-colors--light-bage);pointer-events:none}
+}
 @media (max-width:767px){.v2-instructor_body>*{max-width:none}}
 @media (prefers-reduced-motion:reduce){.v2-instructor_panel .instructor_circle,.v2-instructor_panel .instructor_image,.v2-instructor_panel .instructor_tag{animation:none}}
 
@@ -125,34 +133,33 @@ const css = `
 html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--brand-colors--bage);color:var(--brand-colors--dark_gray);
   background-image:linear-gradient(#ddd8cc12 1px,#0000 1px),linear-gradient(90deg,#ddd8cc12 1px,#0000 1px)}
 @media (min-width:992px){
-  /* one step, 1.25rem, sets the corner: the button sits that far in from the video's top and right edges, and the menu
-     tab (focus mode) hangs on the video's edge, so the two are that far apart too, on one line and equally tall.
-     No icon: the corner marks are the icon (out = make it big, in = make it small again) */
-  .v2-focus-btn{position:absolute;top:1.25rem;right:1.25rem;z-index:15;display:flex;align-items:center;justify-content:center;
-    box-sizing:border-box;width:6.5rem;height:2.25rem;padding:0;border:0;background:none;color:#fff;cursor:pointer;
+  /* the focus button mirrors the player's own fullscreen button in the bottom right corner (a 24px box 24px in from the
+     right and 16px up, its marks 2px thick with 7px arms in an 18px square): the same marks, on the same vertical line,
+     as far down from the top as that one is up from the bottom (Rim, 24 Oct). Around the word the marks open out
+     sideways and keep their height; in focus mode the word backs out letter by letter, the marks step in after it and
+     turn round to point in, like the player's exit-fullscreen icon (see "the word" below) */
+  .v2-focus-btn{position:absolute;top:19px;right:27px;z-index:15;display:flex;align-items:center;justify-content:center;
+    box-sizing:border-box;width:18px;height:18px;padding:0;border:0;background:none;color:#fff;cursor:pointer;
     font-family:var(--_typography---font-styles--mono);font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;line-height:1;
-    transition:width .45s cubic-bezier(.6,0,.3,1),opacity .3s ease,visibility 0s linear 0s}
-  /* widths for the mono label: 10 letters, 15 letters, or none (the marks alone, a square like the menu tab); switching
-     between them the marks close in or open out around the word */
-  .v2-focus-btn.is-long{width:8.75rem}
-  .v2-focus-btn.is-icon{width:2.25rem}
-  /* the four corners: outside focus mode they point out (bigger) and step out on hover; in focus mode they flip to
-     point in (smaller), like an exit-fullscreen icon, and step in on hover */
-  .v2-fc{position:absolute;width:9px;height:9px;pointer-events:none;border:0 solid rgba(255,255,255,.9);
+    transition:width 60ms linear,opacity .3s ease,visibility 0s linear 0s}
+  /* a target as tall as the menu tab, not just the marks */
+  .v2-focus-btn::before{content:"";position:absolute;inset:-9px}
+  .v2-fc{position:absolute;width:7px;height:7px;pointer-events:none;border:0 solid #fff;
     transition:scale .4s cubic-bezier(.6,0,.3,1),translate .35s cubic-bezier(.3,.7,.4,1)}
-  .v2-fc.is-tl{top:0;left:0;border-top-width:1.5px;border-left-width:1.5px}
-  .v2-fc.is-tr{top:0;right:0;border-top-width:1.5px;border-right-width:1.5px}
-  .v2-fc.is-bl{bottom:0;left:0;border-bottom-width:1.5px;border-left-width:1.5px}
-  .v2-fc.is-br{bottom:0;right:0;border-bottom-width:1.5px;border-right-width:1.5px}
-  .v2-focus-btn:is(:hover,:focus-visible) .v2-fc.is-tl{translate:-4px -4px}
-  .v2-focus-btn:is(:hover,:focus-visible) .v2-fc.is-tr{translate:4px -4px}
-  .v2-focus-btn:is(:hover,:focus-visible) .v2-fc.is-bl{translate:-4px 4px}
-  .v2-focus-btn:is(:hover,:focus-visible) .v2-fc.is-br{translate:4px 4px}
-  :root.v2-focus .v2-fc{scale:-1}
-  :root.v2-focus .v2-focus-btn:is(:hover,:focus-visible) .v2-fc.is-tl{translate:3px 3px}
-  :root.v2-focus .v2-focus-btn:is(:hover,:focus-visible) .v2-fc.is-tr{translate:-3px 3px}
-  :root.v2-focus .v2-focus-btn:is(:hover,:focus-visible) .v2-fc.is-bl{translate:3px -3px}
-  :root.v2-focus .v2-focus-btn:is(:hover,:focus-visible) .v2-fc.is-br{translate:-3px -3px}
+  .v2-fc.is-tl{top:0;left:0;border-top-width:2px;border-left-width:2px}
+  .v2-fc.is-tr{top:0;right:0;border-top-width:2px;border-right-width:2px}
+  .v2-fc.is-bl{bottom:0;left:0;border-bottom-width:2px;border-left-width:2px}
+  .v2-fc.is-br{bottom:0;right:0;border-bottom-width:2px;border-right-width:2px}
+  /* pointing out they step out on hover (make it big); turned in they step in (make it small again) */
+  .v2-focus-btn:is(:hover,:focus-visible) .v2-fc.is-tl{translate:-3px -3px}
+  .v2-focus-btn:is(:hover,:focus-visible) .v2-fc.is-tr{translate:3px -3px}
+  .v2-focus-btn:is(:hover,:focus-visible) .v2-fc.is-bl{translate:-3px 3px}
+  .v2-focus-btn:is(:hover,:focus-visible) .v2-fc.is-br{translate:3px 3px}
+  .v2-focus-btn.is-in .v2-fc{scale:-1}
+  .v2-focus-btn.is-in:is(:hover,:focus-visible) .v2-fc.is-tl{translate:2px 2px}
+  .v2-focus-btn.is-in:is(:hover,:focus-visible) .v2-fc.is-tr{translate:-2px 2px}
+  .v2-focus-btn.is-in:is(:hover,:focus-visible) .v2-fc.is-bl{translate:2px -2px}
+  .v2-focus-btn.is-in:is(:hover,:focus-visible) .v2-fc.is-br{translate:-2px -2px}
   /* the button sits over the player, not in it, so reaching it counts as leaving the player: while the pointer is on
      it, hold the player's hover look (darker video, controls) so the white label keeps its ground */
   .next_lesson_container:has(.v2-focus-btn:hover) .bunny-player[data-player-status="playing"] .bunny-player__dark{opacity:.3}
@@ -160,8 +167,7 @@ html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--
   .v2-focus-btn:focus-visible{outline:none}
   /* the letter spacing also trails the last letter; taking it back centres the word between the marks. The capitals
      sit a third of a pixel high in their line, so half a pixel down (one screen pixel on a Retina screen) */
-  .v2-focus-btn span{margin-right:-.1em;translate:0 .5px;white-space:nowrap;text-shadow:0 1px 6px rgba(0,0,0,.35);transition:opacity .25s ease}
-  .v2-focus-btn.is-icon span{opacity:0;visibility:hidden;transition:opacity .15s ease,visibility 0s linear .15s}
+  .v2-focus-btn span{margin-right:-.1em;translate:0 .5px;white-space:nowrap;text-shadow:0 1px 6px rgba(0,0,0,.35)}
   /* gone over a card, and while the video plays with its controls hidden (but never from under the pointer) */
   .next_lesson_container:has(.v2-card.is-active) .v2-focus-btn,
   .next_lesson_container:has(.bunny-player:not([data-player-src])) .v2-focus-btn,
@@ -178,8 +184,8 @@ html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--
   /* a lesson without a video yet (and without a card): a quiet panel instead of the last lesson's video */
   .next_lesson_container.v2-no-video .bunny-player,.next_lesson_container.v2-no-video .v2-focus-btn{visibility:hidden}
   /* the menu tab: waits behind the video's right edge; focus mode slides it out and it stays hanging on that edge, a
-     square as tall as the focus button, open on the video's side */
-  .v2-menu-box{position:absolute;top:1.25rem;left:100%;z-index:5;display:flex;align-items:center;justify-content:center;
+     square open on the video's side, centred on the focus button's line (19 + 9 - 18) */
+  .v2-menu-box{position:absolute;top:10px;left:100%;z-index:5;display:flex;align-items:center;justify-content:center;
     box-sizing:border-box;width:2.25rem;height:2.25rem;padding:0;border:1px solid var(--brand-colors--dark-bage);border-left:0;
     background-color:var(--brand-colors--bage);color:var(--brand-colors--dark_gray);cursor:pointer;visibility:hidden;
     transition:background-color .2s ease}
@@ -248,40 +254,55 @@ if (ready) {
   stage.appendChild(box);
 }
 
-// The corner's variants (Rim, 21 Oct: to see them side by side). label: short = FOCUS MODE / EXIT FOCUS,
-// long = FOCUS MODE / EXIT FOCUS MODE, exit-icon = the word goes in focus mode (the marks alone, shrink icon),
-// icon = the marks alone in both. tab: edge = hangs on the video's edge, gap = TAB_GAP px off it.
-const LABELS = ['short', 'long', 'exit-icon', 'icon'], TABS = ['edge', 'gap'];
+// The menu tab's variants, still open (Rim, 21 Oct): edge = hangs on the video's edge, gap = TAB_GAP px off it
+const TABS = ['edge', 'gap'];
 const params = new URLSearchParams(location.search);
-const corner = {
-  label: LABELS.includes(params.get('label')) ? params.get('label') : 'short',
-  tab: TABS.includes(params.get('tab')) ? params.get('tab') : 'edge',
-};
+const corner = { tab: TABS.includes(params.get('tab')) ? params.get('tab') : 'edge' };
 const tabGap = () => (corner.tab === 'gap' ? TAB_GAP : 0);
+const dressTab = () => box.classList.toggle('is-gap', corner.tab === 'gap');
 
-function dressCorner() {
-  const icon = corner.label === 'icon' || (corner.label === 'exit-icon' && focused);
-  const name = focused ? 'Exit focus mode' : 'Focus mode';
-  label.textContent = focused && corner.label === 'short' ? 'Exit focus' : name;
-  button.classList.toggle('is-icon', icon);
-  button.classList.toggle('is-long', !icon && label.textContent.length > 10);
-  button.setAttribute('aria-label', name);
-  button.title = icon ? name : '';
-  box.classList.toggle('is-gap', corner.tab === 'gap');
+// The word: the marks sit SIDE px either side of it, on whole pixels; with no word they close to the 18px icon
+function fitWord() {
+  const w = label.getBoundingClientRect().width;
+  button.style.width = w ? Math.round(w - parseFloat(getComputedStyle(label).letterSpacing) + 2 * SIDE) + 'px' : '';
+}
+// It backs out (or types in) a letter at a time, the marks stepping with it; then() once it's there
+let typing = 0, turning = 0;
+function retype(to, then) {
+  clearInterval(typing);
+  const step = () => {
+    const now = label.textContent;
+    if (now === to) { clearInterval(typing); if (then) then(); return true; }
+    label.textContent = to.startsWith(now) ? to.slice(0, now.length + 1) : now.slice(0, -1);
+    fitWord();
+    return false;
+  };
+  if (reduce) { while (!step()); return; }
+  typing = setInterval(step, LETTER_MS);
+}
+// In: the word goes, then the marks turn in. Out: the marks turn out, then the word comes back
+function dressButton(on) {
+  button.setAttribute('aria-label', on ? 'Exit focus mode' : 'Focus mode');
+  button.title = on ? 'Exit focus mode' : '';
+  clearTimeout(turning);
+  if (on) { retype('', () => button.classList.add('is-in')); return; }
+  button.classList.remove('is-in');
+  turning = setTimeout(() => retype(WORD), reduce ? 0 : 250);
 }
 
 let focused = false;
 let tl = null;
-if (ready) dressCorner();
+if (ready) {
+  dressTab();
+  fitWord();
+  if (document.fonts) document.fonts.ready.then(fitWord);
+}
 
 // ?lab=corner: a panel to flip through the variants; the choice goes into the address, so a link shows the same
 if (ready && params.get('lab') === 'corner') {
   const lab = document.createElement('div');
   lab.className = 'v2-lab';
-  const rows = [
-    ['label', 'Button', [['short', 'Exit focus'], ['long', 'Exit focus mode'], ['exit-icon', 'Icon in focus'], ['icon', 'Icon only']]],
-    ['tab', 'Menu', [['edge', 'On the edge'], ['gap', 'With a gap']]],
-  ];
+  const rows = [['tab', 'Menu', [['edge', 'On the edge'], ['gap', 'With a gap']]]];
   for (const [key, title, options] of rows) {
     const row = document.createElement('div');
     row.innerHTML = `<b>${title}</b>`;
@@ -295,7 +316,7 @@ if (ready && params.get('lab') === 'corner') {
         row.querySelectorAll('button').forEach((b) => b.classList.toggle('is-on', b === pick));
         params.set(key, value);
         history.replaceState(null, '', location.pathname + '?' + params + location.hash);
-        dressCorner();
+        dressTab();
       });
       row.appendChild(pick);
     }
@@ -400,7 +421,7 @@ function setFocus(on) {
   on = !!on && desktop.matches && ready;
   if (on === focused) return;
   focused = on;
-  dressCorner();
+  dressButton(on);
   button.setAttribute('aria-pressed', on ? 'true' : 'false');
   hideTip(); // the player is about to change size under it
   if (on) enter(); else leave();
@@ -413,7 +434,7 @@ document.addEventListener('keydown', (e) => {
   if (document.fullscreenElement || document.webkitFullscreenElement) return; // Esc leaves fullscreen first
   setFocus(false);
 });
-desktop.addEventListener('change', () => { if (!desktop.matches) setFocus(false); });
+desktop.addEventListener('change', () => { if (!desktop.matches) setFocus(false); else fitWord(); });
 addEventListener('resize', () => { hideTip(); if (focused) fitVideo(); });
 
 /* ---------- the open lesson ---------- */
@@ -520,6 +541,18 @@ if (panel && !reduce) {
   new IntersectionObserver((entries) => {
     for (const e of entries) panel.classList.toggle('is-shown', e.isIntersecting); // moves only while it can be seen
   }, { threshold: 0.1 }).observe(panel);
+}
+// Full width while it starts at least CLEAR px under the menu (a long module open on a small screen can reach it)
+const CLEAR = 24;
+if (panel && menu) {
+  const widen = () => panel.classList.toggle('is-wide',
+    desktop.matches && panel.offsetHeight > 0 && panel.getBoundingClientRect().top - menu.getBoundingClientRect().bottom >= CLEAR);
+  const sizes = new ResizeObserver(widen);
+  sizes.observe(menu);
+  sizes.observe(panel);
+  addEventListener('resize', widen);
+  addEventListener('load', widen);
+  if (document.fonts) document.fonts.ready.then(widen); // the text above it settles, and with it where it starts
 }
 
 /* ---------- lesson tags ---------- */

@@ -53,6 +53,8 @@ const revealShader = ditheringFragmentShader.includes(RES) && ditheringFragmentS
     .replace(RES, 'float far = length(canvasPixelizedUV / (u_pixelRatio * 1000.));\n  float local = clamp((u_spread - far) / max(u_edge, .001), 0., 1.);\n  float res = step(.5, shape * u_reveal * local + dithering);')
   : null;
 const FAR = 100;   // 100,000 px: everything
+// loaded as dive.min.js (jsDelivr minifies on request), its own parts come minified too
+const MIN = import.meta.url.includes('.min.js') ? '.min' : '';
 
 const root = document.querySelector('[data-dive]');
 if (root) init(root); else arrive();
@@ -64,6 +66,7 @@ const missionRoot = document.querySelector('[data-mission]');
 if (missionRoot) initMission(missionRoot);
 const solRoot = document.querySelector('[data-sol]');
 if (solRoot) initSol(solRoot);
+pauseOffscreen('section');
 
 /* sound: Timer's rule, sound means something answered you (sound/sound.js; off until the visitor turns it on).
    Mostly hover (Rim: you don't click often, and a click is usually a link): point = soft tick on hover,
@@ -76,7 +79,7 @@ const SOUNDS = {
   '.close_door, .close_submit, .found_play, .rhythms-app_save, [data-tk], .tk-reset': 'do',
 };
 // no ambience for now: Rim didn't like the wind (18 Oct); a bed that follows the sections is being explored
-arrived.then(() => import('../sound/sound.js')).then(() => window.dfsSound && window.dfsSound.map(SOUNDS)).catch(e => console.warn('[sound] did not load', e));
+arrived.then(() => import(`../sound/sound${MIN}.js`)).then(() => window.dfsSound && window.dfsSound.map(SOUNDS)).catch(e => console.warn('[sound] did not load', e));
 
 function init(root) {
   const q = sel => root.querySelector(sel);
@@ -121,7 +124,7 @@ function init(root) {
     mount = new ShaderMount(el.canvas, revealShader || ditheringFragmentShader, {
       ...sizing, u_colorBack: col(p.back), u_colorFront: col(p.front), u_shape: 6, u_type: S.type, u_pxSize: S.px, u_scale: S.scale0,
       ...(revealShader ? { u_reveal: start[0], u_spread: start[1], u_edge: .4 } : {}),
-    }, undefined, reduce || willArrive ? 0 : S.speed, 0);
+    }, undefined, reduce || willArrive ? 0 : S.speed, 0, 1);   // minPixelRatio 1: Paper's 2 drew a 1x screen at 4x the pixels (audit, 24 Oct); retina unchanged
   } catch (e) { console.warn('[dive] shader did not start', e); }
 
   /* ---- the star + Keeper tick (ring +45°, inner star -45°, every 4.4 s, Osmo curve) ---- */
@@ -139,17 +142,23 @@ function init(root) {
     return x => { if (x <= 0) return 0; if (x >= 1) return 1; let t = x; for (let i = 0; i < 8; i++) { const d = s(t, x1, x2); if (d < 1e-6) break; t -= (f(t, x1, x2) - x) / d; } return f(t, y1, y2); };
   })();
   let t0 = performance.now();   // the arrival moves it, so a tick lands where the swirl locks
-  let logoVisible = true;
+  let logoVisible = true, logoRaf = 0, lastTurns = null;
+  // only while the star is there (render() starts it again when you scroll back up), and it only writes when the angle
+  // changes: the Keeper tick moves 0.8 s of every 4.4 s (audit, 24 Oct: it rewrote the mask every frame, all page long)
   function tickLogo(now) {
-    if (outer && logoVisible && !reduce) {
-      const t = Math.max(0, (now - t0) / 1000);
-      const turns = S.logo === 'keeper' ? Math.floor(t / 4.4) + osmo(((t % 4.4) - 3.6) / .8) : S.logo === 'spin' ? t * .12 : 0;
+    logoRaf = 0;
+    if (!outer || reduce || !logoVisible) return;
+    const t = Math.max(0, (now - t0) / 1000);
+    const turns = S.logo === 'keeper' ? Math.floor(t / 4.4) + osmo(((t % 4.4) - 3.6) / .8) : S.logo === 'spin' ? t * .12 : 0;
+    if (turns !== lastTurns) {
+      lastTurns = turns;
       outer.setAttribute('transform', `rotate(${turns * 45} 16 16)`);
       inner.setAttribute('transform', `rotate(${-turns * 45} 16 16)`);
     }
-    requestAnimationFrame(tickLogo);
+    logoRaf = requestAnimationFrame(tickLogo);
   }
-  requestAnimationFrame(tickLogo);
+  const wakeLogo = () => { if (!logoRaf && outer && !reduce && logoVisible) logoRaf = requestAnimationFrame(tickLogo); };
+  wakeLogo();
 
   /* ---- words: each word rises out of its own overflow-hidden box ---- */
   function split(node) {
@@ -209,6 +218,7 @@ function init(root) {
       el.logo.style.opacity = 1 - lo;
       el.logo.style.transform = `scale(${1 - lo * .6})`;
       logoVisible = lo < 1;
+      wakeLogo();
     }
     const outAt = Math.min(f0 - .04, S.titleIn + .26);
     setState(el.title, p < S.titleIn ? 'pre' : p < outAt ? 'in' : 'out');
@@ -726,7 +736,7 @@ function initTime(root) {
       mount = new ShaderMount(shaderEl, ditheringFragmentShader, {
         u_fit: 0, u_scale: 1, u_rotation: 0, u_offsetX: 0, u_offsetY: 0, u_originX: .5, u_originY: .5, u_worldWidth: 0, u_worldHeight: 0,
         u_colorBack: col(P.back), u_colorFront: col(P.back), u_shape: 2, u_type: 3, u_pxSize: 2, u_scale: .7,
-      }, undefined, 0, 0);
+      }, undefined, 0, 0, 1);   // minPixelRatio 1, as the dive's
     } catch (e) { console.warn('[time] dither did not start', e); }
   }
   arrived.then(() => idle(makeMount));
@@ -794,9 +804,18 @@ function initTime(root) {
         shaderEl.style.webkitMaskImage = m; shaderEl.style.maskImage = m;
       }
     }
-    requestAnimationFrame(bgFrame);
+    bgRaf = near.size || bgOn ? requestAnimationFrame(bgFrame) : 0;   // one more frame after leaving, to hide it
   }
-  requestAnimationFrame(bgFrame);
+  // the layer's loop runs while one of its sections is on screen (audit, 24 Oct: it measured three sections every frame,
+  // all page long)
+  let bgRaf = 0;
+  const near = new Set();
+  const nearIO = new IntersectionObserver(es => {
+    es.forEach(e => e.isIntersecting ? near.add(e.target) : near.delete(e.target));
+    if (near.size && !bgRaf) bgRaf = requestAnimationFrame(bgFrame);
+  });
+  [root, standEl, lastEl].forEach(el => el && nearIO.observe(el));
+  bgRaf = requestAnimationFrame(bgFrame);
 
   function frame(now) {
     if (visible && L) {
@@ -1191,9 +1210,15 @@ function initSol(root) {
     const clip = `inset(${t.toFixed(1)}px 0 ${b.toFixed(1)}px 0)`;
     if (lines && clip !== last) { last = clip; lines.style.clipPath = clip; }
     if (behind && !reduce) { const d = Math.max(0, Math.min(vh, vh - top)); behind.style.transform = d > 0 && d < vh ? `translate3d(0,${(d * .7).toFixed(1)}px,0)` : ''; }
-    requestAnimationFrame(handover);
   }
-  requestAnimationFrame(handover);
+  // it only follows the scroll (Lenis scrolls the window, so it fires every frame while moving), so it runs on scroll and
+  // resize, not every frame (audit, 24 Oct)
+  let hoRaf = 0;
+  const kickHandover = () => { if (!hoRaf) hoRaf = requestAnimationFrame(() => { hoRaf = 0; handover(); }); };
+  addEventListener('scroll', kickHandover, { passive: true });
+  addEventListener('resize', kickHandover);
+  new ResizeObserver(kickHandover).observe(document.body);
+  kickHandover();
 
   // the heading rises in; the path draws its lines once it's in view
   const rise = root.querySelector('[data-sol-rise]');
@@ -1210,7 +1235,7 @@ function initSol(root) {
   let solLoaded = false;
   const loadSol = () => {
     if (solLoaded) return; solLoaded = true;
-    import('./solutions.js').then(m => m.initSolutions(root)).catch(e => console.warn('[sol] demos did not load', e));
+    import(`./solutions${MIN}.js`).then(m => m.initSolutions(root)).catch(e => console.warn('[sol] demos did not load', e));
   };
   arrived.then(() => idle(loadSol));
   if (location.hash) loadSol();
@@ -1258,4 +1283,23 @@ function injectCSS() {
 @media (prefers-reduced-motion: reduce){[data-dive-cue-text],[data-dive-cue-line]::after{animation:none}[data-dive-cue-line]::after{transform:scaleY(1)}.dive-wi,.dive-ra,.dive-rb{transition:none}}
 `;
   const s = document.createElement('style'); s.id = 'dive-css'; s.textContent = css; document.head.append(s);
+}
+
+/* the looping CSS and SVG animations (the cue's pulse, the Tinko and Rhythms demos, the player's spinner) keep the main thread busy every frame even out of view: they hold
+   still while their part of the page is off screen (audit, 24 Oct). Only pauses what it paused itself, so a spinner
+   another script stopped stays stopped. */
+function pauseOffscreen(sel) {
+  const st = document.createElement('style');
+  st.textContent = '.dfs-off,.dfs-off *,.dfs-off *::before,.dfs-off *::after{animation-play-state:paused!important}';
+  document.head.append(st);
+  const held = new WeakSet();
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    const off = !e.isIntersecting;
+    e.target.classList.toggle('dfs-off', off);
+    e.target.querySelectorAll('svg').forEach(s => {
+      if (!s.pauseAnimations || !s.querySelector('animate, animateTransform, animateMotion')) return;
+      if (off && !s.animationsPaused()) { s.pauseAnimations(); held.add(s); } else if (!off && held.has(s)) { s.unpauseAnimations(); held.delete(s); }
+    });
+  }), { rootMargin: '10% 0px' });
+  document.querySelectorAll(sel).forEach(el => io.observe(el));
 }

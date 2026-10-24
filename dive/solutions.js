@@ -433,7 +433,8 @@ function initTinko(host) {
     cheer: [[-1.5, -.7, 1.4, 2.2, 1.5, -.7, 1.4, 2.2]],
     idle: [[-1.5, -.5, 1, 2, 1.5, -.5, 1, 2]],
   };
-  const look = n => { const set = LOOKS[mood], a = set[n % set.length]; setEyes(E(a[0], a[1], a[2], a[3]), E(a[4], a[5], a[6], a[7]), mood === 'working' ? .45 : .6); };
+  const away = () => tinkoEl.closest('.dfs-off');   // off screen (dive.js pauseOffscreen): his eyes rest too (audit, 24 Oct)
+  const look = n => { if (away() && n) return; const set = LOOKS[mood], a = set[n % set.length]; setEyes(E(a[0], a[1], a[2], a[3]), E(a[4], a[5], a[6], a[7]), mood === 'working' ? .45 : .6); };
   function setMood(m) {
     if (m === mood) return;
     mood = m; clearInterval(moodTimer); let n = 0; look(n);
@@ -442,6 +443,7 @@ function initTinko(host) {
   }
   if (!reduce) {
     const blink = () => {
+      if (away()) return setTimeout(blink, 2500 + Math.random() * 3500);
       const [l, r] = eyes; blinking = true;
       setEyes({ ...l, y: l.y + .8, h: .25 }, { ...r, y: r.y + .8, h: .25 }, .07);
       setTimeout(() => { setEyes(l, r, .16); blinking = false; }, 130);
@@ -879,7 +881,7 @@ async function dither(host, uniforms, speed, pal) {
     mount = new ShaderMount(host, ditheringFragmentShader, {
       u_fit: 0, u_scale: 1, u_rotation: 0, u_offsetX: 0, u_offsetY: 0, u_originX: .5, u_originY: .5, u_worldWidth: 0, u_worldHeight: 0,
       u_colorBack: col(back), u_colorFront: col(front), u_type: 3, u_pxSize: 2, ...uniforms,
-    }, undefined, 0, 0);
+    }, undefined, 0, 0, 1);   // minPixelRatio 1, as the dive's (audit, 24 Oct)
   } catch (e) { console.warn('[found] shader did not start', e); return null; }
   let seen = false;
   const go = () => mount.setSpeed(seen && !reduce ? speed : 0);
@@ -1042,7 +1044,7 @@ function initClose(host, above) {
     if (scale !== lastScale || type !== lastType) { lastScale = scale; lastType = type; fx.set({ u_scale: scale, u_type: type }); }
   };
   if (reduce) { settle(1); if (kicker) kicker.classList.add('dive-in'); return; }
-  let on = false, raf = 0, lastY = '', lastE = -1;
+  let on = false, raf = 0, lastY = '', lastE = -1, lastShade = '';
   const frame = () => {
     raf = 0; if (!on) return;
     const vh = innerHeight, r = pin.getBoundingClientRect();
@@ -1052,7 +1054,9 @@ function initClose(host, above) {
     const fo = foot ? Math.max(0, Math.min(vh, vh - foot.getBoundingClientRect().top)) : 0;
     const ty = ab > 0 ? `translate3d(0,${(-.7 * ab).toFixed(1)}px,0)` : fo > 0 ? `translate3d(0,${(.67 * fo).toFixed(1)}px,0)` : '';
     if (ty !== lastY) { lastY = ty; sticky.style.transform = ty; }
-    if (shade) shade.style.opacity = (fo / vh * .28).toFixed(3);
+    // only when it changes: the same value written every frame made each frame's rect read a fresh layout (audit, 24 Oct)
+    const so = (fo / vh * .28).toFixed(3);
+    if (shade && so !== lastShade) { lastShade = so; shade.style.opacity = so; }
     // (the question comes in as the journal's last edge goes, the answer as it settles)
     if (kicker) kicker.classList.toggle('dive-in', ab < vh * .25);
     // then, while it holds still, it settles: done at 75% through

@@ -1941,6 +1941,77 @@ function initMess(host) {
   layout();
 }
 
+/* ---------- Tinko comes with a course (Rim, 24 Oct: "all these slides on one side, small snippets of me explaining,
+   muted, autoplay loops; on the other side cards floating around, Tinko's part in it"; "a bit V2, because this is what
+   we're building towards") ----------
+   Webflow: .tinko-course_flow [data-tinko-course] with the lesson cards (data-lesson-video = the lesson on Bunny,
+   data-lesson-from / -to = the seconds that loop) and the host for his cards. The clips are the course's own lessons, a
+   slide with Rim in the corner, muted, each looping its few seconds while it's on screen, with the course player's wave
+   by its name while it plays. The cards are the V2 course as he's in it: the lesson menu with Install Tinko, the
+   install card, Start stage 1 with Tinko himself. Both drift a little with the scroll, the cards at their own pace. */
+const BUNNY = id => `https://vz-87a2c68f-2a7.b-cdn.net/${id}`;
+// the course player's wave (course/v2.js: a sine, 3.6 high in 12, one wave every 13): drawn long, slid along one wave
+const wave = () => { let d = ''; for (let x = 0; x <= 66; x++) d += (x ? 'L' : 'M') + x + ' ' + (6 + 3.6 * Math.sin(x / 13 * Math.PI * 2)).toFixed(2); return `<svg class="tkc-wave" viewBox="0 0 40 12" fill="none" aria-hidden="true"><path d="${d}"/></svg>`; };
+const CHEV = up => `<svg viewBox="0 0 12 12" aria-hidden="true"><path d="${up ? 'M2.5 8l3.5-3.5L9.5 8' : 'M2.5 4.5L6 8l3.5-3.5'}"/></svg>`;
+function initCourse(host) {
+  host.querySelectorAll('.tinko-course_lesson').forEach(lesson => {
+    const id = lesson.dataset.lessonVideo, from = +lesson.dataset.lessonFrom || 0, to = +lesson.dataset.lessonTo || from + 8;
+    const clip = lesson.querySelector('.tinko-course_clip'), meta = lesson.querySelector('.tinko-course_meta');
+    if (!id || !clip) return;
+    const v = document.createElement('video');
+    v.className = 'tkc-video'; v.muted = v.defaultMuted = v.playsInline = v.disablePictureInPicture = true; v.preload = 'none'; v.tabIndex = -1;
+    ['muted', 'playsinline', 'aria-hidden'].forEach(a => v.setAttribute(a, a === 'aria-hidden' ? 'true' : ''));
+    clip.append(v); meta?.insertAdjacentHTML('afterbegin', wave());
+    let loaded = false, seen = false;
+    const load = () => { if (loaded) return; loaded = true; v.preload = 'auto'; v.src = `${BUNNY(id)}/play_360p.mp4#t=${from}`; };
+    // its few seconds, over and over (no end in the #t: an end there pauses it, once and for all)
+    v.addEventListener('timeupdate', () => { if (v.currentTime >= to - .06 || v.currentTime < from - .5) v.currentTime = from; });
+    v.addEventListener('pause', () => { if (seen && !reduce) v.play().catch(() => {}); });
+    v.addEventListener('playing', () => lesson.classList.add('is-playing'));
+    v.addEventListener('loadeddata', () => clip.classList.add('is-in'));
+    new IntersectionObserver(([e]) => { if (e.isIntersecting) load(); }, { rootMargin: '600px 0px' }).observe(lesson);
+    new IntersectionObserver(([e]) => {
+      seen = e.isIntersecting;
+      if (seen && !reduce) { load(); v.play().catch(() => {}); } else { v.pause(); lesson.classList.remove('is-playing'); }
+    }, { threshold: .2 }).observe(lesson);
+  });
+
+  // his part: three cards from the V2 course
+  const side = host.querySelector('.tinko-course_tinko');
+  if (side) {
+    side.innerHTML = `<div class="tkc-card is-list" data-k="-.7" style="--r:-2deg"><div class="tkc-in">
+        <div class="tkc-mod is-open"><b>0: Start</b><i class="tkc-chev">${CHEV(true)}</i></div>
+        <div class="tkc-row is-now"><span class="tkc-box"></span><b>0.1: Welcome</b>${wave()}</div>
+        <div class="tkc-row"><span class="tkc-box"></span><b>0.2: Install Tinko</b><em>Action</em></div>
+        <div class="tkc-mod"><b>1: Clear</b><i class="tkc-chev">${CHEV(false)}</i></div></div></div>
+      <div class="tkc-card is-install" data-k=".35" style="--r:1.5deg"><div class="tkc-in">
+        <div class="tkc-h">Install Tinko</div>
+        <ol class="tkc-steps"><li>Press <kbd>⌘</kbd> + <kbd>Space</kbd>, type <mark>Terminal</mark> and press <kbd>Return ↵</kbd>.</li><li>Copy the line, paste it with <kbd>⌘</kbd> + <kbd>V</kbd> and press <kbd>Return ↵</kbd>:</li></ol>
+        <div class="tkc-code"><code><i class="c-cmd">curl</i> <i class="c-flag">-fsSL</i> <i class="c-url">https://d…</i> <i class="c-flag">|</i> <i class="c-cmd">sh</i> <i class="c-flag">-s</i> <i class="c-code">TNKO-••••-••••</i></code><span>Copy</span></div></div></div>
+      <div class="tkc-card is-stage" data-k="-.45" style="--r:-1deg"><div class="tkc-in">
+        <div class="tkh-tinko tkc-tinko" role="img" aria-label="Tinko"></div>
+        <div class="tkc-start">Start stage 1 <i><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h8M6.5 2.5L10 6l-3.5 3.5"/></svg></i></div>
+        <div class="tkc-path">Open menu › Stage 1</div></div></div>`;
+    side.setAttribute('aria-label', 'Tinko in the course: the lesson menu with Install Tinko, the install card, and Start stage 1.');
+    side.setAttribute('role', 'img');
+    const tinko = makeTinko(side.querySelector('.tkc-tinko')); tinko.awakeNow();
+    new IntersectionObserver(([e]) => tinko.show(e.isIntersecting)).observe(side);
+  }
+
+  // the drift: the two columns of lessons against each other, each card at its own pace
+  if (reduce) return;
+  const cols = [...host.querySelectorAll('.tinko-course_col')], cards = [...host.querySelectorAll('.tkc-card')];
+  let tick = 0;
+  const drift = () => {
+    tick = 0; const r = host.getBoundingClientRect(); if (r.bottom < -200 || r.top > innerHeight + 200) return;
+    const k = (r.top + r.height / 2 - innerHeight / 2) / innerHeight * (innerWidth < 992 ? .25 : 1);   // stacked: only a hint
+    cols.forEach((c, i) => { c.style.transform = `translateY(${((i ? 50 : -28) * k).toFixed(1)}px)`; });
+    cards.forEach(c => c.style.setProperty('--y', (parseFloat(c.dataset.k) * 110 * k).toFixed(1) + 'px'));
+  };
+  addEventListener('scroll', () => { if (!tick) tick = requestAnimationFrame(drift); }, { passive: true });
+  addEventListener('resize', drift); drift();
+}
+
 // the first colour behind an element (sections can be see-through), for eyes that should read as holes
 function backdrop(el) {
   for (let n = el.parentElement; n; n = n.parentElement) { const c = getComputedStyle(n).backgroundColor; if (c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return c; }
@@ -1999,6 +2070,51 @@ const OUTRO_CSS = `
 .tkm-fx{position:absolute;inset:0;pointer-events:none;z-index:2}.tkm-boom{position:absolute;width:0;height:0}.tkm-boom i{position:absolute;left:-4px;top:-4px}
 @media (max-width:767px){.tkm-card{padding:1.6rem 1.1rem 1.4rem}.tkm-mac{grid-template-columns:1fr auto;grid-template-areas:"name state" "wave wave";gap:.6rem 1rem;margin-top:1.3rem}.tkm-mac_state{min-width:8.5rem}.tkm-wave{height:36px}.tkm-stats{grid-template-columns:1fr;margin-top:1.1rem}.tkm-stats div{flex-direction:row;justify-content:center;gap:.75rem;padding:.8rem 0 0}.tkm-stats div+div{border-left:0}.tkm-stats b{font-size:2rem}.tkm-stats span{text-align:left}.tkm-dock{bottom:1rem}.tkm-bin{width:52px;height:52px}}
 @media (prefers-reduced-motion:reduce){.tkm-card,.tkm-then{transition:none}}
+/* the course (Webflow: .tinko-course_flow): the lesson clips and his cards */
+.tkc-wave{display:block;flex:none;width:2.4rem;height:.8rem;overflow:hidden;color:#1a97d7}
+.tkc-wave path{stroke:currentColor;stroke-width:1.3;stroke-linecap:round;vector-effect:non-scaling-stroke;animation:tkcWave 1.3s linear infinite paused}
+@keyframes tkcWave{to{transform:translateX(-13px)}}
+.tinko-course_lesson.is-playing .tkc-wave path,.tkc-row.is-now .tkc-wave path{animation-play-state:running}
+.tinko-course_meta .tkc-wave{width:0;opacity:0;margin-right:-.6rem;transition:width .4s,opacity .4s,margin .4s}
+.tinko-course_lesson.is-playing .tinko-course_meta .tkc-wave{width:2.4rem;opacity:1;margin-right:0}
+.tkc-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .7s}
+.tinko-course_clip.is-in .tkc-video{opacity:1}
+.tinko-course_col{will-change:transform}
+.dfs-night .tinko-course_clip{background-color:#1b2338;box-shadow:0 0 0 1px rgba(251,247,239,.08),0 24px 50px -28px rgba(0,0,0,.8)}
+.dfs-night .tinko-course_meta{color:#b3aca2}.dfs-night .tkc-wave{color:#1dabfa}
+.tkc-card{--c-card:#f6f2ea;--c-ink:#3d3a36;--c-soft:#7d776f;--c-line:#dfd5ca;--c-calm:#1a97d7;--c-calmsoft:#e8f1f6;--c-mod:#ebe6dc;--tkh-cell:7px;position:absolute;transform:translateY(var(--y,0px)) rotate(var(--r,0deg));will-change:transform;text-align:left}
+.tkc-in{overflow:hidden;border:1px solid var(--c-line);border-radius:6px;background:var(--c-card);color:var(--c-ink);box-shadow:0 34px 64px -34px rgba(61,58,53,.55);animation:tkcFloat 7s ease-in-out infinite}
+@keyframes tkcFloat{50%{transform:translateY(-9px)}}
+.tkc-card.is-install .tkc-in{animation-duration:8.5s;animation-delay:-2.5s}.tkc-card.is-stage .tkc-in{animation-duration:6.5s;animation-delay:-4s}
+.tkc-card.is-list{top:0;left:12%;width:min(23rem,88%)}
+.tkc-card.is-install{top:15.5rem;left:0;width:min(27rem,100%)}
+.tkc-card.is-stage{top:31rem;left:36%;width:min(17rem,64%)}
+.tkc-mod{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.2rem;background:var(--c-mod);font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:1.55rem;line-height:1}
+.tkc-mod b{font-weight:400}.tkc-mod.is-open{background:var(--c-calmsoft)}
+.tkc-chev{display:grid;place-items:center;width:2.1rem;height:2.1rem;border:1px dashed var(--c-soft);border-radius:4px;color:var(--c-soft)}.tkc-mod.is-open .tkc-chev{border-color:var(--c-calm);color:var(--c-calm)}
+.tkc-chev svg,.tkc-start svg{width:.75rem;height:.75rem;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.tkc-row{display:flex;align-items:center;gap:.8rem;padding:.9rem 1.2rem;border-top:1px dashed var(--c-line);font-size:.85rem;letter-spacing:.02em}
+.tkc-row b{flex:1;font-weight:400}.tkc-row em{font-style:normal;font-size:.75rem;color:var(--c-soft)}
+.tkc-row.is-now{background:var(--c-calmsoft);color:var(--c-calm)}.tkc-row .tkc-wave{color:var(--c-calm)}
+.tkc-box{display:grid;place-items:center;flex:none;width:1.1rem;height:1.1rem;box-sizing:border-box;border:1.5px solid currentColor;border-radius:2px}.tkc-box::after{content:"";width:.45rem;height:.45rem;background:currentColor}
+.tkc-card.is-install .tkc-in{padding:1.4rem 1.5rem 1.5rem}
+.tkc-h{margin-bottom:.8rem;font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:1.55rem;line-height:1.1}
+.tkc-steps{margin:0 0 1rem;padding-left:1.25rem;font-size:.76rem;line-height:2.15}
+.tkc-steps kbd{padding:.05em .45em;border:1px solid var(--c-line);border-radius:4px;background:var(--c-card);box-shadow:0 1px 0 var(--c-line);font:inherit;font-size:.7rem}
+.tkc-steps mark{padding:.05em .35em;border-radius:3px;background:#e6dfd2;color:inherit}
+.tkc-code{display:flex;overflow:hidden;border-radius:6px;background:#2f2d2a;color:#fbf7ef;font-size:.7rem}
+.tkc-code code{flex:1;min-width:0;overflow:hidden;padding:.85rem 1rem;font:inherit;white-space:nowrap;text-overflow:ellipsis}.tkc-code i{font-style:normal}
+.tkc-code span{display:grid;place-items:center;padding:0 1rem;border-left:1px solid rgba(251,247,239,.14);background:#3a3834;letter-spacing:.1em;text-transform:uppercase}
+.c-cmd{color:#5aa9e6}.c-flag{color:#a9a39a}.c-url{color:#f0e2b6}.c-code{color:#8fd18f}
+.tkc-card.is-stage .tkc-in{display:flex;flex-direction:column;align-items:center;gap:1.1rem;padding:1.8rem 1.4rem 1.4rem}
+.tkc-start{display:flex;align-items:center;gap:.8rem;padding:.7rem .7rem .7rem 1.1rem;border-radius:4px;background:var(--c-mod);font-size:.85rem;letter-spacing:.06em;text-transform:uppercase}
+.tkc-start i{display:grid;place-items:center;width:1.6rem;height:1.6rem;border-radius:3px;background:var(--c-ink);color:var(--c-card)}
+.tkc-path{font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--c-soft)}
+.dfs-night .tkc-card{--c-card:#292724;--c-ink:#fbf7ef;--c-soft:#b3aca2;--c-line:#3d3a36;--c-calm:#1dabfa;--c-calmsoft:#173241;--c-mod:#33302c}
+.dfs-night .tkc-in{box-shadow:0 34px 64px -34px rgba(0,0,0,.85)}.dfs-night .tkc-steps mark{background:#3d3a36}.dfs-night .tkc-code{background:#1a1917}.dfs-night .tkc-code span{background:#252320}
+@media (max-width:991px){.tinko-course_tinko{display:flex;flex-direction:column;align-items:center;gap:1.25rem}.tkc-card{position:relative;top:auto!important;left:auto!important}.tkc-card.is-list{align-self:flex-start;width:min(23rem,90%);margin-left:3%}.tkc-card.is-install{width:min(27rem,100%)}.tkc-card.is-stage{align-self:flex-end;width:min(17rem,70%);margin-right:5%}}
+@media (prefers-reduced-motion:reduce){.tkc-in{animation:none}.tkc-wave path{animation:none}}
+
 /* the key legend (Webflow: .tinko-legend, his two buttons copied): it sits on a strip of his window's paper, the
    column with its side lines, his 32px grid and the dashed line under the buttons, fading up into the page (Rim, 24 Oct) */
 .tinko-legend{isolation:isolate}
@@ -2125,6 +2241,7 @@ function init() {
   document.querySelectorAll('[data-tinko-outro]').forEach(initOutro);
   document.querySelectorAll('[data-tinko-peek]').forEach(initPeek);
   document.querySelectorAll('[data-tinko-mess]').forEach(initMess);
+  document.querySelectorAll('[data-tinko-course]').forEach(initCourse);
   tilt(document.querySelector('.splitter-wrapper'), { max: 3, p: 2200 });
   initPixels();   // before the Osmo script in the footer starts (it waits for DOMContentLoaded)
   const rows = () => document.querySelectorAll('[data-tinko-demo]').forEach(initDemo);

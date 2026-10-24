@@ -3092,7 +3092,8 @@
       if (!overlay || !panel) return console.warn("onboarding: missing element");
 
       const DURATION = OVERLAY_DURATION;
-      const HOOK = "https://hook.eu1.make.com/qhe2n9ssb9vogd73tssm6zg71wwyphc2";
+      // Our own Cloudflare form endpoint (was Make until Oct 2026; same method, same body)
+      const HOOK = "https://dfs-cart.thomas-aukema.workers.dev/forms";
 
       let submitting = false;
 
@@ -3977,7 +3978,8 @@
         return console.warn('feedback overlay: missing element');
       }
 
-      var HOOK = "https://hook.eu1.make.com/qhe2n9ssb9vogd73tssm6zg71wwyphc2";
+      // Our own Cloudflare form endpoint (was Make until Oct 2026; same method, same body)
+      var HOOK = "https://dfs-cart.thomas-aukema.workers.dev/forms";
 
       var submitting = false;
 
@@ -4491,7 +4493,7 @@
   }
 
   // =========================================================
-  // RHYTHMS APP DEMO — /rythems-app hero
+  // RHYTHMS APP DEMO — /rhythms hero
   // The app window is real HTML in Webflow ([data-rhythms-app]); this makes it behave like the
   // Mac app (dfs-focus: RhythmsView.swift, RhythmEditor.swift, TargetPicker.swift), detail for detail:
   // - the list: lock tile, day letters + hours, switch; with the panel closed, what each one closes
@@ -5432,7 +5434,7 @@
           keyframes: { autoAlpha: [0, 0.4, 0.4, 0] }, onComplete: function () { line.remove(); zipLive--; } });
       })();
     }
-    if (listEl) listEl.appendChild(make('div', 'rhythms-app_beta', '<span>BETA V0.75</span><span class="rhythms-app_beta-link">GIVE FEEDBACK' + ICON.heart + '</span>'));
+    if (listEl) listEl.appendChild(make('div', 'rhythms-app_beta', '<span>BETA V0.76</span><span class="rhythms-app_beta-link">GIVE FEEDBACK' + ICON.heart + '</span>'));
     // Buttons with words roll their letters on hover, like the app
     var newWord = $('[data-app-new] span');
     if (newWord) roll(newWord, newWord.textContent.trim().toUpperCase());
@@ -5718,7 +5720,7 @@
   }
 
   // =========================================================
-  // RHYTHMS MARQUEE — /rythems-app "Closes what pulls you away"
+  // RHYTHMS MARQUEE — /rhythms "Closes what pulls you away"
   // The label sits above the row; a dashed gate line runs through the middle of it. Chips drift in
   // from the right, open and colourful, and are wiped closed as they cross the line: whatever part of
   // a chip is past it is already grey. Two copies of the row run in step: the open one shows right of
@@ -7903,7 +7905,7 @@
     dfsDashboard();
     if (document.querySelector('[data-helper-connect]')) dfsHelper();   // Tools: Tinko install + connect
   } else if (path === '/feedback' || path.indexOf('/feedback/') === 0) {
-    // /feedback/fundamentals (course), /feedback/rythems (the Rhythms app), ...
+    // /feedback/fundamentals (course), /feedback/rhythms (the Rhythms app), ...
     dfsFeedback();
   } else if (path === '/helper-test') {
     dfsCourse({ demo: true, lesson: 'lesson-2.1' });

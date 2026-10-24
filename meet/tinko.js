@@ -1595,7 +1595,8 @@ function initOutro(host) {
     if (!e.isIntersecting || fetched) return; fetched = true;
     if (cubeOn()) return window.tinkoCube.preload(href);   // the cube's far face: the page itself, loading in a frame
     const l = document.createElement('link'); l.rel = 'prefetch'; l.href = href; document.head.append(l);
-  }, { rootMargin: '150% 0px' }).observe(host);
+  }, { rootMargin: '0px' }).observe(host);   // once the outro is on screen, not 1.5 screens ahead: the cube's frame runs the
+  // whole page it loads (its trackers too), so only visitors who reach the outro load it (audit, 24 Oct)
 
   // Space, or a click on the key: the page scrolls itself to the end, so it's the same press as scrolling
   function autoPress() {
@@ -1954,6 +1955,10 @@ function initMess(host) {
    is recorded); 1.2 Clear your Mac, "Start stage 1", and his window opens on top again, on the desktop. The V2 menu
    beside it opens the playing module and lights its lesson with the course wave. Only while it's on screen. */
 const BUNNY = id => `https://vz-87a2c68f-2a7.b-cdn.net/${id}`;
+// the seconds that play, cut ahead as their own small files (meet/media/course, 720p, ~100 KB each): streaming the whole
+// lesson from Bunny to loop 8 s buffered 3 to 11 MB (audit, 24 Oct). Keyed by the step's video id and data-from; a
+// step whose id or seconds change in Webflow plays from Bunny again until its clip is cut (ffmpeg -ss from -t length).
+const CLIPS = { 'dcf95851-4ac1-4e1a-b9a8-de42d1b05d05@28': ['lesson-0.1.mp4', 8], '6694a1e6-f506-4519-85b8-49cae1648096@9': ['lesson-1.1.mp4', 9] };
 // the course player's wave (course/v2.js: a sine, 3.6 high in 12, one wave every 13): drawn long, slid along one wave
 const wave = () => { let d = ''; for (let x = 0; x <= 66; x++) d += (x ? 'L' : 'M') + x + ' ' + (6 + 3.6 * Math.sin(x / 13 * Math.PI * 2)).toFixed(2); return `<svg class="tkc-wave" viewBox="0 0 40 12" fill="none" aria-hidden="true"><path d="${d}"/></svg>`; };
 const CHEV = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5L6 8l3.5-3.5"/></svg>';
@@ -1978,6 +1983,9 @@ function initCourse(host) {
       el.innerHTML = `<div class="tkc-stage">${corner(st.lesson)}<div class="tkc-start">Start stage 1 <i><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h8M6.5 2.5L10 6l-3.5 3.5"/></svg></i></div><div class="tkc-path">Open menu › Stage 1</div></div>`;
     } else {
       st.from = +el.dataset.from || 0; st.to = +el.dataset.to || st.from + 8;
+      const clip = CLIPS[`${el.dataset.stepVideo}@${st.from}`];
+      const src = clip ? new URL(`./media/course/${clip[0]}`, import.meta.url).href : `${BUNNY(el.dataset.stepVideo)}/play_360p.mp4#t=${st.from}`;
+      if (clip) { st.to = Math.min(st.to - st.from, clip[1]); st.from = 0; }
       const v = st.v = document.createElement('video');
       v.className = 'tkc-video'; v.muted = v.defaultMuted = v.playsInline = v.disablePictureInPicture = true; v.preload = 'none'; v.tabIndex = -1;
       ['muted', 'playsinline', 'aria-hidden'].forEach(a => v.setAttribute(a, a === 'aria-hidden' ? 'true' : ''));
@@ -1985,7 +1993,7 @@ function initCourse(host) {
       // its seconds, over and over if it's still on (no end in the #t: an end there pauses it for good)
       v.addEventListener('timeupdate', () => { if (v.currentTime >= st.to - .06 || v.currentTime < st.from - .5) v.currentTime = st.from; });
       el.append(v);
-      st.load = () => { if (!v.src) { v.preload = 'auto'; v.src = `${BUNNY(el.dataset.stepVideo)}/play_360p.mp4#t=${st.from}`; } };
+      st.load = () => { if (!v.src) { v.preload = 'auto'; v.src = src; } };
     }
     return st;
   });
@@ -2374,5 +2382,25 @@ function init() {
   const rows = () => document.querySelectorAll('[data-tinko-demo]').forEach(initDemo);
   if (!LAB || LAB === 'rows') rows();
   if (LAB) import('./layouts.js').then(m => m.initLayouts(LAB)).catch(e => { console.error(e); if (LAB !== 'rows') rows(); });
+  pauseOffscreen('section, [data-tinko-demo]');
+}
+
+/* the looping CSS and SVG animations (Tinko's sway in every demo, the tiles marquee, the course wave, the spinners) keep the main thread busy every frame even out of view: they hold
+   still while their part of the page is off screen (audit, 24 Oct). Only pauses what it paused itself, so a spinner
+   another script stopped stays stopped. */
+function pauseOffscreen(sel) {
+  const st = document.createElement('style');
+  st.textContent = '.dfs-off,.dfs-off *,.dfs-off *::before,.dfs-off *::after{animation-play-state:paused!important}';
+  document.head.append(st);
+  const held = new WeakSet();
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    const off = !e.isIntersecting;
+    e.target.classList.toggle('dfs-off', off);
+    e.target.querySelectorAll('svg').forEach(s => {
+      if (!s.pauseAnimations || !s.querySelector('animate, animateTransform, animateMotion')) return;
+      if (off && !s.animationsPaused()) { s.pauseAnimations(); held.add(s); } else if (!off && held.has(s)) { s.unpauseAnimations(); held.delete(s); }
+    });
+  }), { rootMargin: '10% 0px' });
+  document.querySelectorAll(sel).forEach(el => io.observe(el));
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();

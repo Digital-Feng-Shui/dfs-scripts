@@ -2170,14 +2170,15 @@ const OUTRO_CSS = `
 @media (max-width:767px){.tkm-card{--fr:18px}.tkm-card .tkd-lights{left:6px;top:4px;gap:5px}.tkm-card .tkd-lights i{width:9px;height:9px}.tkm-head{padding:1.5rem .9rem 1.3rem}.tkm-mac{grid-template-columns:1fr auto;grid-template-areas:"name state" "wave wave";gap:.7rem 1rem;padding:1rem .9rem}.tkm-mac_name{justify-self:start}.tkm-mac_state{justify-self:end;width:8.5rem}.tkm-mac_state i{left:auto;right:0}.tkm-wave{height:36px}.tkm-stats{grid-template-columns:1fr;padding:.4rem 0 .9rem}.tkm-stats div{flex-direction:row;justify-content:center;gap:.75rem;padding:.6rem .9rem 0}.tkm-stats div+div{background:none}.tkm-stats b{font-size:2rem}.tkm-stats span{text-align:left}.tkm-dock{bottom:1rem}.tkm-bin{width:52px;height:52px}}
 @media (prefers-reduced-motion:reduce){.tkm-card,.tkm-then{transition:none}}
 /* the safety box (Webflow: .tinko-safebox): its corner brackets, like the course player's focus frame */
-.tinko-safebox::before{content:"";position:absolute;inset:-5px;pointer-events:none;--k:#3d3a35;background:linear-gradient(var(--k),var(--k)) 0 0/18px 2px,linear-gradient(var(--k),var(--k)) 0 0/2px 18px,linear-gradient(var(--k),var(--k)) 100% 0/18px 2px,linear-gradient(var(--k),var(--k)) 100% 0/2px 18px,linear-gradient(var(--k),var(--k)) 0 100%/18px 2px,linear-gradient(var(--k),var(--k)) 0 100%/2px 18px,linear-gradient(var(--k),var(--k)) 100% 100%/18px 2px,linear-gradient(var(--k),var(--k)) 100% 100%/2px 18px;background-repeat:no-repeat}
+.tinko-safebox::before{content:"";position:absolute;inset:-5px;pointer-events:none;--k:#3d3a35;background:linear-gradient(var(--k),var(--k)) 0 0/18px 2px,linear-gradient(var(--k),var(--k)) 0 0/2px 18px,linear-gradient(var(--k),var(--k)) 100% 0/18px 2px,linear-gradient(var(--k),var(--k)) 100% 0/2px 18px,linear-gradient(var(--k),var(--k)) 0 100%/18px 2px,linear-gradient(var(--k),var(--k)) 0 100%/2px 18px,linear-gradient(var(--k),var(--k)) 100% 100%/18px 2px,linear-gradient(var(--k),var(--k)) 100% 100%/2px 18px;background-repeat:no-repeat;transition:inset .55s cubic-bezier(.625,.05,0,1)}
+.tinko-safebox:hover::before{inset:-12px}
 .dfs-night .tinko-safebox{background-color:rgba(251,247,239,.025);border-color:#2a3550}.dfs-night .tinko-safebox::before{--k:#fbf7ef}
 .dfs-night .tinko-safebox_item{color:#b3aca2}.dfs-night .tinko-safebox_name,.dfs-night .tinko-safebox_icon{color:#fbf7ef}
 .tinko-safebox_badge .tinko-ph{display:none!important}
 .tinko-safebox{background-image:linear-gradient(rgba(61,58,54,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(61,58,54,.055) 1px,transparent 1px);background-size:32px 32px;background-position:-1px -1px}
 .dfs-night .tinko-safebox{background-image:linear-gradient(rgba(251,247,239,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(251,247,239,.045) 1px,transparent 1px)}
 .tkb{--edge:#0297db;--words:#fbf7ee;--tkh-cell:5px;position:absolute;inset:0;transform:rotate(-8deg);filter:drop-shadow(0 10px 14px rgba(61,58,53,.18));transition:transform .5s cubic-bezier(.34,1.5,.64,1)}
-.tkb:hover{transform:rotate(-2deg) scale(1.04)}
+.tinko-safebox:hover .tkb{transform:rotate(-2deg) scale(1.04)}
 .tkb-svg{display:block;width:100%;height:100%;overflow:visible}
 .tkb-edge{fill:var(--edge)}.tkb-ring{fill:none;stroke:var(--words);stroke-width:1;stroke-dasharray:2 3;opacity:.5}
 .tkb-words{fill:var(--words);font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.08em}

@@ -11,7 +11,9 @@
    Space (or the button) is his "Take a look": he cheers and the page moves on. The moon / sun in his toolbar
    is the site's own day/night switch.
    [data-tinko-title]: the hero title's lines rise in; [data-tinko-intro] follow.
-   [data-tinko-demo="dock|desk|files|apps|settings|inbox|setup"]: one row each under "What he does". A small Mac
+   [data-tinko-mess]: the opener after the hero. The homepage's file storm drifting behind "Years Of Clutter.",
+   pulled into the Bin beside Tinko as you scroll, then the result card with its firework (example figures).
+   [data-tinko-demo="dock|desk|files|documents|apps|settings|inbox|setup"]: one row each under "What he does". A small Mac
    (wallpaper, menu bar, Dock) with his window on it, playing that part with his real lines (from the app's
    Views files) while the Mac beside him changes: Dock icons leave, files fly, rows in Finder and Mail go, switches
    flip. Each plays only while it's on screen, then loops. Demo names and sizes are made up; the lines are his. */
@@ -619,7 +621,7 @@ function tilt(el, { max = 4, p = 1800 } = {}) {
    initDemo loops one for the rows; the layouts lab (meet/layouts.js) plays several in turn in one frame, so it can
    switch one off, stop it mid-way (stop(): the running play gives up at its next wait) and start it over. */
 export const ABORT = Symbol('stopped');
-const KEYS = { space: [' '], del: ['Backspace', 'Delete'], s: ['s', 'S'] };
+const KEYS = { space: [' '], del: ['Backspace', 'Delete'], s: ['s', 'S'], 1: ['1'] };
 const live = new Set();   // every demo built, to find the one your keys go to (you-mode): the one nearest the middle
 let focused = null;
 function refocus() {
@@ -664,7 +666,7 @@ export function buildDemo(host, key = host.dataset.tinkoDemo) {
   const ask = keys => { const g = gen; return new Promise((res, rej) => {
     const btns = keys.map(k => screen.querySelector(`[data-k="${k}"]`)).filter(Boolean);
     const hint = document.createElement('div'); hint.className = 'tkd-your';
-    hint.textContent = 'Your turn · ' + ['space', 'del', 's'].filter(k => keys.includes(k)).map(k => k === 'del' ? '⌫' : k === 'space' ? 'Space' : k.toUpperCase()).join(' or ');
+    hint.textContent = 'Your turn · ' + ['space', '1', 'del', 's'].filter(k => keys.includes(k)).map(k => k === 'del' ? '⌫' : k === 'space' ? 'Space' : k.toUpperCase()).join(' or ');
     btns.forEach(b => b.classList.add('is-ask')); screen.append(hint);
     const end = () => { clearInterval(poll); removeEventListener('keydown', onKey, true); screen.removeEventListener('click', onClick); btns.forEach(b => b.classList.remove('is-ask')); hint.remove(); };
     const onKey = e => {
@@ -683,7 +685,7 @@ export function buildDemo(host, key = host.dataset.tinkoDemo) {
     show(html) { screen.classList.add('is-swap'); screen.innerHTML = html; requestAnimationFrame(() => requestAnimationFrame(() => screen.classList.remove('is-swap'))); },
     // the key goes down on its button, and the screen moves on; `or` = the other key you may press in you-mode
     async press(key, or) {
-      const k = YOU ? await ask(or ? [key, or] : [key]) : key;
+      const k = YOU ? await ask([key, ...[or ?? []].flat()]) : key;
       const b = screen.querySelector(`[data-k="${k}"]`);
       if (b) { b.classList.add('is-press'); await wait(170); b.classList.remove('is-press'); }
       await wait(120);
@@ -961,10 +963,13 @@ const DEMOS = {
     async reset() {},
   },
 
-  /* 6. The inbox (MailViews.swift, MailNewsletters.swift): the newsletters one by one, ⌫ unsubscribes; their old
-        mails go too, and the unread count falls */
+  /* 6. The inbox (MailViews.swift, MailNewsletters.swift), in the app's order: one read of every inbox (seconds),
+        the overview, mail older than two years to the Bin (flagged stays), the newsletters one by one (⌫ unsubscribes)
+        and their old mails, then the unread from before the last three weeks marked read. The unread count falls at
+        every step (Tinko, 24 Oct: "Show the 8,214 dropping. That's the pain people feel every morning"). */
   inbox: {
-    label: 'Tinko going through the newsletters in a mail inbox one by one, unsubscribing with one key while their mails fold away and the unread count falls.',
+    label: 'Tinko reading a whole inbox in seconds, moving mail older than two years to the Bin, unsubscribing newsletters with one key and marking old unread mail as read, while the unread count falls from 8,214 to 37.',
+    total: 28600, unread: 8214, old: [16930, '4.2 GB', 2706], left: 37,
     // the senders from Tinko's own newsletter round (Rim's screen, 14 Oct, as on the upsell): name, subject, preview,
     // mails in three months, the key, an older subject. Personal mail sits between them and stays.
     senders: [
@@ -987,7 +992,7 @@ const DEMOS = {
       this.senders.forEach(([name, , pre, , , older], i) => rows.push(row(i, name, older, pre, T[t++] || 'Fri', AV[i])));
       const box = (name, icon, on, n) => `<div class="tkd-mbox${on ? ' is-on' : ''}"><svg viewBox="0 0 12 12" aria-hidden="true">${icon}</svg>${name}${n ? `<b>${n}</b>` : ''}</div>`;
       const I = { inbox: '<path d="M1.5 7.5h2.6l.9 1.4h2l.9-1.4h2.6"/><path d="M2.6 2.5h6.8l1.1 5v2.5h-9V7.5z"/>', flag: '<path d="M3 10.5V1.8M3 2.2h6l-1.4 2.3L9 6.8H3"/>', draft: '<path d="M2 10h8M3.2 7.8l5.2-5.2 1.1 1.1-5.2 5.2H3.2z"/>', sent: '<path d="M1.6 5.6l8.8-3.8-3.8 8.8-1.2-3.8z"/>', junk: '<path d="M2 2.5h8v7H2zM2 2.5l4 3.5 4-3.5"/>', bin: '<path d="M2.5 3.2h7M4.6 3.2V2h2.8v1.2M3.4 3.2l.5 7h4.2l.5-7"/>' };
-      api.ctx.insertAdjacentHTML('beforeend', macWin('is-mail', 'Inbox', `<div class="tkd-mside"><span class="tkd-mside-h">Favourites</span>${box('Inbox', I.inbox, true, '8,214')}${box('Flagged', I.flag)}${box('Drafts', I.draft)}${box('Sent', I.sent)}${box('Junk', I.junk)}${box('Bin', I.bin)}</div><div class="tkd-mlist"><div class="tkd-mlist-h"><b>Inbox</b><span>8,214 unread</span></div><div class="tkd-mails">${rows.join('')}</div></div>`));
+      api.ctx.insertAdjacentHTML('beforeend', macWin('is-mail', 'Inbox', `<div class="tkd-mside"><span class="tkd-mside-h">Favourites</span>${box('Inbox', I.inbox, true, '8,214')}${box('Flagged', I.flag)}${box('Drafts', I.draft)}${box('Sent', I.sent)}${box('Junk', I.junk)}${box('Bin', I.bin, false, ' ')}</div><div class="tkd-mlist"><div class="tkd-mlist-h"><b>Inbox</b><span><em>8,214</em> unread</span><i class="tkd-mtoast"></i></div><div class="tkd-mails">${rows.join('')}</div><i class="tkd-mthumb"></i></div>`));
     },
     layout(api, L) {
       // his window a little smaller here, low on the right, so the inbox has room to be read
@@ -997,42 +1002,162 @@ const DEMOS = {
       Object.assign(api.ctx.querySelector('.is-mail').style, L === 'tall' ? { left: '16px', top: '458px', width: '488px', height: '326px' } : { left: '14px', top: '34px', width: '452px', height: '472px' });
     },
     async play(api) {
-      const { S } = api, badge = api.ctx.querySelector('.tkd-mbox.is-on b'), head = api.ctx.querySelector('.tkd-mlist-h span');
-      let n = 8214; const show = v => { badge.textContent = v.toLocaleString('en'); head.textContent = v.toLocaleString('en') + ' unread'; };
-      const count = to => { const from = n; n = to; const t0 = performance.now(); const step = now => { const k = Math.min(1, (now - t0) / 900); show(Math.round(from + (to - from) * out(k))); if (k < 1) requestAnimationFrame(step); }; requestAnimationFrame(step); };
-      let t = `These ${this.senders.length} senders send newsletters, busiest first. Does each one earn its place?`;
-      api.show(S.tag('Newsletters') + S.words(t) + S.stats([[this.senders.length, 'newsletters'], [this.senders.reduce((a, r) => a + r[3], 0), 'mails in 3 months']]) + S.btns(S.btn('One by one', 'space')));
+      const { S } = api, badge = api.ctx.querySelector('.tkd-mbox.is-on b'), head = api.ctx.querySelector('.tkd-mlist-h em'), toast = api.ctx.querySelector('.tkd-mtoast');
+      const bin = [...api.ctx.querySelectorAll('.tkd-mbox')].pop().querySelector('b'), thumb = api.ctx.querySelector('.tkd-mthumb'), fmt = v => v.toLocaleString('en');
+      let n = this.unread, all = this.total;
+      const show = v => { badge.textContent = fmt(v); head.textContent = fmt(v); };
+      // the unread count rolls down, blue while it falls
+      const count = to => { const from = n; n = to; const t0 = performance.now(); head.parentElement.classList.add('is-tick'); const step = now => { const k = Math.min(1, (now - t0) / 1100); show(Math.round(from + (to - from) * out(k))); if (k < 1) requestAnimationFrame(step); else head.parentElement.classList.remove('is-tick'); }; requestAnimationFrame(step); };
+      const mails = v => { all = v; thumb.style.height = Math.min(60, Math.max(3, 9e4 / Math.max(1, v))) + '%'; };
+      mails(all);
+      // one read of every inbox: nothing changes yet
+      let t = 'First I read your whole inbox, every mail. Nothing changes yet.';
+      api.show(S.tag('Your inbox') + S.words(t) + '<div class="tkd-progress"><i style="transition:none"></i></div>' + S.count('0 MAILS READ'));
+      const bar = api.scene.querySelector('.tkd-screen .tkd-progress i'), read = api.scene.querySelector('.tkd-screen .tkd-count');
+      await api.wait(700);
+      await new Promise(done => { const t0 = performance.now(), D = reduce ? 1 : 2000; const step = now => { const k = Math.min(1, (now - t0) / D); bar.style.width = k * 100 + '%'; read.textContent = `${fmt(Math.round(this.total * k))} MAILS READ · ${Math.round(9 * k)} S`; if (k < 1) requestAnimationFrame(step); else done(); }; requestAnimationFrame(step); });
+      await api.wait(500);
+      t = `${fmt(this.total)} mails, ${fmt(this.unread)} of them unread. The oldest is from 2011. Let’s make it light again.`;
+      api.show(S.tag('Your inbox') + S.words(t) + S.stats([[fmt(this.total), 'mails'], [fmt(this.unread), 'unread'], [2011, 'the oldest']]) + S.btns(S.btn('Let’s go', 'space')));
       await api.wait(say(t)); await api.press('space');
+      // mail older than two years, to the Bin; flagged mail stays
+      const [oldN, oldSize, oldUnread] = this.old;
+      t = `${fmt(oldN)} of them are older than two years: ${oldSize}. Clear them out? They go to the Bin. Flagged mail stays.`;
+      api.show(S.tag('Old mail') + S.words(t) + S.btns(S.btn('Keep them', 'space'), S.btn('Move to Bin', 'del', true)));
+      await api.wait(say(t) * .8);
+      if (await api.press('del', 'space') === 'del') {
+        toast.textContent = `Moving ${fmt(oldN)} to the Bin`; toast.classList.add('is-on');
+        count(n - oldUnread); mails(all - oldN); bin.textContent = fmt(oldN);
+        await api.wait(1300); toast.textContent = `${fmt(oldN)} in the Bin · ${oldSize}`; await api.wait(900); toast.classList.remove('is-on');
+      }
+      // the newsletters, one by one
+      t = `These ${this.senders.length} senders send newsletters, busiest first. Does each one earn its place?`;
+      api.show(S.tag('Newsletters') + S.words(t) + S.stats([[this.senders.length, 'newsletters'], [this.senders.reduce((a, r) => a + r[3], 0), 'mails in 3 months']]) + S.btns(S.btn('One by one', 'space')));
+      await api.wait(say(t) * .8); await api.press('space');
       const gone = [];
       for (let i = 0; i < this.senders.length; i++) {
-        const [name, , , mails, key] = this.senders[i];
+        const [name, , , m, key] = this.senders[i];
         api.ctx.querySelectorAll(`.tkd-mrow[data-s="${i}"]`).forEach(r => r.classList.add('is-seen'));
-        api.show(S.tag('Newsletters') + S.title(name) + S.words(`${mails} mails in three months. Does it earn its place?`) + S.btns(S.btn('Keep', 'space'), S.btn('Unsubscribe', 'del', true)) + S.count(`${i + 1} OF ${this.senders.length} · AN UNSUBSCRIBE CAN’T BE UNDONE`));
-        await api.wait(YOU ? 0 : i < 2 ? 1700 : 900); const k = await api.press(key, key === 'del' ? 'space' : 'del');
+        api.show(S.tag('Newsletters') + S.title(name) + S.words(`${m} mails in three months. Does it earn its place?`) + S.btns(S.btn('Keep', 'space'), S.btn('Unsubscribe', 'del', true)) + S.count(`${i + 1} OF ${this.senders.length} · AN UNSUBSCRIBE CAN’T BE UNDONE`));
+        await api.wait(YOU ? 0 : i < 2 ? 1500 : 750); const k = await api.press(key, key === 'del' ? 'space' : 'del');
         api.ctx.querySelectorAll(`.tkd-mrow[data-s="${i}"]`).forEach(r => { r.classList.remove('is-seen'); if (k === 'del') r.classList.add('is-gone'); });
-        if (k === 'del') gone.push(mails);
+        if (k === 'del') gone.push(m);
       }
       const old = gone.reduce((a, b) => a + b, 0); let binned = 0;
       if (gone.length) {
         t = `You unsubscribed from ${gone.length}. Clear their old mails too? ${old} mails, ${Math.round(old * 38 / 133)} MB. Only from these exact addresses: other mail from the same company stays.`;
         api.show(S.tag('Newsletters') + S.words(t) + S.btns(S.btn('Keep them', 'space'), S.btn('Move to Bin', 'del', true)));
-        await api.wait(say(t) * .8);
-        if (await api.press('del', 'space') === 'del') { binned = old; count(n - old); }
-        await api.wait(900);
+        await api.wait(say(t) * .7);
+        if (await api.press('del', 'space') === 'del') { binned = old; count(n - old); mails(all - old); bin.textContent = fmt(oldN + old); }
+        await api.wait(1100);
       }
-      t = `${n.toLocaleString('en')} mails older than three weeks are still unread. Mark them as read? The last three weeks stay as they are, for you to look through.`;
+      // the unread from before the last three weeks, marked read
+      t = `${fmt(n)} mails older than three weeks are still unread. Mark them as read? The last three weeks stay as they are, for you to look through.`;
       api.show(S.tag('Your inbox') + S.words(t) + S.btns(S.btn('Mark them read', 'space'), S.btn('Skip', 's', true)));
       await api.wait(say(t) * .8);
-      const read = await api.press('space', 's') === 'space'; if (read) { count(37); api.ctx.querySelector('.tkd-mails').classList.add('is-read'); }
-      await api.wait(1000);
-      api.show(S.tag('Inbox, done') + S.words('Your inbox, cleared out. That’s a big one.') + S.fixes([`${gone.length} newsletter${gone.length === 1 ? '' : 's'} unsubscribed`, `${binned} mails to the Bin`, `8,214 unread → ${read ? 37 : n.toLocaleString('en')}`], 3));
+      const marked = await api.press('space', 's') === 'space'; if (marked) { count(this.left); api.ctx.querySelector('.tkd-mails').classList.add('is-read'); }
+      await api.wait(1300);
+      api.show(S.tag('Inbox, done') + S.words('Your inbox, light again. That’s a big one.') + S.fixes([`${fmt(oldN)} old mails to the Bin`, `${gone.length} newsletter${gone.length === 1 ? '' : 's'} unsubscribed, ${binned} of their mails gone`, `${fmt(this.unread)} unread → ${marked ? this.left : fmt(n)}`], 3));
       api.tinko.cheer(1);
     },
     hold: 3600,
     async reset(api) {
       api.ctx.querySelectorAll('.tkd-mrow').forEach(r => r.classList.remove('is-gone', 'is-seen'));
       api.ctx.querySelector('.tkd-mails').classList.remove('is-read');
-      api.ctx.querySelector('.tkd-mbox.is-on b').textContent = '8,214'; api.ctx.querySelector('.tkd-mlist-h span').textContent = '8,214 unread';
+      api.ctx.querySelector('.tkd-mbox.is-on b').textContent = '8,214'; api.ctx.querySelector('.tkd-mlist-h em').textContent = '8,214';
+      [...api.ctx.querySelectorAll('.tkd-mbox')].pop().querySelector('b').textContent = ' '; api.ctx.querySelector('.tkd-mtoast').classList.remove('is-on');
+    },
+  },
+
+  /* 8. Documents (DocumentsSort.swift, DocumentsViews.swift): the loose files at the top into 00_Sort later (made the
+        first time) or the Bin; each folder a main folder, into 99_Other (made when it's needed) or the Bin; then you
+        drag the main folders into your own order and Tinko numbers them, 00_Sort later on top, 99_Other at the bottom */
+  documents: {
+    label: 'Tinko sorting Documents: loose files into 00_Sort later, each folder kept as a main folder, moved into 99_Other or binned, then the main folders dragged into your own order and numbered.',
+    items: [
+      ['f1', 'txt', 'Invoice March.pdf', 'PDF document', 'later', '120 KB · here since March'], ['f2', 'png', 'IMG_3312.png', 'PNG image', 'later', '3.1 MB · here since July'], ['f3', 'txt', 'notes old.txt', 'Plain text', 'bin', '2 KB · here since 2023'],
+      ['work', 'folder', 'Work', 'Folder', 'main'], ['old', 'folder', 'Old stuff', 'Folder', 'other'], ['tax', 'folder', 'Taxes', 'Folder', 'main'],
+      ['untitled', 'folder', 'Untitled folder', 'Folder', 'bin'], ['family', 'folder', 'Family', 'Folder', 'main'], ['side', 'folder', 'Side projects', 'Folder', 'main'],
+    ],
+    build(api) {
+      api.app('Tinko');
+      const row = ([id, icon, name, kind]) => `<div class="tkd-drow" data-id="${id}"><span><img src="${MAC('file-' + icon)}" alt=""><em></em><b>${name}</b></span><span>${kind}</span></div>`;
+      const all = [['later', 'folder', '00_Sort later', 'Folder'], ...this.items, ['other', 'folder', '99_Other', 'Folder']];
+      api.ctx.insertAdjacentHTML('beforeend', macWin('is-finder is-docs', 'Documents', `<div class="tkd-fside"></div><div class="tkd-list"><div class="tkd-lhead"><span>Name</span><span>Kind</span></div><div class="tkd-drows">${all.map(row).join('')}<svg class="tkd-cursor" viewBox="0 0 14 20" aria-hidden="true"><path d="M1 1v15.5l4-3.6 2.7 6 2.6-1.2-2.6-5.8h5.5z" fill="#000" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/></svg></div></div>`));
+      this.place(api, this.items.map(i => i[0]));
+    },
+    // the rows stand where their place in the list says (so a new folder or a drag slides the others along)
+    place(api, order) {
+      this.order = order;
+      api.ctx.querySelectorAll('.tkd-drow').forEach(r => { const i = order.indexOf(r.dataset.id); r.classList.toggle('is-out', i < 0); r.classList.toggle('is-odd', i % 2 === 1); if (i >= 0) r.style.top = i * 26 + 'px'; });
+    },
+    // a drag in Finder: the pointer takes the row, the row lifts and slides to its new place, the rest make room
+    async drag(api, id, to) {
+      const r = api.ctx.querySelector(`.tkd-drow[data-id="${id}"]`), cur = api.ctx.querySelector('.tkd-cursor'), from = this.order.indexOf(id);
+      cur.style.transition = 'none'; cur.style.top = from * 26 + 30 + 'px'; cur.classList.add('is-on');
+      await api.wait(60); cur.style.transition = ''; cur.style.top = from * 26 + 9 + 'px';
+      await api.wait(500); r.classList.add('is-drag'); await api.wait(220);
+      const order = this.order.filter(x => x !== id); order.splice(to, 0, id); this.place(api, order);
+      cur.style.top = to * 26 + 9 + 'px';
+      await api.wait(900); r.classList.remove('is-drag'); await api.wait(250); cur.classList.remove('is-on');
+    },
+    layout(api, L) {
+      api.winAt(L === 'tall' ? 33 : 16, L === 'tall' ? 50 : 50);
+      Object.assign(api.ctx.querySelector('.is-docs').style, L === 'tall' ? { left: '33px', top: '470px', width: '454px', height: '290px' } : { left: '330px', top: '50px', width: '374px', height: '420px' });
+    },
+    async play(api) {
+      const { S } = api, r = id => api.ctx.querySelector(`.tkd-drow[data-id="${id}"]`);
+      let order = this.items.map(i => i[0]); this.place(api, order);
+      let t = 'Now Documents. 3 loose files at the top and 6 folders without a plan. One by one, then they get your order.';
+      api.show(S.tag('Documents') + S.words(t) + S.stats([[3, 'loose files'], [6, 'folders']]) + S.btns(S.btn('One by one', 'space'), S.btn('Skip', 's', true)));
+      await api.wait(say(t)); await api.press('space');
+      // the loose files: into 00_Sort later, or the Bin
+      for (const [id, icon, name, , fate, note] of this.items.slice(0, 3)) {
+        r(id).classList.add('is-seen');
+        api.show(S.tag('Loose files') + S.words('Loose at the top of Documents. Into 00_Sort later, or the Bin?') + `<div class="tkd-filecard"><img src="${MAC('file-' + icon)}" alt=""><div><b>${name}</b><span>${note}</span></div></div>` + S.btns(S.btn('Sort later', 'space'), S.btn('Bin', 'del', true)));
+        await api.wait(YOU ? 0 : id === 'f1' ? 1500 : 650);
+        const k = await api.press(fate === 'bin' ? 'del' : 'space', fate === 'bin' ? 'space' : 'del');
+        r(id).classList.remove('is-seen');
+        if (k === 'space' && !order.includes('later')) { order = ['later', ...order]; this.place(api, order); await api.wait(500); }
+        order = order.filter(x => x !== id); this.place(api, order);
+        if (k === 'space') { r('later').classList.add('is-bump'); setTimeout(() => r('later').classList.remove('is-bump'), 400); }
+        await api.wait(400);
+      }
+      // the folders: a main folder, into 99_Other, or the Bin
+      for (const [id, , name, , fate] of this.items.slice(3)) {
+        r(id).classList.add('is-seen');
+        api.show(S.tag('Your folders') + S.title(name) + S.words('A main folder? Or into 99_Other, or the Bin?') + S.btns(S.btn('Main folder', 'space'), S.btn('99_Other', '1', true), S.btn('Bin', 'del', true)));
+        await api.wait(YOU ? 0 : id === 'work' ? 1500 : 600);
+        const want = fate === 'main' ? 'space' : fate === 'other' ? '1' : 'del';
+        const k = await api.press(want, ['space', '1', 'del'].filter(x => x !== want));
+        r(id).classList.remove('is-seen');
+        if (k === 'space') r(id).classList.add('is-main');
+        else { order = order.filter(x => x !== id); if (k === '1' && !order.includes('other')) order.push('other'); if (k === '1') { r('other').classList.add('is-bump'); setTimeout(() => r('other').classList.remove('is-bump'), 400); } }
+        this.place(api, order); await api.wait(450);
+      }
+      // your order: two drags, then the numbers
+      t = 'Now put your main folders in the order you think in. Drag them in Finder, I’ll wait.';
+      api.show(S.tag('Your order') + S.words(t) + S.btns(S.btn('Done', 'space')));
+      await api.wait(say(t) * .6);
+      await this.drag(api, 'family', 1); await api.wait(200);
+      await this.drag(api, 'side', 3); await api.wait(300);
+      await api.press('space');
+      t = 'Numbers on? I’ll put 01, 02 and so on in front. 00_Sort later stays on top, 99_Other at the bottom.';
+      api.show(S.tag('Your order') + S.words(t) + S.btns(S.btn('Number them', 'space'), S.btn('Leave them', 's', true)));
+      await api.wait(say(t) * .8);
+      if (await api.press('space', 's') === 'space') {
+        const mains = this.order.filter(x => x !== 'later' && x !== 'other');
+        for (let i = 0; i < mains.length; i++) { r(mains[i]).querySelector('em').textContent = String(i + 1).padStart(2, '0') + '_'; r(mains[i]).classList.add('is-num'); await api.wait(260); }
+      }
+      await api.wait(500);
+      t = 'Your Documents, in your order. 00_Sort later on top for what can wait, 99_Other at the bottom for the rest.';
+      api.show(S.tag('Documents, done') + S.words(t) + S.btns(S.btn('Next', 'space')));
+      api.tinko.cheer(1);
+    },
+    hold: 3800,
+    async reset(api) {
+      api.ctx.querySelectorAll('.tkd-drow').forEach(r => { r.classList.remove('is-main', 'is-num', 'is-seen', 'is-drag'); r.querySelector('em').textContent = ''; });
+      this.place(api, this.items.map(i => i[0]));
     },
   },
 
@@ -1219,6 +1344,30 @@ const DEMO_CSS = `
 .tkd-mails.is-read .tkd-mdot{opacity:0}
 .dfs-night .tkd-mside{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.08)}.dfs-night .tkd-mside-h,.dfs-night .tkd-mbox b,.dfs-night .tkd-mlist-h span,.dfs-night .tkd-mtop time,.dfs-night .tkd-mpre{color:rgba(255,255,255,.45)}
 .dfs-night .tkd-mrow{border-color:rgba(255,255,255,.06)}.dfs-night .tkd-mbox{color:rgba(255,255,255,.75)}.dfs-night .tkd-mbox.is-on{background:rgba(255,255,255,.1);color:#ececec}.dfs-night .tkd-mlist-h{border-color:rgba(255,255,255,.08)}
+.tkd-mlist{position:relative}
+.tkd-mlist-h{position:relative}.tkd-mlist-h span{transition:color .3s}.tkd-mlist-h em{font-style:normal;font-size:12px;font-weight:600;color:rgba(0,0,0,.7)}
+.tkd-mlist-h span.is-tick,.tkd-mlist-h span.is-tick em{color:#0a84ff}
+.dfs-night .tkd-mlist-h em{color:rgba(255,255,255,.8)}.dfs-night .tkd-mlist-h span.is-tick em{color:#4aa3ff}
+.tkd-mtoast{position:absolute;right:10px;top:10px;padding:3px 7px;border-radius:4px;background:#0a84ff;color:#fff;font-style:normal;font-size:9px;font-weight:600;opacity:0;transform:translateY(-4px);transition:opacity .3s,transform .3s}
+.tkd-mtoast.is-on{opacity:1;transform:none}
+.tkd-mthumb{position:absolute;right:2px;top:52px;width:4px;height:3%;border-radius:2px;background:rgba(0,0,0,.25);transition:height .9s cubic-bezier(.625,.05,0,1)}
+.dfs-night .tkd-mthumb{background:rgba(255,255,255,.3)}
+.tkd-drows{position:relative}
+.tkd-drow{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;gap:10px;padding:0 14px;height:26px;align-items:center;white-space:nowrap;transition:top .5s cubic-bezier(.625,.05,0,1),opacity .35s,background .3s,box-shadow .3s,transform .3s}
+.tkd-drow.is-odd{background:rgba(0,0,0,.025)}.dfs-night .tkd-drow.is-odd{background:rgba(255,255,255,.025)}
+.tkd-drow span:first-child{display:flex;align-items:center;gap:7px;overflow:hidden;text-overflow:ellipsis}.tkd-drow img{width:16px;height:16px}
+.tkd-drow span:last-child{color:rgba(0,0,0,.5)}.dfs-night .tkd-drow span:last-child{color:rgba(255,255,255,.5)}
+.tkd-drow b{font-weight:400}.tkd-drow.is-main b{font-weight:600}
+.tkd-drow em{display:inline-block;max-width:0;overflow:hidden;margin-right:-7px;font-style:normal;font-weight:600;color:#0a84ff;transition:max-width .45s cubic-bezier(.625,.05,0,1),margin .45s}
+.tkd-drow.is-num em{max-width:28px;margin-right:-7px}
+.tkd-drow[data-id="later"] b,.tkd-drow[data-id="other"] b{font-weight:600}
+.tkd-drow.is-out{opacity:0;transform:scale(.97);pointer-events:none}
+.tkd-drow.is-seen{background:rgba(10,108,255,.12)!important}
+.tkd-drow.is-bump{background:rgba(10,108,255,.2)!important}
+.tkd-drow.is-drag{z-index:2;background:#fff!important;box-shadow:0 8px 20px -6px rgba(0,0,0,.35),0 0 0 .5px rgba(0,0,0,.12);transform:scale(1.02);transition-duration:.85s}
+.dfs-night .tkd-drow.is-drag{background:#3a3a3e!important}
+.tkd-cursor{position:absolute;left:58%;top:0;z-index:3;width:13px;height:19px;opacity:0;transition:top .85s cubic-bezier(.625,.05,0,1),opacity .25s;pointer-events:none}
+.tkd-cursor.is-on{opacity:1}
 /* the side panel (SidePanel: what goes with an app) */
 .tkd-panel{--c-card:#fbf7ef;--c-ink:#3d3a36;--c-soft:#7d776f;--c-line:#dfd5ca;--c-calm:#1a97d7;position:absolute;z-index:2;left:384px;top:62px;width:322px;padding:18px 18px 14px;border-radius:10px;background:var(--c-card);color:var(--c-ink);font-family:"Space Mono",monospace;font-size:10px;box-shadow:0 0 0 1px rgba(0,0,0,.1),0 18px 40px -12px rgba(0,0,0,.4);opacity:0;transform:translateX(-120px);transition:transform .7s cubic-bezier(.625,.05,0,1),opacity .4s}
 .dfs-night .tkd-panel{--c-card:#292724;--c-ink:#fbf7ef;--c-soft:#b3aca2;--c-line:#3d3a36;--c-calm:#1dabfa}
@@ -1552,17 +1701,6 @@ function initOutro(host) {
    The box sits above him (Webflow: .tinko-safe z-index 1, his spot behind its top edge), so its edge hides his lower half.
    He waits fully hidden and rises when the box comes into view; then he's himself: eyes after the pointer, blinks,
    a bwoop on a click. His eyes take the section's colour, so they read as holes, day or night. */
-/* ---------- The result: ten minutes with Tinko, counted (Rim, 24 Oct: "really spicy, a crazy breakdown") ----------
-   Example figures, marked as such: what one round does across his three stages. It plays once when it comes into
-   view: the Bin's odometer rolls up while the Mac column counts, then the inbox, then the setup's keys light up one
-   by one; at the end he cheers in a burst of pixels in the window lights' colours. In the Bin, not "freed": the
-   space comes back when the Bin is emptied (the app's own wording). */
-const RESULT = {
-  gb: '104.6', things: '1,284', time: '8 min 40 s',
-  mac: { bars: [['Desktop', 64, 3], ['Dock', 27, 9], ['Open apps', 16, 4]], lines: [['14', 'big apps gone, leftovers too'], ['9', 'background jobs off'], ['11', 'apps quiet']] },
-  inbox: { bars: [['Unread', 8214, 37]], lines: [['47', 'newsletters unsubscribed'], ['3,912', 'old mails to the Bin']] },
-  setup: { keys: [['Hyper', 'F', 'Finder'], ['Hyper', 'A', 'your browser'], ['Hyper', 'R', 'Rhythms'], ['⌘', 'Space', 'anything else']], lines: [['2', 'essentials installed, signatures checked']] },
-};
 // a number that rolls in like an odometer: one column of digits per place, the right ones turning a little longer
 function odometer(el, text) {
   const digits = [...text].filter(c => /\d/.test(c)).map(Number);
@@ -1588,40 +1726,163 @@ function burst(at) {
     px.animate([{ transform: 'translate(0,0)', opacity: 1 }, { transform: `translate(${Math.cos(a) * d}px,${Math.sin(a) * d - 24}px)`, opacity: 1, offset: .65 }, { transform: `translate(${Math.cos(a) * d * 1.12}px,${Math.sin(a) * d + 14}px)`, opacity: 0 }], { duration: 1100 + Math.random() * 500, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' }).finished.then(() => px.remove());
   }
 }
-function initResult(host) {
-  const R = RESULT, num = v => v.replace(/,/g, '');
-  const bar = ([name, from, to]) => `<div class="tkr-bar" data-from="${from}" data-to="${to}"><span>${name}</span><i><em></em></i><b><s>${from.toLocaleString('en')}</s> → <u>${from.toLocaleString('en')}</u></b></div>`;
-  const line = ([v, t]) => `<div class="tkr-line"><b data-to="${num(v)}">0</b><span>${t}</span></div>`;
-  const key = ([a, k, t]) => `<div class="tkr-key"><span class="tkr-cap">${a}</span><span class="tkr-cap">${k}</span><em>${t}</em></div>`;
-  host.innerHTML = `<div class="tkr"><span class="tkr-ex">Example</span>
-    <div class="tkr-top"><div class="tkr-tinko"><div class="tkh-tinko" role="img" aria-label="Tinko"></div><div class="tkr-burst" aria-hidden="true"></div></div>
-      <div class="tkr-head"><div class="tkr-tag"><span>All done</span><b>${R.time}</b></div><div class="tkr-gb"><span class="tkr-odo" aria-hidden="true"></span><small>GB</small></div><div class="tkr-sub">in the Bin · ${R.things} things</div></div></div>
-    <div class="tkr-cols"><div class="tkr-col"><h4>Your Mac</h4>${R.mac.bars.map(bar).join('')}${R.mac.lines.map(line).join('')}</div>
-      <div class="tkr-col"><h4>Your inbox</h4>${R.inbox.bars.map(bar).join('')}${R.inbox.lines.map(line).join('')}</div>
-      <div class="tkr-col"><h4>Your setup</h4>${R.setup.keys.map(key).join('')}${R.setup.lines.map(line).join('')}</div></div></div>`;
-  host.setAttribute('role', 'img');
-  host.setAttribute('aria-label', `An example result after ${R.time} with Tinko: ${R.gb} GB in the Bin, ${R.things} things. Desktop 64 to 3, Dock 27 to 9, 47 newsletters unsubscribed, unread mail 8,214 to 37, Arc and Raycast installed with hotkeys.`);
-  const card = host.firstChild, tinko = makeTinko(card.querySelector('.tkh-tinko'), {}); tinko.awakeNow();
-  const roll = odometer(card.querySelector('.tkr-odo'), R.gb), cols = [...card.querySelectorAll('.tkr-col')];
-  const fmt = v => Math.round(v).toLocaleString('en');
-  const countTo = (el, from, to, dur) => { const t0 = performance.now(); const step = now => { const k = clamp01((now - t0) / dur); el.textContent = fmt(from + (to - from) * out(k)); if (k < 1) requestAnimationFrame(step); }; requestAnimationFrame(step); };
-  const shrink = (b, dur) => { const em = b.querySelector('em'), s = `scaleX(${Math.max(.02, b.dataset.to / b.dataset.from)})`; dur ? em.animate([{ transform: 'scaleX(1)' }, { transform: s }], { duration: dur, easing: 'cubic-bezier(.625,.05,0,1)', fill: 'forwards' }) : (em.style.transform = s); };
-  const run = col => {
-    col.classList.add('is-run');
-    col.querySelectorAll('.tkr-bar').forEach((b, i) => setTimeout(() => { shrink(b, 1000); countTo(b.querySelector('u'), +b.dataset.from, +b.dataset.to, 1000); }, i * 180));
-    col.querySelectorAll('.tkr-line b').forEach((b, i) => setTimeout(() => countTo(b, 0, +b.dataset.to, 800), 260 + i * 150));
-    col.querySelectorAll('.tkr-key').forEach((k, i) => setTimeout(() => k.classList.add('is-on'), 150 + i * 230));
-  };
-  const done = () => { roll(0); cols.forEach(c => { c.classList.add('is-run'); c.querySelectorAll('.tkr-bar').forEach(b => { shrink(b, 0); b.querySelector('u').textContent = fmt(+b.dataset.to); }); c.querySelectorAll('.tkr-line b').forEach(b => { b.textContent = fmt(+b.dataset.to); }); c.querySelectorAll('.tkr-key').forEach(k => k.classList.add('is-on')); }); };
-  let played = false;
-  new IntersectionObserver(([e]) => {
-    tinko.show(e.isIntersecting);
-    if (!e.isIntersecting || e.intersectionRatio < .4 || played) return;
-    played = true;
-    if (reduce) return done();
-    roll(2800); [0, 1100, 2100].forEach((t, i) => setTimeout(() => run(cols[i]), 200 + t));
-    setTimeout(() => { tinko.cheer(2); burst(card.querySelector('.tkr-burst')); }, 3200);
-  }, { threshold: [0, .4] }).observe(card);
+/* ---------- The mess, slurped (Rim, 24 Oct: front-load the value. The homepage's file storm, the pain of the chaos,
+   then all of it pulled into the Bin; the result card with the firework) ----------
+   A pinned section (Webflow: .section_tinko-mess 280svh with its sticky pin and head). A canvas behind the pin carries
+   the storm: rows of the homepage's own file icons (its strip, cut into its nine icons), drifting both ways. Scrolling
+   through pulls them into the Bin beside Tinko, the bottom rows first, in arcs, the Bin gulping and the counter adding
+   up; then the head's second line comes in and the result card opens over the empty field with a firework, its grid
+   lit by blue sparks. Scrolling back lets them fly out again. Example figures, marked as such. */
+const FILE_STRIP = new URL('./media/file-strip.svg', import.meta.url).href;
+const FILE_BOX = [[0, 25.8, 48, 55.5], [66.3, 9.3, 51.3, 56.5], [137.8, 25.8, 48, 55.5], [208.3, 14.5, 41, 35.8], [285, 1.8, 51, 58.8], [360.8, 5, 59.5, 56.8], [438, 8.3, 36, 42.5], [493, 15.5, 52.3, 49.8], [552.5, 4.8, 42.3, 49.3]];
+const MESS = { gb: '104.6', time: '8 min 40 s', stats: [['10', 'background jobs turned off'], ['11', 'apps made quiet'], ['50', 'newsletters unsubscribed']] };
+let stripImg = null;
+const loadStrip = () => stripImg || (stripImg = new Promise(done => { const im = new Image(); im.crossOrigin = 'anonymous'; im.decoding = 'async'; im.onload = () => done(im); im.onerror = () => done(null); im.src = FILE_STRIP; }));
+// the nine icons, drawn once in the ink colour at the size they're shown (sharp on retina)
+function fileSprites(im, h, ink, dpr) {
+  return FILE_BOX.map(([x, y, w, bh]) => {
+    const k = h / 56, u = (im.naturalWidth || 597) / 597, c = document.createElement('canvas'); c.width = Math.ceil(w * k * dpr); c.height = Math.ceil(bh * k * dpr);
+    const g = c.getContext('2d'); g.drawImage(im, x * u, y * u, w * u, bh * u, 0, 0, c.width, c.height);
+    g.globalCompositeOperation = 'source-in'; g.fillStyle = ink; g.fillRect(0, 0, c.width, c.height);
+    return { c, w: w * k, h: bh * k };
+  });
+}
+// a seeded random, so the storm is the same on every visit (and between a resize and the next)
+const seeded = n => () => (n = n * 16807 % 2147483647) / 2147483647;
+function initMess(host) {
+  const section = host.closest('section') || host, pin = host.parentElement, head = pin.querySelector('.tinko-mess_head'), then = pin.querySelector('[data-tinko-mess-then]') || pin.querySelector('.tinko-mess_head em');
+  host.innerHTML = `<div class="tkm-dock"><div class="tkm-tinko"><div class="tkh-tinko" role="img" aria-label="Tinko"></div></div><div class="tkm-bin"><img alt="" src="${MAC('trash-empty')}"><img alt="" src="${MAC('trash-full')}"></div><div class="tkm-count"><b>0.0</b> GB<span>into the Bin</span></div></div>
+    <div class="tkm-card" role="img" aria-label="An example result: ${MESS.gb} GB cleared in ${MESS.time}. ${MESS.stats.map(([n, t]) => n + ' ' + t).join(', ')}."><canvas class="tkm-grid" aria-hidden="true"></canvas><span class="tkm-ex">Example</span>
+      <div class="tkm-top"><span class="tkm-chip">All done</span><span class="tkm-time">in ${MESS.time}</span></div>
+      <div class="tkm-gb"><span class="tkr-odo" aria-hidden="true"></span><small>GB</small></div><div class="tkm-label">cleared</div>
+      <div class="tkm-stats">${MESS.stats.map(([n, t]) => `<div><b data-to="${n}">0</b><span>${t}</span></div>`).join('')}</div></div>
+    <div class="tkm-fx" aria-hidden="true"></div>`;
+  pin.classList.add('tkm-pin'); host.classList.add('tkm-stage');
+  const cv = document.createElement('canvas'); cv.className = 'tkm-storm'; cv.setAttribute('aria-hidden', 'true'); pin.prepend(cv);
+  const g = cv.getContext('2d'), dock = host.querySelector('.tkm-dock'), bin = host.querySelector('.tkm-bin'), count = host.querySelector('.tkm-count b');
+  const card = host.querySelector('.tkm-card'), fx = host.querySelector('.tkm-fx'), roll = odometer(card.querySelector('.tkr-odo'), MESS.gb);
+  const tinko = makeTinko(host.querySelector('.tkh-tinko'), {}); tinko.awakeNow();
+  if (then) then.classList.add('tkm-then');
+  const TOTAL = parseFloat(MESS.gb);
+
+  // the storm: rows across the pin, each icon with its own sprite, tilt, shade, size and moment to leave
+  let W = 0, H = 0, dpr = 1, sprites = [], files = [], binAt = { x: 0, y: 0 }, im = null, night = isNight(), headBand = [0, 0];
+  function layout() {
+    dpr = Math.min(2, devicePixelRatio || 1); W = pin.clientWidth; H = pin.clientHeight;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    const phone = W < 600, ih = phone ? 28 : 40, gap = phone ? 46 : 62, top = phone ? 64 : 84, bottom = H - (phone ? 140 : 150);
+    const rows = Math.max(4, Math.floor((bottom - top) / gap) + 1);
+    if (im) sprites = fileSprites(im, ih, night ? '#fbf7ef' : '#3d3a36', dpr);
+    const r = bin.getBoundingClientRect(), pr = pin.getBoundingClientRect(); binAt = { x: r.left - pr.left + r.width / 2, y: r.top - pr.top + r.height * .42 };
+    if (head) { const hr = head.getBoundingClientRect(); headBand = [hr.top - pr.top - 10, hr.bottom - pr.top + 10]; }
+    placeCard();
+    const rnd = seeded(7), step = ih * 1.5, cols = Math.ceil(W / step) + 2, old = files;
+    files = [];
+    for (let row = 0; row < rows; row++) for (let col = 0; col < cols; col++) {
+      const down = (row + .5) / rows, y = top + row * (bottom - top) / Math.max(1, rows - 1) + (rnd() - .5) * gap * .75;
+      files.push({ x0: col * step + (row % 2) * step * .5 + rnd() * step * .3, y, span: cols * step, dir: row % 2 ? 1 : -1, v: 14 + (row % 3) * 9 + rnd() * 6,
+        s: Math.floor(rnd() * 9), k: .7 + rnd() * .55 + (rnd() < .07 ? .65 : 0), tilt: (rnd() - .5) * .6, a: (.22 + rnd() * .38) * (y > headBand[0] && y < headBand[1] ? .45 : 1), ph: rnd() * 6.3,
+        // the bottom rows (nearest the Bin) go first, then the ones above, each a little earlier or later
+        t: .1 + (1 - down) * .4 + rnd() * .16, lift: 20 + rnd() * 70, spin: (rnd() - .5) * 7, mb: .3 + rnd(), fl: 0 });
+    }
+    // keep where each one was on its way (a resize mid-slurp)
+    if (old.length === files.length) files.forEach((f, i) => { f.fl = old[i].fl; });
+    // their share of the GB: the big ones count more
+    const sum = files.reduce((a, f) => a + f.mb, 0); files.forEach(f => { f.mb /= sum; });
+  }
+  // the card sits between the head and the dock, as big as fits there
+  function placeCard() {
+    const pr = pin.getBoundingClientRect(), hb = head ? head.getBoundingClientRect().bottom - pr.top : 0, dt = dock.getBoundingClientRect().top - pr.top;
+    const room = dt - hb - 28, ch = card.offsetHeight || 1;
+    card.style.setProperty('--fit', Math.min(1, Math.max(.55, room / ch)).toFixed(3));
+    card.style.top = Math.round(hb + 14 + Math.max(0, room - ch) / 2) + 'px';
+  }
+  // a file leaves once the scroll is past its moment and comes back if you scroll back above it; the flight itself
+  // takes its own time (it doesn't stop mid-air when you stop scrolling)
+  const FLY = .75;
+  let p = 0, shown = false, gulp = 0, run = 0, visible = false, before = 0, fired = false;
+  const progress = () => { const r = section.getBoundingClientRect(), span = r.height - innerHeight; return span > 0 ? clamp01(-r.top / span) : 0; };
+  function frame(now) {
+    run = 0; if (!visible) return;
+    const T = reduce ? 0 : now / 1000, P = reduce ? 1 : p, dt = Math.min(.05, (now - (before || now)) / 1000); before = now;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+    let gb = 0, landed = 0, moving = false, flying = 0;
+    for (const f of files) {
+      const to = P >= f.t ? 1 : 0, was = f.fl;
+      f.fl = reduce ? to : to ? Math.min(1, f.fl + dt / FLY) : Math.max(0, f.fl - dt / FLY);
+      if (was < 1 && f.fl >= 1) gulp = 1;
+      if (f.fl !== was) moving = true;
+      gb += f.mb * f.fl;
+      if (f.fl >= 1) { landed++; continue; }
+      if (!sprites.length) continue;
+      if (f.fl > 0) flying++;
+      const sp = sprites[f.s], w = sp.w * f.k, h = sp.h * f.k;
+      let x = ((f.x0 + f.dir * f.v * T) % f.span + f.span) % f.span - w, y = f.y + Math.sin(T * 1.1 + f.ph) * 3, rot = f.tilt + Math.sin(T * .7 + f.ph) * .06, sc = 1, a = f.a;
+      if (f.fl > 0) {   // on its way: pulled, slow to let go and then fast, in a low arc into the Bin's mouth, shrinking and turning
+        const e = Math.pow(f.fl, 1.7), cx = x + (binAt.x - x) * .35, cy = Math.min(y, binAt.y) - f.lift, u = 1 - e;
+        x = u * u * x + 2 * u * e * cx + e * e * (binAt.x - w / 2); y = u * u * y + 2 * u * e * cy + e * e * (binAt.y - h / 2);
+        // the last stretch spirals into the Bin's mouth, like water down a drain
+        if (e > .5) { const q = (e - .5) / .5, r = 22 * Math.sin(q * Math.PI) * (1 - q * .5), an = q * 10 + f.ph; x += Math.cos(an) * r; y += Math.sin(an) * r * .4; }
+        rot += f.spin * e; sc = 1 - .78 * e; a = f.a + (.85 - f.a) * Math.min(1, f.fl * 4);
+      }
+      g.globalAlpha = a; g.save(); g.translate(x + w / 2, y + h / 2); g.rotate(rot); g.scale(sc, sc); g.drawImage(sp.c, -w / 2, -h / 2, w, h); g.restore();
+    }
+    g.globalAlpha = 1;
+    // the Bin chews while they land, and Tinko leans in to watch
+    gulp *= .84; bin.style.transform = `translateY(${gulp * 3}px) scale(${1 + gulp * .16},${1 - gulp * .08}) rotate(${Math.sin(now / 40) * gulp * 4}deg)`;
+    bin.classList.toggle('is-full', gb > .02);
+    count.textContent = (TOTAL * gb).toFixed(1);
+    dock.classList.toggle('is-busy', flying > 0);
+    if (flying && !fired) { fired = true; tinko.bwoop?.(); }
+    if (!flying && gb < .001) fired = false;
+    // the card: once you're far enough and all of it is in
+    const done = P >= .74 && landed === files.length;
+    if (done !== shown && (done || P < .7)) { shown = done; show(done); }
+    if (then) then.classList.toggle('is-on', P >= .7);
+    dock.classList.toggle('is-done', shown);
+    // the drift needs every frame while any of the storm is still out; once it's all in, only a scroll wakes it
+    if (landed < files.length || moving || gulp > .01) run = requestAnimationFrame(frame);
+  }
+  // the card: the odometer, the stats, the firework, and its grid sparking while it's up
+  const grid = card.querySelector('.tkm-grid'), gg = grid.getContext('2d'); let sparks = [], gridRun = 0, upAt = 0;
+  function show(on) {
+    card.classList.toggle('is-on', on);
+    if (!on) return;
+    upAt = performance.now(); roll(reduce ? 0 : 2200);
+    card.querySelectorAll('.tkm-stats b').forEach((b, i) => { if (reduce) { b.textContent = b.dataset.to; return; } const to = +b.dataset.to, t0 = performance.now() + 500 + i * 220; const step = now => { const k = clamp01((now - t0) / 900); b.textContent = Math.round(to * out(k)); if (k < 1) requestAnimationFrame(step); }; requestAnimationFrame(step); });
+    if (!reduce) { setTimeout(() => tinko.cheer(2), 300); [[.12, .18], [.88, .24], [.22, .86], [.8, .82], [.5, .02]].forEach(([fxp, fyp], i) => setTimeout(() => { const a = document.createElement('div'); a.className = 'tkm-boom'; const r = card.getBoundingClientRect(), hr = host.getBoundingClientRect(); a.style.left = r.left - hr.left + r.width * fxp + 'px'; a.style.top = r.top - hr.top + r.height * fyp + 'px'; fx.append(a); burst(a); setTimeout(() => a.remove(), 2000); }, 650 + i * 170)); }
+    if (!gridRun) gridRun = requestAnimationFrame(sparkle);
+  }
+  function sparkle(now) {
+    gridRun = 0; if (!card.classList.contains('is-on') || !visible) return;
+    const cw = card.clientWidth, ch = card.clientHeight, d = Math.min(2, devicePixelRatio || 1), cell = 24;
+    if (grid.width !== Math.round(cw * d)) { grid.width = Math.round(cw * d); grid.height = Math.round(ch * d); }
+    gg.setTransform(d, 0, 0, d, 0, 0); gg.clearRect(0, 0, cw, ch);
+    const nightNow = isNight(), line = nightNow ? 'rgba(251,247,239,.06)' : 'rgba(61,58,54,.07)', blue = nightNow ? [29, 171, 250] : [2, 151, 219];
+    gg.strokeStyle = line; gg.lineWidth = 1; gg.beginPath();
+    for (let x = .5; x < cw; x += cell) { gg.moveTo(x, 0); gg.lineTo(x, ch); } for (let y = .5; y < ch; y += cell) { gg.moveTo(0, y); gg.lineTo(cw, y); } gg.stroke();
+    // a spark runs along one grid line, a bright head with a fading tail; many in the first seconds, then now and then
+    const age = (now - upAt) / 1000, rate = age < 2.4 ? .5 : .045;
+    if (!reduce && Math.random() < rate) { const horiz = Math.random() < .5, n = horiz ? Math.floor(ch / cell) : Math.floor(cw / cell), at = (1 + Math.floor(Math.random() * Math.max(1, n - 1))) * cell + .5; sparks.push({ horiz, at, t0: now, len: (horiz ? cw : ch), dur: 700 + Math.random() * 700, back: Math.random() < .5 }); }
+    sparks = sparks.filter(s => now - s.t0 < s.dur);
+    for (const s of sparks) {
+      const k = (now - s.t0) / s.dur, headAt = (s.back ? 1 - k : k) * s.len, tail = 90, dirn = s.back ? 1 : -1;
+      const grad = s.horiz ? gg.createLinearGradient(headAt, 0, headAt + dirn * tail, 0) : gg.createLinearGradient(0, headAt, 0, headAt + dirn * tail);
+      grad.addColorStop(0, `rgba(${blue},.95)`); grad.addColorStop(1, `rgba(${blue},0)`);
+      gg.strokeStyle = grad; gg.lineWidth = 1.5; gg.shadowColor = `rgba(${blue},.9)`; gg.shadowBlur = 8; gg.beginPath();
+      if (s.horiz) { gg.moveTo(headAt, s.at); gg.lineTo(headAt + dirn * tail, s.at); } else { gg.moveTo(s.at, headAt); gg.lineTo(s.at, headAt + dirn * tail); }
+      gg.stroke(); gg.shadowBlur = 0;
+      gg.fillStyle = `rgba(${blue},1)`; if (s.horiz) gg.fillRect(headAt - 1.5, s.at - 1.5, 3, 3); else gg.fillRect(s.at - 1.5, headAt - 1.5, 3, 3);
+    }
+    gridRun = requestAnimationFrame(sparkle);
+  }
+  const kick = () => { if (!run && visible) run = requestAnimationFrame(frame); };
+  addEventListener('scroll', () => { p = progress(); kick(); }, { passive: true });
+  new IntersectionObserver(([e]) => { visible = e.isIntersecting; tinko.show(visible); if (visible) { p = progress(); kick(); if (shown && !gridRun) gridRun = requestAnimationFrame(sparkle); } }).observe(section);
+  new ResizeObserver(() => { layout(); kick(); }).observe(pin);
+  new MutationObserver(() => { const n = isNight(); if (n !== night) { night = n; layout(); kick(); } }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  loadStrip().then(i => { im = i; layout(); kick(); });
+  layout();
 }
 
 // the first colour behind an element (sections can be see-through), for eyes that should read as holes
@@ -1645,30 +1906,35 @@ function initPeek(host) {
 }
 
 const OUTRO_CSS = `
-.tkr{--c-card:#fbf7ef;--c-ink:#3d3a36;--c-soft:#7d776f;--c-line:#dfd5ca;--c-calm:#1a97d7;--c-calmsoft:#edf5f9;--tkh-cell:8px;position:relative;overflow:hidden;text-align:left;padding:2.5rem 2.75rem 2.25rem;border:1px solid var(--c-line);border-radius:14px;background:var(--c-card);color:var(--c-ink);font-family:"Space Mono",monospace;-webkit-font-smoothing:antialiased;box-shadow:0 40px 90px -40px rgba(61,58,53,.45)}
-.dfs-night .tkr{--c-card:#292724;--c-ink:#fbf7ef;--c-soft:#b3aca2;--c-line:#3d3a36;--c-calm:#1dabfa;--c-calmsoft:#173241;box-shadow:0 40px 90px -40px rgba(0,0,0,.7)}
-.tkr-ex{position:absolute;right:1.25rem;top:1rem;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-soft)}
-.tkr-top{display:flex;align-items:center;gap:2.25rem;padding-bottom:2rem;border-bottom:1px solid var(--c-line)}
-.tkr-tinko{position:relative;flex:none}.tkr-burst{position:absolute;left:50%;top:45%;width:0;height:0;pointer-events:none}.tkr-burst i{position:absolute;left:-4px;top:-4px}
-.tkr-tag{display:flex;align-items:center;gap:.75rem;font-size:11px;letter-spacing:.1em;text-transform:uppercase}
-.tkr-tag span{padding:.3em .7em;border-radius:2px;background:var(--c-calmsoft);color:var(--c-calm)}.tkr-tag b{font-weight:400;color:var(--c-soft)}
-.tkr-gb{display:flex;align-items:baseline;gap:.4rem;margin-top:.7rem;font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:clamp(3.5rem,8vw,6.5rem);line-height:1}
-.tkr-gb small{font-size:.42em}.tkr-odo{display:inline-flex}
+.tkm-pin{isolation:isolate}.tkm-pin .tinko-mess_head{position:relative;z-index:2}
+.tkm-storm{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.tkm-stage{position:absolute!important;inset:0;z-index:1;pointer-events:none}.tkm-stage .tinko-ph{display:none!important}.tkm-dock,.tkm-card{pointer-events:auto}
+.tkm-then{display:inline-block;clip-path:inset(0 100% 0 0);transition:clip-path .9s cubic-bezier(.625,.05,0,1)}.tkm-then.is-on{clip-path:inset(0 -5% 0 0)}
+.tkm-dock{--c-ink:#3d3a36;--c-card:#f1ede2;--tkh-cell:6px;position:absolute;left:50%;bottom:1.5rem;display:flex;align-items:flex-end;gap:1rem;transform:translateX(-50%);transition:opacity .5s,transform .6s cubic-bezier(.625,.05,0,1)}
+.dfs-night .tkm-dock{--c-ink:#fbf7ef;--c-card:#0e1628}
+.tkm-bin{position:relative;width:64px;height:64px;transform-origin:50% 90%}.tkm-bin img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;transition:opacity .25s}.tkm-bin img+img{opacity:0}.tkm-bin.is-full img{opacity:0}.tkm-bin.is-full img+img{opacity:1}
+.tkm-count{min-width:7.5rem;padding-bottom:.6rem;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--c-ink)}
+.tkm-count b{font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:2rem;font-weight:400;letter-spacing:0;font-variant-numeric:tabular-nums}
+.tkm-count span{display:block;margin-top:.2rem;font-size:10px;letter-spacing:.1em;opacity:.6}
+.tkm-dock.is-done .tkm-count{opacity:0}
+.tkm-card{--c-card:#fbf7ef;--c-ink:#3d3a36;--c-soft:#7d776f;--c-line:#dfd5ca;--c-calm:#1a97d7;--c-calmsoft:#edf5f9;position:absolute;left:50%;top:30%;width:min(48rem,calc(100% - 2rem));overflow:hidden;padding:2.25rem 2.5rem 2.25rem;border:1px solid var(--c-line);border-radius:14px;background:var(--c-card);color:var(--c-ink);text-align:center;font-family:"Space Mono",monospace;-webkit-font-smoothing:antialiased;box-shadow:0 50px 100px -40px rgba(61,58,53,.55);opacity:0;transform:translateX(-50%) translateY(24px) scale(calc(var(--fit,1) * .88));transform-origin:50% 0;pointer-events:none;transition:opacity .45s,transform .8s cubic-bezier(.34,1.45,.64,1)}
+.tkm-card.is-on{opacity:1;transform:translateX(-50%) scale(var(--fit,1));pointer-events:auto}
+.dfs-night .tkm-card{--c-card:#292724;--c-ink:#fbf7ef;--c-soft:#b3aca2;--c-line:#3d3a36;--c-calm:#1dabfa;--c-calmsoft:#173241;box-shadow:0 50px 100px -40px rgba(0,0,0,.8)}
+.tkm-grid{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.tkm-card>*:not(.tkm-grid){position:relative}
+.tkm-ex{position:absolute!important;right:1.1rem;top:.9rem;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-soft)}
+.tkm-top{display:flex;justify-content:center;align-items:center;gap:.75rem;font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+.tkm-chip{padding:.3em .7em;border-radius:2px;background:var(--c-calmsoft);color:var(--c-calm)}.tkm-time{color:var(--c-soft)}
+.tkm-gb{display:flex;justify-content:center;align-items:baseline;gap:.5rem;margin-top:1rem;font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:clamp(4rem,11vw,8.5rem);line-height:1}
+.tkm-gb small{font-size:.38em}.tkr-odo{display:inline-flex}
 .tkr-dig{display:inline-block;height:1em;overflow:hidden;line-height:1}.tkr-dig>span{display:block}.tkr-dig i{display:block;height:1em;font-style:normal;text-align:center}
-.tkr-sub{margin-top:.8rem;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--c-soft)}
-.tkr-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2.25rem;margin-top:2rem}
-.tkr-col{opacity:.35;transition:opacity .5s}.tkr-col.is-run{opacity:1}
-.tkr-col h4{margin:0 0 1.1rem;font-family:inherit;font-size:11px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;color:var(--c-calm)}
-.tkr-bar{display:grid;grid-template-columns:5.2rem minmax(0,1fr) auto;align-items:center;gap:.7rem;margin-bottom:.75rem;font-size:12px}
-.tkr-bar span{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--c-soft)}
-.tkr-bar i{height:4px;border-radius:2px;background:var(--c-line);overflow:hidden}.tkr-bar em{display:block;height:100%;background:var(--c-ink);transform-origin:0 50%}
-.tkr-bar b{font-weight:400;white-space:nowrap;font-variant-numeric:tabular-nums}.tkr-bar s{text-decoration:none;color:var(--c-soft)}.tkr-bar u{text-decoration:none}
-.tkr-line{display:flex;align-items:baseline;gap:.65rem;margin-top:.9rem;font-size:12.5px;line-height:1.4}
-.tkr-line b{flex:none;min-width:2.2ch;font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:1.65rem;font-weight:400;line-height:1;font-variant-numeric:tabular-nums}
-.tkr-key{display:flex;align-items:center;gap:.35rem;margin-bottom:.6rem;font-size:12px;opacity:.3;transform:translateY(4px);transition:opacity .35s,transform .35s}.tkr-key.is-on{opacity:1;transform:none}
-.tkr-cap{display:inline-flex;align-items:center;justify-content:center;min-width:1.7rem;height:1.5rem;padding:0 .45rem;border:1px solid var(--c-line);border-bottom-width:2px;border-radius:4px;background:var(--c-card);font-size:10.5px;transition:border-color .35s,color .35s}
-.tkr-key.is-on .tkr-cap{border-color:var(--c-calm);color:var(--c-calm)}.tkr-key em{margin-left:.35rem;font-style:normal;color:var(--c-soft)}
-@media (max-width:767px){.tkr{--tkh-cell:6px;padding:1.75rem 1.25rem 1.5rem}.tkr-top{flex-direction:column;align-items:flex-start;gap:1rem}.tkr-cols{grid-template-columns:1fr;gap:1.75rem}}
+.tkm-label{margin-top:.4rem;font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--c-calm)}
+.tkm-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:2rem;border-top:1px solid var(--c-line)}
+.tkm-stats div{display:flex;flex-direction:column;align-items:center;gap:.4rem;padding:1.4rem .75rem 0}.tkm-stats div+div{border-left:1px solid var(--c-line)}
+.tkm-stats b{font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:2.75rem;font-weight:400;line-height:1;font-variant-numeric:tabular-nums}
+.tkm-stats span{max-width:12em;font-size:11px;line-height:1.5;letter-spacing:.08em;text-transform:uppercase;color:var(--c-soft)}
+.tkm-fx{position:absolute;inset:0;pointer-events:none;z-index:2}.tkm-boom{position:absolute;width:0;height:0}.tkm-boom i{position:absolute;left:-4px;top:-4px}
+@media (max-width:767px){.tkm-card{padding:1.6rem 1.1rem 1.4rem}.tkm-stats{grid-template-columns:1fr;margin-top:1.4rem}.tkm-stats div{flex-direction:row;justify-content:center;gap:.75rem;padding:.8rem 0 0}.tkm-stats div+div{border-left:0}.tkm-stats b{font-size:2rem}.tkm-stats span{text-align:left}.tkm-dock{bottom:1rem}.tkm-bin{width:52px;height:52px}}
+@media (prefers-reduced-motion:reduce){.tkm-card,.tkm-then{transition:none}}
 .tko-peek{--tkh-cell:7px;--c-ink:#3d3a36;transform:translateY(70%);transition:transform .9s cubic-bezier(.34,1.5,.64,1)}
 .tko-peek.is-up{transform:none}
 .dfs-night .tko-peek{--c-ink:#fbf7ef}
@@ -1784,7 +2050,7 @@ function init() {
   document.querySelectorAll('[data-tinko-ba]').forEach(initBA);
   document.querySelectorAll('[data-tinko-outro]').forEach(initOutro);
   document.querySelectorAll('[data-tinko-peek]').forEach(initPeek);
-  document.querySelectorAll('[data-tinko-result]').forEach(initResult);
+  document.querySelectorAll('[data-tinko-mess]').forEach(initMess);
   tilt(document.querySelector('.splitter-wrapper'), { max: 3, p: 2200 });
   initPixels();   // before the Osmo script in the footer starts (it waits for DOMContentLoaded)
   const rows = () => document.querySelectorAll('[data-tinko-demo]').forEach(initDemo);

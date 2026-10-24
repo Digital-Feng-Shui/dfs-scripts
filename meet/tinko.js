@@ -1916,7 +1916,8 @@ const OUTRO_CSS = `
 .tkm-count{min-width:7.5rem;padding-bottom:.6rem;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--c-ink)}
 .tkm-count b{font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:2rem;font-weight:400;letter-spacing:0;font-variant-numeric:tabular-nums}
 .tkm-count span{display:block;margin-top:.2rem;font-size:10px;letter-spacing:.1em;opacity:.6}
-.tkm-dock.is-done .tkm-count{opacity:0}
+.tkm-count{transition:opacity .4s,min-width .6s cubic-bezier(.625,.05,0,1),max-width .6s cubic-bezier(.625,.05,0,1);max-width:12rem;overflow:hidden;white-space:nowrap}
+.tkm-dock.is-done .tkm-count{opacity:0;min-width:0;max-width:0}.tkm-dock.is-done{gap:1.25rem}
 .tkm-card{--c-card:#fbf7ef;--c-ink:#3d3a36;--c-soft:#7d776f;--c-line:#dfd5ca;--c-calm:#1a97d7;--c-calmsoft:#edf5f9;position:absolute;left:50%;top:30%;width:min(48rem,calc(100% - 2rem));overflow:hidden;padding:2.25rem 2.5rem 2.25rem;border:1px solid var(--c-line);border-radius:14px;background:var(--c-card);color:var(--c-ink);text-align:center;font-family:"Space Mono",monospace;-webkit-font-smoothing:antialiased;box-shadow:0 50px 100px -40px rgba(61,58,53,.55);opacity:0;transform:translateX(-50%) translateY(24px) scale(calc(var(--fit,1) * .88));transform-origin:50% 0;pointer-events:none;transition:opacity .45s,transform .8s cubic-bezier(.34,1.45,.64,1)}
 .tkm-card.is-on{opacity:1;transform:translateX(-50%) scale(var(--fit,1));pointer-events:auto}
 .dfs-night .tkm-card{--c-card:#292724;--c-ink:#fbf7ef;--c-soft:#b3aca2;--c-line:#3d3a36;--c-calm:#1dabfa;--c-calmsoft:#173241;box-shadow:0 50px 100px -40px rgba(0,0,0,.8)}

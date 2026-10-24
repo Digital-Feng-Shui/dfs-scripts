@@ -1942,75 +1942,85 @@ function initMess(host) {
   layout();
 }
 
-/* ---------- Tinko comes with a course (Rim, 24 Oct: "all these slides on one side, small snippets of me explaining,
-   muted, autoplay loops; on the other side cards floating around, Tinko's part in it"; "a bit V2, because this is what
-   we're building towards") ----------
-   Webflow: .tinko-course_flow [data-tinko-course] with the lesson cards (data-lesson-video = the lesson on Bunny,
-   data-lesson-from / -to = the seconds that loop) and the host for his cards. The clips are the course's own lessons, a
-   slide with Rim in the corner, muted, each looping its few seconds while it's on screen, with the course player's wave
-   by its name while it plays. The cards are the V2 course as he's in it: the lesson menu with Install Tinko, the
-   install card, Start stage 1 with Tinko himself. Both drift a little with the scroll, the cards at their own pace. */
+/* ---------- Tinko comes with a course (Rim, 24 Oct: "a sequence: the welcome screen, then a Tinko card, then another
+   lesson; Tinko staged in the same frame as the videos, so they feel in touch") ----------
+   Webflow: .tinko-course_flow [data-tinko-course] with .tinko-course_player (its .tinko-course_step children: a lesson,
+   data-step-video = the lesson on Bunny, data-from / -to = the seconds that play; or data-step="tinko") and
+   .tinko-course_menu. One frame like the course player plays the steps in turn: 0.1 Welcome (Rim, muted), 1.2 Clear your
+   Mac (Tinko on his first stage, the button pressed, a cheer), 3.1 The invisible clutter. Beside it the course's own menu
+   (V2: modules and lessons as on the course page) opens the module that's playing, its row lit with the course wave.
+   Only while it's on screen. */
 const BUNNY = id => `https://vz-87a2c68f-2a7.b-cdn.net/${id}`;
 // the course player's wave (course/v2.js: a sine, 3.6 high in 12, one wave every 13): drawn long, slid along one wave
 const wave = () => { let d = ''; for (let x = 0; x <= 66; x++) d += (x ? 'L' : 'M') + x + ' ' + (6 + 3.6 * Math.sin(x / 13 * Math.PI * 2)).toFixed(2); return `<svg class="tkc-wave" viewBox="0 0 40 12" fill="none" aria-hidden="true"><path d="${d}"/></svg>`; };
 const CHEV = up => `<svg viewBox="0 0 12 12" aria-hidden="true"><path d="${up ? 'M2.5 8l3.5-3.5L9.5 8' : 'M2.5 4.5L6 8l3.5-3.5'}"/></svg>`;
+// the V2 menu (courses/fundamentals-v2, 24 Oct), a few lessons per module
+const COURSE = [
+  ['0: Start', [['0.1', 'Welcome', '3:09'], ['0.2', 'Install Tinko', 'Action']]],
+  ['1: Clear', [['1.1', 'What Tinko does', '3:00'], ['1.2', 'Clear your Mac', 'Tinko'], ['1.3', 'Distractions purge', '3:00']]],
+  ['2: Setup', []],
+  ['3: Tend', [['3.1', 'The invisible clutter', '3:59'], ['3.2', 'Clarity principles', '6:00']]],
+  ['4: Flow', []],
+];
 function initCourse(host) {
-  host.querySelectorAll('.tinko-course_lesson').forEach(lesson => {
-    const id = lesson.dataset.lessonVideo, from = +lesson.dataset.lessonFrom || 0, to = +lesson.dataset.lessonTo || from + 8;
-    const clip = lesson.querySelector('.tinko-course_clip'), meta = lesson.querySelector('.tinko-course_meta');
-    if (!id || !clip) return;
-    const v = document.createElement('video');
-    v.className = 'tkc-video'; v.muted = v.defaultMuted = v.playsInline = v.disablePictureInPicture = true; v.preload = 'none'; v.tabIndex = -1;
-    ['muted', 'playsinline', 'aria-hidden'].forEach(a => v.setAttribute(a, a === 'aria-hidden' ? 'true' : ''));
-    clip.append(v); meta?.insertAdjacentHTML('afterbegin', wave());
-    let loaded = false, seen = false;
-    const load = () => { if (loaded) return; loaded = true; v.preload = 'auto'; v.src = `${BUNNY(id)}/play_360p.mp4#t=${from}`; };
-    // its few seconds, over and over (no end in the #t: an end there pauses it, once and for all)
-    v.addEventListener('timeupdate', () => { if (v.currentTime >= to - .06 || v.currentTime < from - .5) v.currentTime = from; });
-    v.addEventListener('pause', () => { if (seen && !reduce) v.play().catch(() => {}); });
-    v.addEventListener('playing', () => lesson.classList.add('is-playing'));
-    v.addEventListener('loadeddata', () => clip.classList.add('is-in'));
-    new IntersectionObserver(([e]) => { if (e.isIntersecting) load(); }, { rootMargin: '600px 0px' }).observe(lesson);
-    new IntersectionObserver(([e]) => {
-      seen = e.isIntersecting;
-      if (seen && !reduce) { load(); v.play().catch(() => {}); } else { v.pause(); lesson.classList.remove('is-playing'); }
-    }, { threshold: .2 }).observe(lesson);
-  });
-
-  // his part: three cards from the V2 course
-  const side = host.querySelector('.tinko-course_tinko');
-  if (side) {
-    side.innerHTML = `<div class="tkc-card is-list" data-k="-.7" style="--r:-2deg"><div class="tkc-in">
-        <div class="tkc-mod is-open"><b>0: Start</b><i class="tkc-chev">${CHEV(true)}</i></div>
-        <div class="tkc-row is-now"><span class="tkc-box"></span><b>0.1: Welcome</b>${wave()}</div>
-        <div class="tkc-row"><span class="tkc-box"></span><b>0.2: Install Tinko</b><em>Action</em></div>
-        <div class="tkc-mod"><b>1: Clear</b><i class="tkc-chev">${CHEV(false)}</i></div></div></div>
-      <div class="tkc-card is-install" data-k=".35" style="--r:1.5deg"><div class="tkc-in">
-        <div class="tkc-h">Install Tinko</div>
-        <ol class="tkc-steps"><li>Press <kbd>⌘</kbd> + <kbd>Space</kbd>, type <mark>Terminal</mark> and press <kbd>Return ↵</kbd>.</li><li>Copy the line, paste it with <kbd>⌘</kbd> + <kbd>V</kbd> and press <kbd>Return ↵</kbd>:</li></ol>
-        <div class="tkc-code"><code><i class="c-cmd">curl</i> <i class="c-flag">-fsSL</i> <i class="c-url">https://d…</i> <i class="c-flag">|</i> <i class="c-cmd">sh</i> <i class="c-flag">-s</i> <i class="c-code">TNKO-••••-••••</i></code><span>Copy</span></div></div></div>
-      <div class="tkc-card is-stage" data-k="-.45" style="--r:-1deg"><div class="tkc-in">
+  const player = host.querySelector('.tinko-course_player'), menu = host.querySelector('.tinko-course_menu');
+  if (!player || !menu) return;
+  const steps = [...player.querySelectorAll('.tinko-course_step')].map(el => {
+    const st = { el, mod: +el.dataset.module || 0, lesson: el.dataset.lesson || '' };
+    if (el.dataset.step === 'tinko') {
+      st.kind = 'tinko'; st.dur = 6.5;
+      const name = COURSE[st.mod]?.[1].find(l => l[0] === st.lesson)?.[1] || '';
+      el.innerHTML = `<div class="tkc-stage"><div class="tkc-stage_corner"><b>Digital<br>Feng Shui</b><span>Lesson ${st.lesson}<br>${name}</span></div>
         <div class="tkh-tinko tkc-tinko" role="img" aria-label="Tinko"></div>
         <div class="tkc-start">Start stage 1 <i><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h8M6.5 2.5L10 6l-3.5 3.5"/></svg></i></div>
-        <div class="tkc-path">Open menu › Stage 1</div></div></div>`;
-    side.setAttribute('aria-label', 'Tinko in the course: the lesson menu with Install Tinko, the install card, and Start stage 1.');
-    side.setAttribute('role', 'img');
-    const tinko = makeTinko(side.querySelector('.tkc-tinko')); tinko.awakeNow();
-    new IntersectionObserver(([e]) => tinko.show(e.isIntersecting)).observe(side);
-  }
+        <div class="tkc-path">Open menu › Stage 1</div></div>`;
+      st.tinko = makeTinko(el.querySelector('.tkc-tinko')); st.tinko.awakeNow();
+    } else {
+      st.kind = 'video'; st.from = +el.dataset.from || 0; st.to = +el.dataset.to || st.from + 8; st.dur = st.to - st.from;
+      const v = st.v = document.createElement('video');
+      v.className = 'tkc-video'; v.muted = v.defaultMuted = v.playsInline = v.disablePictureInPicture = true; v.preload = 'none'; v.tabIndex = -1;
+      ['muted', 'playsinline', 'aria-hidden'].forEach(a => v.setAttribute(a, a === 'aria-hidden' ? 'true' : ''));
+      v.addEventListener('loadeddata', () => el.classList.add('is-in'));
+      // its seconds, over and over if it's still on (no end in the #t: an end there pauses it for good)
+      v.addEventListener('timeupdate', () => { if (v.currentTime >= st.to - .06 || v.currentTime < st.from - .5) v.currentTime = st.from; });
+      el.append(v);
+      st.load = () => { if (!v.src) { v.preload = 'auto'; v.src = `${BUNNY(el.dataset.stepVideo)}/play_360p.mp4#t=${st.from}`; } };
+    }
+    return st;
+  });
+  if (!steps.length) return;
+  player.setAttribute('role', 'img');
+  player.setAttribute('aria-label', 'The Fundamentals course: the welcome lesson, then Tinko starting the Mac cleanup, then a lesson on invisible clutter.');
 
-  // the drift: the two columns of lessons against each other, each card at its own pace
-  if (reduce) return;
-  const cols = [...host.querySelectorAll('.tinko-course_col')], cards = [...host.querySelectorAll('.tkc-card')];
-  let tick = 0;
-  const drift = () => {
-    tick = 0; const r = host.getBoundingClientRect(); if (r.bottom < -200 || r.top > innerHeight + 200) return;
-    const k = (r.top + r.height / 2 - innerHeight / 2) / innerHeight * (innerWidth < 992 ? .25 : 1);   // stacked: only a hint
-    cols.forEach((c, i) => { c.style.transform = `translateY(${((i ? 50 : -28) * k).toFixed(1)}px)`; });
-    cards.forEach(c => c.style.setProperty('--y', (parseFloat(c.dataset.k) * 110 * k).toFixed(1) + 'px'));
+  // the menu: every module, the one that's playing open, its lesson lit
+  const drawMenu = (mod, lesson) => {
+    menu.innerHTML = `<div class="tkc-menu">${COURSE.map(([title, rows], m) => m !== mod
+      ? `<div class="tkc-mod"><b>${title}</b><i class="tkc-chev">${CHEV(false)}</i></div>`
+      : `<div class="tkc-mod is-open"><b>${title}</b><i class="tkc-chev">${CHEV(true)}</i></div>${rows.map(([n, name, tail]) => `<div class="tkc-row${n === lesson ? ' is-now' : ''}"><span class="tkc-box"></span><b>${n}: ${name}</b>${n === lesson ? wave() : `<em>${tail}</em>`}</div>`).join('')}`).join('')}</div>`;
   };
-  addEventListener('scroll', () => { if (!tick) tick = requestAnimationFrame(drift); }, { passive: true });
-  addEventListener('resize', drift); drift();
+
+  let i = -1, timer = 0, visible = false, left = 0, at = 0;
+  const show = k => {
+    i = k % steps.length; const st = steps[i];
+    steps.forEach((o, j) => { o.el.classList.toggle('is-on', j === i); if (o.v && j !== i) o.v.pause(); });
+    drawMenu(st.mod, st.lesson);
+    if (st.v) { st.load(); try { st.v.currentTime = st.from; } catch (e) {} if (!reduce) st.v.play().catch(() => {}); steps[(i + 1) % steps.length].load?.(); }
+    if (st.tinko && !reduce) {
+      const b = st.el.querySelector('.tkc-start'); b.classList.remove('is-press');
+      setTimeout(() => { if (steps[i] === st) { b.classList.add('is-press'); setTimeout(() => b.classList.remove('is-press'), 220); st.tinko.cheer(1); } }, 2600);
+    }
+    left = st.dur * 1000;
+  };
+  // the clock only runs while it's on screen
+  const run = () => { clearTimeout(timer); if (!visible || reduce) return; at = performance.now(); timer = setTimeout(() => { show(i + 1); run(); }, left); };
+  new IntersectionObserver(([e]) => {
+    visible = e.isIntersecting;
+    steps.forEach(st => st.tinko?.show(visible && st === steps[i]));
+    if (visible) { if (i < 0) show(0); else if (steps[i].v && !reduce) steps[i].v.play().catch(() => {}); run(); }
+    else { clearTimeout(timer); left = Math.max(400, left - (performance.now() - at)); steps.forEach(st => st.v?.pause()); }
+  }, { threshold: .25 }).observe(player);
+  new IntersectionObserver(([e]) => { if (e.isIntersecting) steps[0].load?.(); }, { rootMargin: '600px 0px' }).observe(player);
+  drawMenu(steps[0].mod, steps[0].lesson); steps[0].el.classList.add('is-on');
 }
 
 /* ---------- The overview's tiles as one row that keeps moving, inside the page's side lines (Rim, 24 Oct: "one row,
@@ -2034,9 +2044,9 @@ function initTiles(row) {
 /* ---------- The safety sticker (Rim, 24 Oct: the peeking Tinko "feels generated"; a small box, framed stronger, with a
    badge like the Echo sticker; Apple-approved is where it's heading, not yet: Tinko isn't notarized, so the ring says
    only what's true today) ----------
-   Webflow: .tinko-safebox with [data-tinko-badge]. A scalloped sticker, tilted a little, its words running round the
-   rim and turning slowly; in the middle a live Tinko whose eyes follow you, bwoop on a click. Hover spins the ring on.
-   Once Tinko is notarized, "NOTARIZED BY APPLE" goes on the ring. */
+   Webflow: .tinko-safebox with [data-tinko-badge]. A scalloped sticker, tilted a little, the whole edge with its words
+   turning slowly (as on Echo's); the Apple mark in the middle (Rim, 24 Oct). A staging exploration: on live only once
+   Tinko is notarized, with "NOTARIZED BY APPLE" on the ring, and only if Apple's rules allow the mark. */
 const BADGE_WORDS = 'ASKS FIRST • NOTHING IS LOST • NO AI • STAYS ON YOUR MAC • ';
 function initBadge(host) {
   const N = 26, R = 100, A = 4.2;   // bumps, radius, bump depth (in a 220 box)
@@ -2044,14 +2054,12 @@ function initBadge(host) {
   for (let i = 0; i <= 360; i++) { const t = i / 180 * Math.PI, r = R + A * Math.cos(N * t); d += (i ? 'L' : 'M') + (110 + r * Math.cos(t)).toFixed(2) + ' ' + (110 + r * Math.sin(t)).toFixed(2); }
   const id = 'tkb-' + Math.random().toString(36).slice(2, 7);
   host.innerHTML = `<div class="tkb"><svg class="tkb-svg" viewBox="0 0 220 220" aria-hidden="true">
-      <path class="tkb-edge" d="${d}Z"/><circle class="tkb-ring" cx="110" cy="110" r="88"/>
       <defs><path id="${id}" d="M110 110m-76 0a76 76 0 1 1 152 0a76 76 0 1 1-152 0"/></defs>
-      <g class="tkb-spin"><text class="tkb-words"><textPath href="#${id}" textLength="476" lengthAdjust="spacing">${BADGE_WORDS}</textPath></text></g>
+      <g class="tkb-spin"><path class="tkb-edge" d="${d}Z"/><circle class="tkb-ring" cx="110" cy="110" r="88"/>
+        <text class="tkb-words"><textPath href="#${id}" textLength="476" lengthAdjust="spacing">${BADGE_WORDS}</textPath></text></g>
       <circle class="tkb-disc" cx="110" cy="110" r="56"/></svg>
-    <div class="tkb-tinko"><div class="tkh-tinko" role="img" aria-label="Tinko"></div></div></div>`;
+    <div class="tkb-apple">${APPLE}</div></div>`;
   host.setAttribute('role', 'img'); host.setAttribute('aria-label', 'A sticker: asks first, nothing is lost, no AI, stays on your Mac.');
-  const tinko = makeTinko(host.querySelector('.tkh-tinko')); tinko.awakeNow();
-  new IntersectionObserver(([e]) => tinko.show(e.isIntersecting)).observe(host);
 }
 
 // the first colour behind an element (sections can be see-through), for eyes that should read as holes
@@ -2117,6 +2125,8 @@ const OUTRO_CSS = `
 .dfs-night .tinko-safebox{background-color:rgba(251,247,239,.025);border-color:#2a3550}.dfs-night .tinko-safebox::before{--k:#fbf7ef}
 .dfs-night .tinko-safebox_item{color:#b3aca2}.dfs-night .tinko-safebox_name,.dfs-night .tinko-safebox_icon{color:#fbf7ef}
 .tinko-safebox_badge .tinko-ph{display:none!important}
+.tinko-safebox{background-image:linear-gradient(rgba(61,58,54,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(61,58,54,.055) 1px,transparent 1px);background-size:32px 32px;background-position:-1px -1px}
+.dfs-night .tinko-safebox{background-image:linear-gradient(rgba(251,247,239,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(251,247,239,.045) 1px,transparent 1px)}
 .tkb{--edge:#0297db;--words:#fbf7ee;--disc:#fbf7ee;--c-ink:#3d3a36;--c-card:#fbf7ee;--tkh-cell:5px;position:absolute;inset:0;transform:rotate(-8deg);filter:drop-shadow(0 10px 14px rgba(61,58,53,.18));transition:transform .5s cubic-bezier(.34,1.5,.64,1)}
 .tkb:hover{transform:rotate(-2deg) scale(1.04)}
 .tkb-svg{display:block;width:100%;height:100%;overflow:visible}
@@ -2124,10 +2134,8 @@ const OUTRO_CSS = `
 .tkb-disc{fill:var(--disc)}
 .tkb-words{fill:var(--words);font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.08em}
 .tkb-spin{transform-origin:110px 110px;animation:tkbSpin 28s linear infinite}
-.tkb:hover .tkb-spin{animation-duration:7s}
 @keyframes tkbSpin{to{transform:rotate(360deg)}}
-.tkb-tinko{position:absolute;left:50%;top:50%;transform:translate(-50%,-52%)}
-@media (max-width:991px){.tkb{--tkh-cell:4px}}@media (max-width:767px){.tkb{--tkh-cell:3.4px}}
+.tkb-apple{position:absolute;left:50%;top:50%;width:24%;color:var(--c-ink);transform:translate(-50%,-56%)}.tkb-apple svg{display:block;width:100%;height:auto}
 .dfs-night .tkb{--edge:#1dabfa;--words:#0e1628;--disc:#141d33;--c-ink:#fbf7ef;--c-card:#141d33;filter:drop-shadow(0 10px 14px rgba(0,0,0,.4))}
 @media (prefers-reduced-motion:reduce){.tkb-spin{animation:none}}
 
@@ -2138,50 +2146,35 @@ const OUTRO_CSS = `
 @keyframes tktRun{to{transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){.tinko-tiles.is-marquee{animation:none}.tkt-view{overflow-x:auto}}
 
-/* the course (Webflow: .tinko-course_flow): the lesson clips and his cards */
+/* the course (Webflow: .tinko-course_flow): one player frame playing its steps, the course menu beside it */
 .tkc-wave{display:block;flex:none;width:2.4rem;height:.8rem;overflow:hidden;color:#1a97d7}
-.tkc-wave path{stroke:currentColor;stroke-width:1.3;stroke-linecap:round;vector-effect:non-scaling-stroke;animation:tkcWave 1.3s linear infinite paused}
+.tkc-wave path{stroke:currentColor;stroke-width:1.3;stroke-linecap:round;vector-effect:non-scaling-stroke;animation:tkcWave 1.3s linear infinite}
 @keyframes tkcWave{to{transform:translateX(-13px)}}
-.tinko-course_lesson.is-playing .tkc-wave path,.tkc-row.is-now .tkc-wave path{animation-play-state:running}
-.tinko-course_meta .tkc-wave{width:0;opacity:0;margin-right:-.6rem;transition:width .4s,opacity .4s,margin .4s}
-.tinko-course_lesson.is-playing .tinko-course_meta .tkc-wave{width:2.4rem;opacity:1;margin-right:0}
-.tkc-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .7s}
-.tinko-course_clip.is-in .tkc-video{opacity:1}
-.tinko-course_col{will-change:transform}
-.dfs-night .tinko-course_clip{background-color:#1b2338;box-shadow:0 0 0 1px rgba(251,247,239,.08),0 24px 50px -28px rgba(0,0,0,.8)}
-.dfs-night .tinko-course_meta{color:#b3aca2}.dfs-night .tkc-wave{color:#1dabfa}
-.tkc-card{--c-card:#f6f2ea;--c-ink:#3d3a36;--c-soft:#7d776f;--c-line:#dfd5ca;--c-calm:#1a97d7;--c-calmsoft:#e8f1f6;--c-mod:#ebe6dc;--tkh-cell:7px;position:absolute;transform:translateY(var(--y,0px)) rotate(var(--r,0deg));will-change:transform;text-align:left}
-.tkc-in{overflow:hidden;border:1px solid var(--c-line);border-radius:6px;background:var(--c-card);color:var(--c-ink);box-shadow:0 34px 64px -34px rgba(61,58,53,.55);animation:tkcFloat 7s ease-in-out infinite}
-@keyframes tkcFloat{50%{transform:translateY(-9px)}}
-.tkc-card.is-install .tkc-in{animation-duration:8.5s;animation-delay:-2.5s}.tkc-card.is-stage .tkc-in{animation-duration:6.5s;animation-delay:-4s}
-.tkc-card.is-list{top:0;left:12%;width:min(23rem,88%)}
-.tkc-card.is-install{top:15.5rem;left:0;width:min(27rem,100%)}
-.tkc-card.is-stage{top:31rem;left:36%;width:min(17rem,64%)}
-.tkc-mod{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.2rem;background:var(--c-mod);font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:1.55rem;line-height:1}
-.tkc-mod b{font-weight:400}.tkc-mod.is-open{background:var(--c-calmsoft)}
-.tkc-chev{display:grid;place-items:center;width:2.1rem;height:2.1rem;border:1px dashed var(--c-soft);border-radius:4px;color:var(--c-soft)}.tkc-mod.is-open .tkc-chev{border-color:var(--c-calm);color:var(--c-calm)}
-.tkc-chev svg,.tkc-start svg{width:.75rem;height:.75rem;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
-.tkc-row{display:flex;align-items:center;gap:.8rem;padding:.9rem 1.2rem;border-top:1px dashed var(--c-line);font-size:.85rem;letter-spacing:.02em}
-.tkc-row b{flex:1;font-weight:400}.tkc-row em{font-style:normal;font-size:.75rem;color:var(--c-soft)}
-.tkc-row.is-now{background:var(--c-calmsoft);color:var(--c-calm)}.tkc-row .tkc-wave{color:var(--c-calm)}
-.tkc-box{display:grid;place-items:center;flex:none;width:1.1rem;height:1.1rem;box-sizing:border-box;border:1.5px solid currentColor;border-radius:2px}.tkc-box::after{content:"";width:.45rem;height:.45rem;background:currentColor}
-.tkc-card.is-install .tkc-in{padding:1.4rem 1.5rem 1.5rem}
-.tkc-h{margin-bottom:.8rem;font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:1.55rem;line-height:1.1}
-.tkc-steps{margin:0 0 1rem;padding-left:1.25rem;font-size:.76rem;line-height:2.15}
-.tkc-steps kbd{padding:.05em .45em;border:1px solid var(--c-line);border-radius:4px;background:var(--c-card);box-shadow:0 1px 0 var(--c-line);font:inherit;font-size:.7rem}
-.tkc-steps mark{padding:.05em .35em;border-radius:3px;background:#e6dfd2;color:inherit}
-.tkc-code{display:flex;overflow:hidden;border-radius:6px;background:#2f2d2a;color:#fbf7ef;font-size:.7rem}
-.tkc-code code{flex:1;min-width:0;overflow:hidden;padding:.85rem 1rem;font:inherit;white-space:nowrap;text-overflow:ellipsis}.tkc-code i{font-style:normal}
-.tkc-code span{display:grid;place-items:center;padding:0 1rem;border-left:1px solid rgba(251,247,239,.14);background:#3a3834;letter-spacing:.1em;text-transform:uppercase}
-.c-cmd{color:#5aa9e6}.c-flag{color:#a9a39a}.c-url{color:#f0e2b6}.c-code{color:#8fd18f}
-.tkc-card.is-stage .tkc-in{display:flex;flex-direction:column;align-items:center;gap:1.1rem;padding:1.8rem 1.4rem 1.4rem}
-.tkc-start{display:flex;align-items:center;gap:.8rem;padding:.7rem .7rem .7rem 1.1rem;border-radius:4px;background:var(--c-mod);font-size:.85rem;letter-spacing:.06em;text-transform:uppercase}
+.tinko-course_player .tinko-ph{display:none!important}
+.tinko-course_step{opacity:0;transition:opacity .6s}.tinko-course_step.is-on{opacity:1}
+.tkc-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .6s}.tinko-course_step.is-in .tkc-video{opacity:1}
+.dfs-night .tinko-course_player{background-color:#1b2338;box-shadow:0 0 0 1px rgba(251,247,239,.08),0 34px 70px -36px rgba(0,0,0,.85)}
+.tkc-stage{--c-card:#f6f2ea;--c-ink:#3d3a36;--c-soft:#7d776f;--c-mod:#ebe6dc;--tkh-cell:8px;position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2rem;background-color:var(--c-card);background-image:linear-gradient(rgba(61,58,54,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(61,58,54,.05) 1px,transparent 1px);background-size:32px 32px;color:var(--c-ink);font-family:"Space Mono",monospace}
+.tkc-stage_corner{position:absolute;left:4%;right:4%;top:6%;display:flex;justify-content:space-between;font-size:.55rem;line-height:1.35;letter-spacing:.08em;text-transform:uppercase;color:var(--c-soft)}
+.tkc-stage_corner b{font-weight:400;color:var(--c-ink)}.tkc-stage_corner span{text-align:right}
+.tkc-start{display:flex;align-items:center;gap:.8rem;padding:.7rem .7rem .7rem 1.1rem;border-radius:4px;background:var(--c-mod);font-size:.85rem;letter-spacing:.06em;text-transform:uppercase;transition:transform .18s,box-shadow .18s}
+.tkc-start.is-press{transform:scale(.93);box-shadow:0 0 0 3px rgba(26,151,215,.4)}
 .tkc-start i{display:grid;place-items:center;width:1.6rem;height:1.6rem;border-radius:3px;background:var(--c-ink);color:var(--c-card)}
+.tkc-start svg,.tkc-chev svg{width:.75rem;height:.75rem;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .tkc-path{font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--c-soft)}
-.dfs-night .tkc-card{--c-card:#292724;--c-ink:#fbf7ef;--c-soft:#b3aca2;--c-line:#3d3a36;--c-calm:#1dabfa;--c-calmsoft:#173241;--c-mod:#33302c}
-.dfs-night .tkc-in{box-shadow:0 34px 64px -34px rgba(0,0,0,.85)}.dfs-night .tkc-steps mark{background:#3d3a36}.dfs-night .tkc-code{background:#1a1917}.dfs-night .tkc-code span{background:#252320}
-@media (max-width:991px){.tinko-course_tinko{display:flex;flex-direction:column;align-items:center;gap:1.25rem}.tkc-card{position:relative;top:auto!important;left:auto!important}.tkc-card.is-list{align-self:flex-start;width:min(23rem,90%);margin-left:3%}.tkc-card.is-install{width:min(27rem,100%)}.tkc-card.is-stage{align-self:flex-end;width:min(17rem,70%);margin-right:5%}}
-@media (prefers-reduced-motion:reduce){.tkc-in{animation:none}.tkc-wave path{animation:none}}
+.dfs-night .tkc-stage{--c-card:#292724;--c-ink:#fbf7ef;--c-soft:#b3aca2;--c-mod:#33302c;background-image:linear-gradient(rgba(251,247,239,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(251,247,239,.045) 1px,transparent 1px)}
+.tkc-menu{--c-card:#f6f2ea;--c-ink:#3d3a36;--c-soft:#7d776f;--c-line:#dfd5ca;--c-calm:#1a97d7;--c-calmsoft:#e8f1f6;--c-mod:#ebe6dc;overflow:hidden;border:1px solid var(--c-line);border-radius:6px;background:var(--c-card);color:var(--c-ink);text-align:left;box-shadow:0 30px 60px -36px rgba(61,58,53,.5)}
+.tkc-mod{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1.1rem;background:var(--c-mod);font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:1.35rem;line-height:1}
+.tkc-mod+.tkc-mod,.tkc-row+.tkc-mod{border-top:1px solid var(--c-line)}
+.tkc-mod b{font-weight:400}.tkc-mod.is-open{background:var(--c-calmsoft)}
+.tkc-chev{display:grid;place-items:center;width:1.9rem;height:1.9rem;border:1px dashed var(--c-soft);border-radius:4px;color:var(--c-soft)}.tkc-mod.is-open .tkc-chev{border-color:var(--c-calm);color:var(--c-calm)}
+.tkc-row{display:flex;align-items:center;gap:.75rem;padding:.75rem 1.1rem;border-top:1px dashed var(--c-line);font-size:.78rem;letter-spacing:.02em;transition:background .4s,color .4s}
+.tkc-row b{flex:1;min-width:0;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tkc-row em{font-style:normal;font-size:.7rem;color:var(--c-soft)}
+.tkc-row.is-now{background:var(--c-calmsoft);color:var(--c-calm)}.tkc-row .tkc-wave{color:var(--c-calm)}
+.tkc-box{display:grid;place-items:center;flex:none;width:1rem;height:1rem;box-sizing:border-box;border:1.5px solid currentColor;border-radius:2px}.tkc-box::after{content:"";width:.4rem;height:.4rem;background:currentColor}
+.dfs-night .tkc-menu{--c-card:#292724;--c-ink:#fbf7ef;--c-soft:#b3aca2;--c-line:#3d3a36;--c-calm:#1dabfa;--c-calmsoft:#173241;--c-mod:#33302c;box-shadow:0 30px 60px -36px rgba(0,0,0,.85)}
+@media (max-width:767px){.tkc-stage{--tkh-cell:5px;gap:.7rem}.tkc-start{font-size:.65rem;padding:.45rem .45rem .45rem .8rem}.tkc-start i{width:1.2rem;height:1.2rem}.tkc-stage_corner{font-size:.42rem}}
+@media (prefers-reduced-motion:reduce){.tkc-wave path{animation:none}}
 
 /* the key legend (Webflow: .tinko-legend, his two buttons copied): it sits on a strip of his window's paper, the
    column with its side lines, his 32px grid and the dashed line under the buttons, fading up into the page (Rim, 24 Oct) */

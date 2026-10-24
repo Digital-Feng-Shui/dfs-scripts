@@ -1709,8 +1709,9 @@ function odometer(el, text) {
   // each window as wide as its own last digit (the heading font's figures aren't all one width), in em so it scales
   const fit = () => cols.forEach((col, i) => {
     const probe = document.createElement('span'); probe.textContent = digits[i]; probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap';
-    el.append(probe); col.parentElement.style.width = probe.getBoundingClientRect().width / (parseFloat(getComputedStyle(el).fontSize) || 16) + 'em'; probe.remove();
+    el.append(probe); col.parentElement.style.width = probe.getBoundingClientRect().width / (parseFloat(getComputedStyle(el).fontSize) || 16) + .04 + 'em'; probe.remove();   // a hair over, so no figure loses an edge
   });
+  document.fonts?.ready.then(fit);
   return dur => { fit(); cols.forEach((col, i) => {
     const to = `translateY(${-(10 + digits[i]) * 5}%)`;   // twenty digits a column: one is 5% of it
     if (!dur) { col.style.transform = to; return; }
@@ -1739,7 +1740,7 @@ function burst(at, dir) {   // dir: fly away that way, within 100 degrees of it 
 const FILE_STRIP = new URL('./media/file-strip.svg', import.meta.url).href;
 const FILE_BOX = [[0, 25.8, 48, 55.5], [66.3, 9.3, 51.3, 56.5], [137.8, 25.8, 48, 55.5], [208.3, 14.5, 41, 35.8], [285, 1.8, 51, 58.8], [360.8, 5, 59.5, 56.8], [438, 8.3, 36, 42.5], [493, 15.5, 52.3, 49.8], [552.5, 4.8, 42.3, 49.3]];
 const SAD = 6;   // the strip's one sad file
-const MESS = { gb: '104.6', time: '8 min 40 s', jobs: 10, stats: [['11', 'apps can’t interrupt you any more'], ['50', 'newsletters you’ll never get again']] };
+const MESS = { gb: '104.6', stats: [['10', 'background jobs that no longer run'], ['11', 'apps that can’t ping you any more'], ['50', 'newsletters you’ll never get again']] };   // Rim, 24 Oct: no time (made up), the jobs as a third
 let stripImg = null;
 const loadStrip = () => stripImg || (stripImg = new Promise(done => { const im = new Image(); im.crossOrigin = 'anonymous'; im.decoding = 'async'; im.onload = () => done(im); im.onerror = () => done(null); im.src = FILE_STRIP; }));
 const rgbOf = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
@@ -1780,12 +1781,11 @@ const noise = u => { const i = Math.floor(u), f = u - i, s = f * f * (3 - 2 * f)
 function initMess(host) {
   const section = host.closest('section') || host, pin = host.parentElement, head = pin.querySelector('.tinko-mess_head'), then = pin.querySelector('[data-tinko-mess-then]') || pin.querySelector('.tinko-mess_head em');
   host.innerHTML = `<div class="tkm-dock"><div class="tkm-tinko"><div class="tkh-tinko" role="img" aria-label="Tinko"></div></div><div class="tkm-bin"><img alt="" src="${MAC('trash-empty')}"><img alt="" src="${MAC('trash-full')}"></div><div class="tkm-count"><b>0.0</b> GB<span>into the Bin</span></div></div>
-    <div class="tkm-card" role="img" aria-label="An example result: all done in ${MESS.time}. ${MESS.gb} GB free again. ${MESS.jobs} background jobs turned off, so your Mac runs smoother. ${MESS.stats.map(([n, t]) => n + ' ' + t).join('. ')}.">
+    <div class="tkm-card" role="img" aria-label="An example result: all done. ${MESS.gb} GB free again, and your Mac runs smoother. ${MESS.stats.map(([n, t]) => n + ' ' + t).join(', ')}.">
       <div class="tkm-grid grid-background is-full" aria-hidden="true"></div>
-      <div class="tkm-top"><span class="tkm-chip"><b>All done</b><span>${MESS.time}</span></span></div>
+      <div class="tkm-top"><span class="tkm-chip">All done</span></div>
       <div class="tkm-gb"><span class="tkr-odo" aria-hidden="true"></span><small>GB</small></div><div class="tkm-label">free again</div>
       <div class="tkm-mac"><span class="tkm-mac_name">Your Mac</span><svg class="tkm-wave" viewBox="0 0 600 44" preserveAspectRatio="none" aria-hidden="true"><path/></svg><span class="tkm-mac_state"><i>Busy</i><i>Runs smoother</i></span></div>
-      <div class="tkm-mac_cap">${MESS.jobs} background jobs turned off</div>
       <div class="tkm-stats">${MESS.stats.map(([n, t]) => `<div><b data-to="${n}">0</b><span>${t}</span></div>`).join('')}</div></div>
     <div class="tkm-fx" aria-hidden="true"></div>`;
   pin.classList.add('tkm-pin'); host.classList.add('tkm-stage');
@@ -2051,22 +2051,20 @@ const OUTRO_CSS = `
 .tkm-grid{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.tkm-card>*:not(.tkm-grid){position:relative}
 .tkm-grid .dfs-grid-zip{top:0}
 .tkm-top{display:flex;justify-content:center}
-.tkm-chip{display:inline-flex;align-items:center;gap:.65rem;padding:.3em .35em .3em .8em;border-radius:3px;background:var(--c-calmsoft);color:var(--c-calm);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
-.tkm-chip b{font-weight:400}.tkm-chip span{padding:.15em .55em;border-radius:2px;background:var(--c-card);color:var(--c-ink);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c-calm) 25%,transparent)}
+.tkm-chip{display:inline-flex;align-items:center;padding:.4em .8em;border-radius:3px;background:var(--c-calmsoft);color:var(--c-calm);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
 .tkm-gb{display:flex;justify-content:center;align-items:baseline;gap:.5rem;margin-top:1rem;font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:clamp(4rem,11vw,8.5rem);line-height:1}
 .tkm-gb small{font-size:.38em}.tkr-odo{display:inline-flex}
-.tkr-dig{display:inline-block;height:1em;overflow:hidden;line-height:1}.tkr-dig>span{display:block}.tkr-dig i{display:block;height:1em;font-style:normal;text-align:center}
+.tkr-dig{display:inline-block;height:1.25em;overflow:hidden;line-height:1.25}.tkr-dig>span{display:block}.tkr-dig i{display:block;height:1.25em;font-style:normal;text-align:center}
 .tkm-label{margin-top:.4rem;font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--c-calm)}
-.tkm-mac{display:grid;grid-template-columns:auto minmax(0,1fr) 9.5rem;grid-template-areas:"name wave state";align-items:center;gap:1.25rem;margin-top:1.75rem;padding:1.1rem 0 .3rem;border-top:1px solid var(--c-line);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--c-soft);text-align:left}
+.tkm-mac{display:grid;grid-template-columns:9.5rem minmax(0,1fr) 9.5rem;grid-template-areas:"name wave state";align-items:center;gap:1.25rem;margin-top:1.75rem;padding:1.1rem 0 .8rem;border-top:1px solid var(--c-line);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--c-soft);text-align:left}
 .tkm-mac_name{grid-area:name;color:var(--c-ink)}.tkm-wave{grid-area:wave;display:block;width:100%;height:44px;overflow:visible}
 .tkm-wave path{fill:none;stroke:var(--c-soft);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
-.tkm-mac_state{grid-area:state;position:relative;height:1.3em}.tkm-mac_state i{position:absolute;left:0;top:0;font-style:normal;white-space:nowrap;transition:opacity .45s,transform .45s cubic-bezier(.625,.05,0,1)}
+.tkm-mac_state{grid-area:state;position:relative;height:1.3em}.tkm-mac_state i{position:absolute;right:0;top:0;font-style:normal;white-space:nowrap;transition:opacity .45s,transform .45s cubic-bezier(.625,.05,0,1)}
 .tkm-mac_state i+i{opacity:0;transform:translateY(8px);color:var(--c-calm)}.tkm-mac.is-calm .tkm-mac_state i:first-child{opacity:0;transform:translateY(-8px)}.tkm-mac.is-calm .tkm-mac_state i+i{opacity:1;transform:none}
-.tkm-mac_cap{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--c-soft)}
-.tkm-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin-top:1.4rem;border-top:1px solid var(--c-line)}
+.tkm-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:1.4rem;border-top:1px solid var(--c-line)}
 .tkm-stats div{display:flex;flex-direction:column;align-items:center;gap:.4rem;padding:1.3rem .75rem 0}.tkm-stats div+div{border-left:1px solid var(--c-line)}
 .tkm-stats b{font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:2.75rem;font-weight:400;line-height:1;font-variant-numeric:tabular-nums}
-.tkm-stats span{max-width:16em;font-size:11px;line-height:1.5;letter-spacing:.08em;text-transform:uppercase;color:var(--c-soft)}
+.tkm-stats span{max-width:13em;font-size:11px;line-height:1.5;letter-spacing:.08em;text-transform:uppercase;color:var(--c-soft)}
 .tkm-fx{position:absolute;inset:0;pointer-events:none;z-index:2}.tkm-boom{position:absolute;width:0;height:0}.tkm-boom i{position:absolute;left:-4px;top:-4px}
 @media (max-width:767px){.tkm-card{padding:1.6rem 1.1rem 1.4rem}.tkm-mac{grid-template-columns:1fr auto;grid-template-areas:"name state" "wave wave";gap:.6rem 1rem;margin-top:1.3rem}.tkm-mac_state{min-width:8.5rem}.tkm-wave{height:36px}.tkm-stats{grid-template-columns:1fr;margin-top:1.1rem}.tkm-stats div{flex-direction:row;justify-content:center;gap:.75rem;padding:.8rem 0 0}.tkm-stats div+div{border-left:0}.tkm-stats b{font-size:2rem}.tkm-stats span{text-align:left}.tkm-dock{bottom:1rem}.tkm-bin{width:52px;height:52px}}
 @media (prefers-reduced-motion:reduce){.tkm-card,.tkm-then{transition:none}}

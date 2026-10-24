@@ -1801,12 +1801,13 @@ function initMess(host) {
   // the storm: rows across the pin, each sheet with its own icon, tilt, size and moment to leave
   let W = 0, H = 0, dpr = 1, sprites = [], files = [], binAt = { x: 0, y: 0 }, im = null, night = isNight(), headBand = [0, 0];
   function layout() {
-    dpr = Math.min(2, devicePixelRatio || 1); W = pin.clientWidth; H = pin.clientHeight;
+    dpr = Math.min(2, devicePixelRatio || 1); W = cv.clientWidth; H = cv.clientHeight;
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     const phone = W < 600, ih = phone ? 28 : 40, gap = phone ? 46 : 62, top = phone ? 64 : 84, bottom = H - (phone ? 140 : 150);
     const rows = Math.max(4, Math.floor((bottom - top) / gap) + 1);
-    if (im) sprites = night ? fileSprites(im, ih, '#fbf7ef', '#1a2440', 'rgba(0,0,0,.45)', dpr) : fileSprites(im, ih, '#3d3a36', '#fbf7ef', 'rgba(61,58,53,.2)', dpr);
-    const r = bin.getBoundingClientRect(), pr = pin.getBoundingClientRect(); binAt = { x: r.left - pr.left + r.width / 2, y: r.top - pr.top + r.height * .42 };
+    // beige sheets, as on the homepage's storm (Rim: the text's colour was too loud), the paper a shade lighter than the page
+    if (im) sprites = night ? fileSprites(im, ih, '#3a4662', '#141d33', 'rgba(0,0,0,.3)', dpr) : fileSprites(im, ih, '#d3c8ba', '#fbf7ee', 'rgba(61,58,53,.07)', dpr);
+    const r = bin.getBoundingClientRect(), pr = cv.getBoundingClientRect(); binAt = { x: r.left - pr.left + r.width / 2, y: r.top - pr.top + r.height * .42 };
     if (head) { const hr = head.getBoundingClientRect(); headBand = [hr.top - pr.top - 10, hr.bottom - pr.top + 10]; }
     placeCard();
     const rnd = seeded(7), step = ih * 1.5, cols = Math.ceil(W / step) + 2, old = new Map(files.map(f => [f.id, f.fl]));
@@ -2034,7 +2035,9 @@ function initPeek(host) {
 
 const OUTRO_CSS = `
 .tkm-pin{isolation:isolate}.tkm-pin .tinko-mess_head{position:relative;z-index:2}
-.tkm-storm{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.tkm-storm{position:absolute;top:0;left:var(--_ui-styles---stroke--padding,0px);width:calc(100% - 2 * var(--_ui-styles---stroke--padding,0px));height:100%;z-index:0;pointer-events:none}
+/* the sheets behind the title soften (a blur that fades out at its edges) */
+.tkm-pin .tinko-mess_head::before{content:"";position:absolute;inset:-1.5rem -5rem;z-index:-1;pointer-events:none;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);-webkit-mask-image:radial-gradient(closest-side,#000 50%,transparent);mask-image:radial-gradient(closest-side,#000 50%,transparent)}
 .tkm-stage{position:absolute!important;inset:0;z-index:1;pointer-events:none}.tkm-stage .tinko-ph{display:none!important}.tkm-dock,.tkm-card{pointer-events:auto}
 .tkm-then{display:inline-block;clip-path:inset(0 100% 0 0);transition:clip-path .9s cubic-bezier(.625,.05,0,1)}.tkm-then.is-on{clip-path:inset(0 -5% 0 0)}
 .tkm-dock{--c-ink:#3d3a36;--c-card:#f1ede2;--tkh-cell:6px;position:absolute;left:50%;bottom:1.5rem;display:flex;align-items:flex-end;gap:1rem;transform:translateX(-50%);transition:opacity .5s,transform .6s cubic-bezier(.625,.05,0,1)}

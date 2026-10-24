@@ -1943,41 +1943,40 @@ function initMess(host) {
   layout();
 }
 
-/* ---------- Tinko comes with a course (Rim, 24 Oct: "a sequence: the welcome screen, then a Tinko card, then another
-   lesson; Tinko staged in the same frame as the videos, so they feel in touch") ----------
-   Webflow: .tinko-course_flow [data-tinko-course] with .tinko-course_player (its .tinko-course_step children: a lesson,
-   data-step-video = the lesson on Bunny, data-from / -to = the seconds that play; or data-step="tinko") and
-   .tinko-course_menu. One frame like the course player plays the steps in turn: 0.1 Welcome (Rim, muted), 1.2 Clear your
-   Mac (Tinko on his first stage, the button pressed, a cheer), 3.1 The invisible clutter. Beside it the course's own menu
-   (V2: modules and lessons as on the course page) opens the module that's playing, its row lit with the course wave.
-   Only while it's on screen. */
+/* ---------- Tinko comes with a course (Rim, 24 Oct: the course as it really runs: "a welcome, the install step, Tinko
+   pops up, a new video, then Tinko activates again; the main thing is Tinko actually open on top of it"; the menu opens
+   each lesson smoothly, as in the real course) ----------
+   Webflow: .tinko-course_flow [data-tinko-course] with .tinko-course_player (its .tinko-course_step children, in order:
+   a lesson, data-step-video = the lesson on Bunny, data-from / -to = the seconds that play; data-step="install"; or
+   data-step="tinko") and .tinko-course_menu. The player plays them in turn: 0.1 Welcome (Rim, muted); 0.2 Install
+   Tinko, and his window opens on top of the course with his hello, then closes; 1.1 (a stand-in clip until the real one
+   is recorded); 1.2 Clear your Mac, "Start stage 1", and his window opens on top again, on the desktop. The V2 menu
+   beside it opens the playing module and lights its lesson with the course wave. Only while it's on screen. */
 const BUNNY = id => `https://vz-87a2c68f-2a7.b-cdn.net/${id}`;
 // the course player's wave (course/v2.js: a sine, 3.6 high in 12, one wave every 13): drawn long, slid along one wave
 const wave = () => { let d = ''; for (let x = 0; x <= 66; x++) d += (x ? 'L' : 'M') + x + ' ' + (6 + 3.6 * Math.sin(x / 13 * Math.PI * 2)).toFixed(2); return `<svg class="tkc-wave" viewBox="0 0 40 12" fill="none" aria-hidden="true"><path d="${d}"/></svg>`; };
-const CHEV = up => `<svg viewBox="0 0 12 12" aria-hidden="true"><path d="${up ? 'M2.5 8l3.5-3.5L9.5 8' : 'M2.5 4.5L6 8l3.5-3.5'}"/></svg>`;
+const CHEV = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5L6 8l3.5-3.5"/></svg>';
 // the V2 menu (courses/fundamentals-v2, 24 Oct), a few lessons per module
 const COURSE = [
   ['0: Start', [['0.1', 'Welcome', '3:09'], ['0.2', 'Install Tinko', 'Action']]],
   ['1: Clear', [['1.1', 'What Tinko does', '3:00'], ['1.2', 'Clear your Mac', 'Tinko'], ['1.3', 'Distractions purge', '3:00']]],
-  ['2: Setup', []],
+  ['2: Setup', [['2.1', 'What’s inside', '3:00'], ['2.2', 'Set up your tools', 'Tinko']]],
   ['3: Tend', [['3.1', 'The invisible clutter', '3:59'], ['3.2', 'Clarity principles', '6:00']]],
-  ['4: Flow', []],
+  ['4: Flow', [['4.1', 'How I navigate', '10:00'], ['4.2', 'One-key capture', 'Action']]],
 ];
+const lessonName = n => COURSE.flatMap(m => m[1]).find(l => l[0] === n)?.[1] || '';
 function initCourse(host) {
   const player = host.querySelector('.tinko-course_player'), menu = host.querySelector('.tinko-course_menu');
   if (!player || !menu) return;
+  const corner = n => `<div class="tkc-stage_corner"><b>Digital<br>Feng Shui</b><span>Lesson ${n}<br>${lessonName(n)}</span></div>`;
   const steps = [...player.querySelectorAll('.tinko-course_step')].map(el => {
-    const st = { el, mod: +el.dataset.module || 0, lesson: el.dataset.lesson || '' };
-    if (el.dataset.step === 'tinko') {
-      st.kind = 'tinko'; st.dur = 6.5;
-      const name = COURSE[st.mod]?.[1].find(l => l[0] === st.lesson)?.[1] || '';
-      el.innerHTML = `<div class="tkc-stage"><div class="tkc-stage_corner"><b>Digital<br>Feng Shui</b><span>Lesson ${st.lesson}<br>${name}</span></div>
-        <div class="tkh-tinko tkc-tinko" role="img" aria-label="Tinko"></div>
-        <div class="tkc-start">Start stage 1 <i><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h8M6.5 2.5L10 6l-3.5 3.5"/></svg></i></div>
-        <div class="tkc-path">Open menu › Stage 1</div></div>`;
-      st.tinko = makeTinko(el.querySelector('.tkc-tinko')); st.tinko.awakeNow();
+    const st = { el, mod: +el.dataset.module || 0, lesson: el.dataset.lesson || '', kind: el.dataset.step || 'video' };
+    if (st.kind === 'install') {
+      el.innerHTML = `<div class="tkc-stage">${corner(st.lesson)}<div class="tkc-install"><span class="tkc-install_tag">Action</span><b>Install Tinko</b><div class="tkc-bar"><i></i></div><span class="tkc-install_note">Installing Tinko…</span></div></div>`;
+    } else if (st.kind === 'tinko') {
+      el.innerHTML = `<div class="tkc-stage">${corner(st.lesson)}<div class="tkc-start">Start stage 1 <i><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h8M6.5 2.5L10 6l-3.5 3.5"/></svg></i></div><div class="tkc-path">Open menu › Stage 1</div></div>`;
     } else {
-      st.kind = 'video'; st.from = +el.dataset.from || 0; st.to = +el.dataset.to || st.from + 8; st.dur = st.to - st.from;
+      st.from = +el.dataset.from || 0; st.to = +el.dataset.to || st.from + 8;
       const v = st.v = document.createElement('video');
       v.className = 'tkc-video'; v.muted = v.defaultMuted = v.playsInline = v.disablePictureInPicture = true; v.preload = 'none'; v.tabIndex = -1;
       ['muted', 'playsinline', 'aria-hidden'].forEach(a => v.setAttribute(a, a === 'aria-hidden' ? 'true' : ''));
@@ -1991,37 +1990,81 @@ function initCourse(host) {
   });
   if (!steps.length) return;
   player.setAttribute('role', 'img');
-  player.setAttribute('aria-label', 'The Fundamentals course: the welcome lesson, then Tinko starting the Mac cleanup, then a lesson on invisible clutter.');
+  player.setAttribute('aria-label', 'The Fundamentals course: the welcome lesson, Tinko installing and saying hello, the next lesson, then Tinko starting the Mac cleanup.');
 
-  // the menu: every module, the one that's playing open, its lesson lit
-  const drawMenu = (mod, lesson) => {
-    menu.innerHTML = `<div class="tkc-menu">${COURSE.map(([title, rows], m) => m !== mod
-      ? `<div class="tkc-mod"><b>${title}</b><i class="tkc-chev">${CHEV(false)}</i></div>`
-      : `<div class="tkc-mod is-open"><b>${title}</b><i class="tkc-chev">${CHEV(true)}</i></div>${rows.map(([n, name, tail]) => `<div class="tkc-row${n === lesson ? ' is-now' : ''}"><span class="tkc-box"></span><b>${n}: ${name}</b>${n === lesson ? wave() : `<em>${tail}</em>`}</div>`).join('')}`).join('')}</div>`;
+  // his window, on top of the course (his real window: lights, the dashed lines, the column, his screens)
+  const wrap = document.createElement('div'); wrap.className = 'tkc-wrap';
+  player.before(wrap); wrap.append(player);
+  const win = document.createElement('div'); win.className = 'tkd-win tkc-win'; win.setAttribute('aria-hidden', 'true');
+  win.innerHTML = `<div class="tkd-grain"></div>${LIGHTS}<div class="tkd-dash is-top"></div><div class="tkd-dash is-bottom"></div><div class="tkd-col"><div class="tkd-stage"><div class="tkh-tinko tkd-tinko"></div><div class="tkd-screen"></div></div></div>`;
+  wrap.append(win);
+  const tinko = makeTinko(win.querySelector('.tkd-tinko')), screen = win.querySelector('.tkd-screen');
+  const showScreen = html => { screen.classList.add('is-swap'); screen.innerHTML = html; requestAnimationFrame(() => requestAnimationFrame(() => screen.classList.remove('is-swap'))); };
+  const press = k => { const b = screen.querySelector(`[data-k="${k}"]`); if (b) { b.classList.add('is-press'); setTimeout(() => b.classList.remove('is-press'), 200); } };
+  const fitWin = () => win.style.setProperty('--k', Math.min(1, wrap.clientWidth * (innerWidth < 768 ? .84 : .62) / 614).toFixed(3));
+  new ResizeObserver(fitWin).observe(wrap); fitWin();
+  const openWin = on => { win.classList.toggle('is-open', on); tinko.show(on); };
+
+  // the menu, built once: a module opens and closes like the course's own accordion, the lit row moves
+  menu.innerHTML = `<div class="tkc-menu">${COURSE.map(([title, rows], m) => `<div class="tkc-modwrap" data-m="${m}"><div class="tkc-mod"><b>${title}</b><i class="tkc-chev">${CHEV}</i></div><div class="tkc-lessons"><div class="tkc-lessons_in">${rows.map(([n, name, tail]) => `<div class="tkc-row" data-l="${n}"><span class="tkc-box"></span><b>${n}: ${name}</b><em>${tail}</em>${wave()}</div>`).join('')}</div></div></div>`).join('')}</div>`;
+  const setMenu = (mod, lesson) => {
+    menu.querySelectorAll('.tkc-modwrap').forEach(w => w.classList.toggle('is-open', +w.dataset.m === mod));
+    menu.querySelectorAll('.tkc-row').forEach(r => r.classList.toggle('is-now', r.dataset.l === lesson));
   };
 
-  let i = -1, timer = 0, visible = false, left = 0, at = 0;
-  const show = k => {
-    i = k % steps.length; const st = steps[i];
+  // the sequence; each step's beats run on a token, so leaving the screen (or the next step) cancels them
+  let i = -1, token = 0, visible = false;
+  const later = (fn, ms) => { const t = token; setTimeout(() => { if (t === token && visible) fn(); }, ms); };
+  const BEATS = {
+    video: st => { st.load(); try { st.v.currentTime = st.from; } catch (e) {} st.v.play().catch(() => {}); return (st.to - st.from) * 1000; },
+    install: st => {
+      const bar = st.el.querySelector('.tkc-bar'), note = st.el.querySelector('.tkc-install_note');
+      bar.classList.remove('is-run'); note.textContent = 'Installing Tinko…'; requestAnimationFrame(() => requestAnimationFrame(() => bar.classList.add('is-run')));
+      later(() => { note.textContent = 'Tinko is ready'; }, 2100);
+      later(() => {
+        tinko.sleep();
+        showScreen(S.tag('Hi there') + S.words('I’m Tinko, and I’ll be helping with your Digital Feng Shui setup. Let me take a look at what you’re working with.') + S.btns(S.btn('Take a look', 'space')));
+        openWin(true); tinko.wakeUp(.6);
+      }, 2400);
+      later(() => { press('space'); tinko.cheer(1); }, 6200);
+      later(() => openWin(false), 7100);
+      return 7900;
+    },
+    tinko: st => {
+      const b = st.el.querySelector('.tkc-start');
+      later(() => { b.classList.add('is-press'); setTimeout(() => b.classList.remove('is-press'), 220); }, 1100);
+      later(() => {
+        tinko.awakeNow();
+        showScreen(S.tag('Your desktop') + S.words('Now we’re looking at the desktop. A proper pile, but nothing I can’t handle.') + S.stats([[7, 'files'], [1, 'folder'], [4, 'screenshots']]) + S.btns(S.btn('Clean up', 'space'), S.btn('Skip', 's', true)));
+        openWin(true); tinko.bwoop?.();
+      }, 1500);
+      const fixes = ['A Screenshots folder in Documents', 'New screenshots go there', 'No floating thumbnail', 'The desk sorts itself, by date added'];
+      later(() => press('space'), 4600);
+      // the quick fixes come in once, then tick one by one in place (no new screen per tick, so nothing blinks)
+      later(() => showScreen(S.tag('Quick fixes') + S.words('A home for your screenshots, and a desk that keeps itself in order.') + S.fixes(fixes, 0) + S.btns(S.btn('Next', 'space'))), 4900);
+      for (let f = 0; f < 4; f++) later(() => screen.querySelectorAll('.tkd-fixes > div')[f]?.classList.add('is-done'), 5500 + f * 380);
+      later(() => tinko.cheer(1), 6900);
+      later(() => openWin(false), 8600);
+      return 9400;
+    },
+  };
+  const play = k => {
+    token++; i = k % steps.length; const st = steps[i];
     steps.forEach((o, j) => { o.el.classList.toggle('is-on', j === i); if (o.v && j !== i) o.v.pause(); });
-    drawMenu(st.mod, st.lesson);
-    if (st.v) { st.load(); try { st.v.currentTime = st.from; } catch (e) {} if (!reduce) st.v.play().catch(() => {}); steps[(i + 1) % steps.length].load?.(); }
-    if (st.tinko && !reduce) {
-      const b = st.el.querySelector('.tkc-start'); b.classList.remove('is-press');
-      setTimeout(() => { if (steps[i] === st) { b.classList.add('is-press'); setTimeout(() => b.classList.remove('is-press'), 220); st.tinko.cheer(1); } }, 2600);
-    }
-    left = st.dur * 1000;
+    if (st.kind !== 'install' && st.kind !== 'tinko') openWin(false);
+    setMenu(st.mod, st.lesson);
+    steps[(i + 1) % steps.length].load?.();
+    const dur = BEATS[st.kind](st);
+    later(() => play(i + 1), dur);
   };
-  // the clock only runs while it's on screen
-  const run = () => { clearTimeout(timer); if (!visible || reduce) return; at = performance.now(); timer = setTimeout(() => { show(i + 1); run(); }, left); };
   new IntersectionObserver(([e]) => {
     visible = e.isIntersecting;
-    steps.forEach(st => st.tinko?.show(visible && st === steps[i]));
-    if (visible) { if (i < 0) show(0); else if (steps[i].v && !reduce) steps[i].v.play().catch(() => {}); run(); }
-    else { clearTimeout(timer); left = Math.max(400, left - (performance.now() - at)); steps.forEach(st => st.v?.pause()); }
-  }, { threshold: .25 }).observe(player);
-  new IntersectionObserver(([e]) => { if (e.isIntersecting) steps[0].load?.(); }, { rootMargin: '600px 0px' }).observe(player);
-  drawMenu(steps[0].mod, steps[0].lesson); steps[0].el.classList.add('is-on');
+    if (reduce) return;
+    if (visible) play(i < 0 ? 0 : i);
+    else { token++; steps.forEach(st => st.v?.pause()); openWin(false); }
+  }, { threshold: .25 }).observe(wrap);
+  new IntersectionObserver(([e]) => { if (e.isIntersecting) steps[0].load?.(); }, { rootMargin: '600px 0px' }).observe(wrap);
+  setMenu(steps[0].mod, steps[0].lesson); steps[0].el.classList.add('is-on');
 }
 
 /* ---------- The overview's tiles as one row that keeps moving, inside the page's side lines (Rim, 24 Oct: "one row,
@@ -2156,6 +2199,17 @@ const OUTRO_CSS = `
 .tkc-wave path{stroke:currentColor;stroke-width:1.3;stroke-linecap:round;vector-effect:non-scaling-stroke;animation:tkcWave 1.3s linear infinite}
 @keyframes tkcWave{to{transform:translateX(-13px)}}
 .tinko-course_player .tinko-ph{display:none!important}
+.tkc-wrap{position:relative;min-width:0}
+.tkc-win{left:56%;top:55%;z-index:4;transform-origin:50% 50%;transform:translate(-50%,-50%) scale(calc(var(--k,.6) * .9));opacity:0;pointer-events:none;box-shadow:0 0 0 1px rgba(0,0,0,.12),0 40px 80px -24px rgba(0,0,0,.5);transition:opacity .35s,transform .6s cubic-bezier(.34,1.45,.64,1)}
+.tkc-win.is-open{opacity:1;transform:translate(-50%,-50%) scale(var(--k,.6))}
+.dfs-night .tkc-win{box-shadow:0 0 0 1px rgba(251,247,239,.16),0 40px 80px -24px rgba(0,0,0,.85)}
+@media (max-width:767px){.tkc-win{left:50%;top:50%}}
+.tkc-install{display:grid;justify-items:center;gap:.75rem;width:min(18rem,70%)}
+.tkc-install_tag{padding:.25em .6em;border-radius:2px;background:#e8f1f6;color:#1a97d7;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase}
+.tkc-install b{font-family:var(--_typography---font-styles--heading),Georgia,serif;font-weight:400;font-size:1.6rem;line-height:1}
+.tkc-bar{width:100%;height:3px;border-radius:2px;background:color-mix(in srgb,var(--c-ink) 12%,transparent);overflow:hidden}.tkc-bar i{display:block;width:0;height:100%;background:#1a97d7}.tkc-bar.is-run i{width:100%;transition:width 2s cubic-bezier(.4,0,.2,1)}
+.tkc-install_note{font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--c-soft)}
+.dfs-night .tkc-install_tag{background:#173241;color:#1dabfa}
 .tinko-course_step{opacity:0;transition:opacity .6s}.tinko-course_step.is-on{opacity:1}
 .tkc-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .6s}.tinko-course_step.is-in .tkc-video{opacity:1}
 .dfs-night .tinko-course_player{background-color:#1b2338;box-shadow:0 0 0 1px rgba(251,247,239,.08),0 34px 70px -36px rgba(0,0,0,.85)}
@@ -2170,9 +2224,12 @@ const OUTRO_CSS = `
 .dfs-night .tkc-stage{--c-card:#292724;--c-ink:#fbf7ef;--c-soft:#b3aca2;--c-mod:#33302c;background-image:linear-gradient(rgba(251,247,239,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(251,247,239,.045) 1px,transparent 1px)}
 .tkc-menu{--c-card:#f6f2ea;--c-ink:#3d3a36;--c-soft:#7d776f;--c-line:#dfd5ca;--c-calm:#1a97d7;--c-calmsoft:#e8f1f6;--c-mod:#ebe6dc;overflow:hidden;border:1px solid var(--c-line);border-radius:6px;background:var(--c-card);color:var(--c-ink);text-align:left;box-shadow:0 30px 60px -36px rgba(61,58,53,.5)}
 .tkc-mod{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1.1rem;background:var(--c-mod);font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:1.35rem;line-height:1}
-.tkc-mod+.tkc-mod,.tkc-row+.tkc-mod{border-top:1px solid var(--c-line)}
-.tkc-mod b{font-weight:400}.tkc-mod.is-open{background:var(--c-calmsoft)}
-.tkc-chev{display:grid;place-items:center;width:1.9rem;height:1.9rem;border:1px dashed var(--c-soft);border-radius:4px;color:var(--c-soft)}.tkc-mod.is-open .tkc-chev{border-color:var(--c-calm);color:var(--c-calm)}
+.tkc-modwrap+.tkc-modwrap{border-top:1px solid var(--c-line)}
+.tkc-mod{transition:background .5s}.tkc-mod b{font-weight:400}.tkc-modwrap.is-open .tkc-mod{background:var(--c-calmsoft)}
+.tkc-chev{display:grid;place-items:center;width:1.9rem;height:1.9rem;border:1px dashed var(--c-soft);border-radius:4px;color:var(--c-soft);transition:color .5s,border-color .5s}.tkc-modwrap.is-open .tkc-chev{border-color:var(--c-calm);color:var(--c-calm)}
+.tkc-chev svg{transition:transform .55s cubic-bezier(.625,.05,0,1)}.tkc-modwrap.is-open .tkc-chev svg{transform:rotate(180deg)}
+.tkc-lessons{display:grid;grid-template-rows:0fr;transition:grid-template-rows .6s cubic-bezier(.625,.05,0,1)}.tkc-modwrap.is-open .tkc-lessons{grid-template-rows:1fr}.tkc-lessons_in{min-height:0;overflow:hidden}
+.tkc-row .tkc-wave{display:none}.tkc-row.is-now .tkc-wave{display:block}.tkc-row.is-now em{display:none}
 .tkc-row{display:flex;align-items:center;gap:.75rem;padding:.75rem 1.1rem;border-top:1px dashed var(--c-line);font-size:.78rem;letter-spacing:.02em;transition:background .4s,color .4s}
 .tkc-row b{flex:1;min-width:0;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tkc-row em{font-style:normal;font-size:.7rem;color:var(--c-soft)}
 .tkc-row.is-now{background:var(--c-calmsoft);color:var(--c-calm)}.tkc-row .tkc-wave{color:var(--c-calm)}

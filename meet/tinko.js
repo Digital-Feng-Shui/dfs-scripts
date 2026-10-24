@@ -1782,11 +1782,12 @@ function initMess(host) {
   const section = host.closest('section') || host, pin = host.parentElement, head = pin.querySelector('.tinko-mess_head'), then = pin.querySelector('[data-tinko-mess-then]') || pin.querySelector('.tinko-mess_head em');
   host.innerHTML = `<div class="tkm-dock"><div class="tkm-tinko"><div class="tkh-tinko" role="img" aria-label="Tinko"></div></div><div class="tkm-bin"><img alt="" src="${MAC('trash-empty')}"><img alt="" src="${MAC('trash-full')}"></div><div class="tkm-count"><b>0.0</b> GB<span>into the Bin</span></div></div>
     <div class="tkm-card" role="img" aria-label="An example result: all done in ${MESS.time}. ${MESS.gb} GB free again, and your Mac runs smoother. ${MESS.stats.map(([n, t]) => n + ' ' + t).join(', ')}.">
-      <div class="tkm-grid grid-background is-full" aria-hidden="true"></div>
+      ${LIGHTS}<div class="tkd-dash is-top"></div><div class="tkd-dash is-bottom"></div><div class="tkm-col" aria-hidden="true"></div>
+      <div class="tkm-body"><div class="tkm-head">
       <div class="tkm-top"><span class="tkm-chip">All done <b>in ${MESS.time}</b></span></div>
-      <div class="tkm-gb"><span class="tkr-odo" aria-hidden="true"></span><small>GB</small></div><div class="tkm-label">free again</div>
+      <div class="tkm-gb"><span class="tkr-odo" aria-hidden="true"></span><small>GB</small></div><div class="tkm-label">free again</div></div>
       <div class="tkm-mac"><span class="tkm-mac_name">Your Mac</span><svg class="tkm-wave" viewBox="0 0 600 44" preserveAspectRatio="none" aria-hidden="true"><path/></svg><span class="tkm-mac_state"><i>Busy</i><i>Runs smoother</i></span></div>
-      <div class="tkm-stats">${MESS.stats.map(([n, t]) => `<div><b data-to="${n}">0</b><span>${t}</span></div>`).join('')}</div></div>
+      <div class="tkm-stats">${MESS.stats.map(([n, t]) => `<div><b data-to="${n}">0</b><span>${t}</span></div>`).join('')}</div></div></div>
     <div class="tkm-fx" aria-hidden="true"></div>`;
   pin.classList.add('tkm-pin'); host.classList.add('tkm-stage');
   const cv = document.createElement('canvas'); cv.className = 'tkm-storm'; cv.setAttribute('aria-hidden', 'true'); pin.prepend(cv);
@@ -1881,7 +1882,7 @@ function initMess(host) {
   }
 
   // the card: the odometer, your Mac's line settling, the stats, the zips and the firework
-  const mac = card.querySelector('.tkm-mac'), wave = card.querySelector('.tkm-wave path'), gridEl = card.querySelector('.tkm-grid');
+  const mac = card.querySelector('.tkm-mac'), wave = card.querySelector('.tkm-wave path'), gridEl = card.querySelector('.tkm-head');
   let upAt = 0, waveRun = 0, zipT = 0, zips = 0, cols = null;
   function show(on) {
     card.classList.toggle('is-on', on);
@@ -1919,7 +1920,7 @@ function initMess(host) {
     const age = (now - upAt) / 1000, c = reduce ? 1 : inOut(clamp01((age - .7) / 2.4));
     mac.classList.toggle('is-calm', c > .65);
     drawWave(c, reduce ? 0 : now / 1000);
-    // the site's grid zips (main.js dfsGridZips): now and then one thin blue line glides down a line of the grid
+    // the site's grid zips (main.js dfsGridZips): now and then one thin blue line glides down a line of the head's grid
     if (!reduce && now > zipT && zips < 4) {
       zipT = now + 300 + Math.random() * 700;
       const cw = gridEl.clientWidth, ch = gridEl.clientHeight, n = Math.floor(cw / 32), len = 56 + Math.random() * 100, travel = Math.min(140 + Math.random() * 220, ch - len - 10);
@@ -2097,28 +2098,31 @@ const OUTRO_CSS = `
 .tkm-count span{display:block;margin-top:.2rem;font-size:10px;letter-spacing:.1em;opacity:.6}
 .tkm-count{transition:opacity .4s,min-width .6s cubic-bezier(.625,.05,0,1),max-width .6s cubic-bezier(.625,.05,0,1);max-width:12rem;overflow:hidden;white-space:nowrap}
 .tkm-dock.is-done .tkm-count{opacity:0;min-width:0;max-width:0}.tkm-dock.is-done{gap:1.25rem}
-.tkm-card{--c-card:#fbf7ef;--c-ink:#3d3a36;--c-soft:#7d776f;--c-line:#dfd5ca;--c-calm:#1a97d7;--c-calmsoft:#edf5f9;position:absolute;left:50%;top:30%;width:min(48rem,calc(100% - 2rem));overflow:hidden;padding:2.25rem 2.5rem 2.25rem;border:1px solid var(--c-line);border-radius:14px;background:var(--c-card);color:var(--c-ink);text-align:center;font-family:"Space Mono",monospace;-webkit-font-smoothing:antialiased;box-shadow:0 50px 100px -40px rgba(61,58,53,.55);opacity:0;transform:translateX(-50%) translateY(24px) scale(calc(var(--fit,1) * .88));transform-origin:50% 0;pointer-events:none;transition:opacity .45s,transform .8s cubic-bezier(.34,1.45,.64,1)}
+.tkm-card{--c-card:#fbf7ef;--c-ink:#3d3a36;--c-soft:#7d776f;--c-line:#dfd5ca;--c-calm:#1a97d7;--c-calmsoft:#edf5f9;--fr:28px;position:absolute;left:50%;top:30%;width:min(48rem,calc(100% - 2rem));overflow:hidden;padding:var(--fr);border:0;border-radius:12px;background:var(--c-card);color:var(--c-ink);text-align:center;font-family:"Space Mono",monospace;-webkit-font-smoothing:antialiased;box-shadow:0 0 0 1px rgba(0,0,0,.1),0 50px 100px -40px rgba(61,58,53,.55);opacity:0;transform:translateX(-50%) translateY(24px) scale(calc(var(--fit,1) * .88));transform-origin:50% 0;pointer-events:none;transition:opacity .45s,transform .8s cubic-bezier(.34,1.45,.64,1)}
 .tkm-card.is-on{opacity:1;transform:translateX(-50%) scale(var(--fit,1));pointer-events:auto}
 .dfs-night .tkm-card{--c-card:#292724;--c-ink:#fbf7ef;--c-soft:#b3aca2;--c-line:#3d3a36;--c-calm:#1dabfa;--c-calmsoft:#173241;box-shadow:0 50px 100px -40px rgba(0,0,0,.8)}
-.tkm-grid{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.tkm-card>*:not(.tkm-grid){position:relative}
-.tkm-grid .dfs-grid-zip{top:0}
+.tkm-card .tkd-dash.is-top{top:var(--fr)}.tkm-card .tkd-dash.is-bottom{bottom:var(--fr)}
+.tkm-col{position:absolute;left:var(--fr);right:var(--fr);top:var(--fr);bottom:var(--fr);border-inline:1px solid var(--c-line);pointer-events:none}
+.tkm-body{position:relative}
+.tkm-head{position:relative;overflow:hidden;padding:1.7rem 1.5rem 1.4rem;background-image:linear-gradient(color-mix(in srgb,var(--c-ink) 5%,transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in srgb,var(--c-ink) 5%,transparent) 1px,transparent 1px);background-size:32px 32px;background-position:-.5px -.5px}
+.tkm-head>:not(.dfs-grid-zip){position:relative;z-index:1}.tkm-head .dfs-grid-zip{z-index:0}
 .tkm-top{display:flex;justify-content:center}
 .tkm-chip{display:inline-flex;align-items:center;gap:.5em;padding:.4em .8em;border-radius:3px;background:var(--c-calmsoft);color:var(--c-calm);font-size:11px;letter-spacing:.1em;text-transform:uppercase}.tkm-chip b{font-weight:400;color:var(--c-ink)}
-.tkm-gb{display:flex;justify-content:center;align-items:baseline;gap:.5rem;margin-top:1rem;font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:clamp(4rem,11vw,8.5rem);line-height:1}
+.tkm-gb{display:flex;justify-content:center;align-items:baseline;gap:.5rem;margin-top:.5rem;font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:clamp(4rem,11vw,8.5rem);line-height:1}
 .tkm-gb small{font-size:.38em}.tkr-odo{display:inline-flex}
 .tkr-dig{display:inline-block;height:1.25em;overflow:hidden;line-height:1.25}.tkr-dig>span{display:block}.tkr-dig i{display:block;height:1.25em;font-style:normal;text-align:center}
 .tkm-label{margin-top:.4rem;font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--c-calm)}
-.tkm-mac{display:grid;grid-template-columns:9.5rem minmax(0,1fr) 9.5rem;grid-template-areas:"name wave state";align-items:center;gap:1.25rem;margin-top:1.75rem;padding:1.1rem 0 .8rem;border-top:1px solid var(--c-line);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--c-soft);text-align:left}
-.tkm-mac_name{grid-area:name;color:var(--c-ink)}.tkm-wave{grid-area:wave;display:block;width:100%;height:44px;overflow:visible}
+.tkm-mac{display:grid;grid-template-columns:minmax(0,1fr) min(22rem,46%) minmax(0,1fr);grid-template-areas:"name wave state";align-items:center;gap:1.1rem;padding:1.1rem 1.5rem;background:linear-gradient(90deg,var(--c-line) 50%,transparent 0) 0 0/6px 1px repeat-x;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--c-soft);text-align:left}
+.tkm-mac_name{grid-area:name;justify-self:end;color:var(--c-ink);white-space:nowrap}.tkm-wave{grid-area:wave;display:block;width:100%;height:44px;overflow:visible}
 .tkm-wave path{fill:none;stroke:var(--c-soft);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
-.tkm-mac_state{grid-area:state;position:relative;height:1.3em}.tkm-mac_state i{position:absolute;right:0;top:0;font-style:normal;white-space:nowrap;transition:opacity .45s,transform .45s cubic-bezier(.625,.05,0,1)}
+.tkm-mac_state{grid-area:state;justify-self:start;position:relative;width:9.5em;height:1.3em}.tkm-mac_state i{position:absolute;left:0;top:0;font-style:normal;white-space:nowrap;transition:opacity .45s,transform .45s cubic-bezier(.625,.05,0,1)}
 .tkm-mac_state i+i{opacity:0;transform:translateY(8px);color:var(--c-calm)}.tkm-mac.is-calm .tkm-mac_state i:first-child{opacity:0;transform:translateY(-8px)}.tkm-mac.is-calm .tkm-mac_state i+i{opacity:1;transform:none}
-.tkm-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:1.4rem;border-top:1px solid var(--c-line)}
-.tkm-stats div{display:flex;flex-direction:column;align-items:center;gap:.4rem;padding:1.3rem .75rem 0}.tkm-stats div+div{border-left:1px solid var(--c-line)}
+.tkm-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));background:linear-gradient(90deg,var(--c-line) 50%,transparent 0) 0 0/6px 1px repeat-x}
+.tkm-stats div{display:flex;flex-direction:column;align-items:center;gap:.4rem;padding:1.15rem .75rem 1.25rem}.tkm-stats div+div{background:linear-gradient(var(--c-line) 50%,transparent 0) 0 0/1px 6px repeat-y}
 .tkm-stats b{font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:2.75rem;font-weight:400;line-height:1;font-variant-numeric:tabular-nums}
 .tkm-stats span{max-width:13em;font-size:11px;line-height:1.5;letter-spacing:.08em;text-transform:uppercase;color:var(--c-soft)}
 .tkm-fx{position:absolute;inset:0;pointer-events:none;z-index:2}.tkm-boom{position:absolute;width:0;height:0}.tkm-boom i{position:absolute;left:-4px;top:-4px}
-@media (max-width:767px){.tkm-card{padding:1.6rem 1.1rem 1.4rem}.tkm-mac{grid-template-columns:1fr auto;grid-template-areas:"name state" "wave wave";gap:.6rem 1rem;margin-top:1.3rem}.tkm-mac_state{min-width:8.5rem}.tkm-wave{height:36px}.tkm-stats{grid-template-columns:1fr;margin-top:1.1rem}.tkm-stats div{flex-direction:row;justify-content:center;gap:.75rem;padding:.8rem 0 0}.tkm-stats div+div{border-left:0}.tkm-stats b{font-size:2rem}.tkm-stats span{text-align:left}.tkm-dock{bottom:1rem}.tkm-bin{width:52px;height:52px}}
+@media (max-width:767px){.tkm-card{--fr:18px}.tkm-card .tkd-lights{left:6px;top:4px;gap:5px}.tkm-card .tkd-lights i{width:9px;height:9px}.tkm-head{padding:1.5rem .9rem 1.3rem}.tkm-mac{grid-template-columns:1fr auto;grid-template-areas:"name state" "wave wave";gap:.7rem 1rem;padding:1rem .9rem}.tkm-mac_name{justify-self:start}.tkm-mac_state{justify-self:end;width:8.5rem}.tkm-mac_state i{left:auto;right:0}.tkm-wave{height:36px}.tkm-stats{grid-template-columns:1fr;padding:.4rem 0 .9rem}.tkm-stats div{flex-direction:row;justify-content:center;gap:.75rem;padding:.6rem .9rem 0}.tkm-stats div+div{background:none}.tkm-stats b{font-size:2rem}.tkm-stats span{text-align:left}.tkm-dock{bottom:1rem}.tkm-bin{width:52px;height:52px}}
 @media (prefers-reduced-motion:reduce){.tkm-card,.tkm-then{transition:none}}
 /* the safety box (Webflow: .tinko-safebox): its corner brackets, like the course player's focus frame */
 .tinko-safebox::before{content:"";position:absolute;inset:-5px;pointer-events:none;--k:#3d3a35;background:linear-gradient(var(--k),var(--k)) 0 0/18px 2px,linear-gradient(var(--k),var(--k)) 0 0/2px 18px,linear-gradient(var(--k),var(--k)) 100% 0/18px 2px,linear-gradient(var(--k),var(--k)) 100% 0/2px 18px,linear-gradient(var(--k),var(--k)) 0 100%/18px 2px,linear-gradient(var(--k),var(--k)) 0 100%/2px 18px,linear-gradient(var(--k),var(--k)) 100% 100%/18px 2px,linear-gradient(var(--k),var(--k)) 100% 100%/2px 18px;background-repeat:no-repeat}

@@ -1194,7 +1194,8 @@ const DEMO_CSS = `
 .tkd{position:relative;width:100%;overflow:hidden;text-align:left;border-radius:12px;box-shadow:0 0 0 1px rgba(61,58,53,.1),0 30px 70px -36px rgba(61,58,53,.55)}
 .dfs-night .tkd{box-shadow:0 0 0 1px rgba(251,247,239,.08),0 30px 70px -36px rgba(0,0,0,.8)}
 .tkd-scene{position:absolute;left:0;top:0;transform-origin:0 0;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;color:#1d1d1f}
-.tkd-wall{position:absolute;inset:0;background:url(${WALL_DAY}) 30% 100%/cover no-repeat}
+.tkd-wall{position:absolute;inset:0;background:url(${WALL_DAY}) 30% 100%/cover no-repeat;opacity:.66}
+.dfs-night .tkd-wall{opacity:1}
 .dfs-night .tkd-wall{background-image:linear-gradient(rgba(12,18,34,.28),rgba(12,18,34,.28)),url(${WALL_NIGHT})}
 .tkd-bar{position:absolute;left:0;right:0;top:0;height:22px;display:flex;align-items:center;gap:15px;padding:0 12px 0 14px;font-size:12px;line-height:1;z-index:6;color:rgba(0,0,0,.85)}
 .tkd-bar i{flex:1}.tkd-bar b{font-weight:700}.tkd-apple svg{width:12px;height:12px;display:block;margin-top:-2px}
@@ -1709,7 +1710,7 @@ function odometer(el, text) {
   // each window as wide as its own last digit (the heading font's figures aren't all one width), in em so it scales
   const fit = () => cols.forEach((col, i) => {
     const probe = document.createElement('span'); probe.textContent = digits[i]; probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap';
-    el.append(probe); col.parentElement.style.width = probe.getBoundingClientRect().width / (parseFloat(getComputedStyle(el).fontSize) || 16) + .04 + 'em'; probe.remove();   // a hair over, so no figure loses an edge
+    el.append(probe); col.parentElement.style.width = probe.offsetWidth / (parseFloat(getComputedStyle(el).fontSize) || 16) + .02 + 'em'; probe.remove();   // layout width (the card may be scaled), a hair over
   });
   document.fonts?.ready.then(fit);
   return dur => { fit(); cols.forEach((col, i) => {
@@ -2155,7 +2156,7 @@ const OUTRO_CSS = `
 .tkm-chip{display:inline-flex;align-items:center;gap:.5em;padding:.4em .8em;border-radius:3px;background:var(--c-calmsoft);color:var(--c-calm);font-size:11px;letter-spacing:.1em;text-transform:uppercase}.tkm-chip b{font-weight:400;color:var(--c-ink)}
 .tkm-gb{display:flex;justify-content:center;align-items:baseline;gap:.5rem;margin-top:.5rem;font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:clamp(4rem,11vw,8.5rem);line-height:1}
 .tkm-gb small{font-size:.38em}.tkr-odo{display:inline-flex}
-.tkr-dig{display:inline-block;height:1.25em;overflow:hidden;line-height:1.25}.tkr-dig>span{display:block}.tkr-dig i{display:block;height:1.25em;font-style:normal;text-align:center}
+.tkr-dig{display:inline-block;height:1.25em;line-height:1.25;overflow:hidden}.tkr-sep{display:inline-block;height:1.25em;line-height:1.25}.tkr-dig>span{display:block}.tkr-dig i{display:block;height:1.25em;font-style:normal;text-align:center}
 .tkm-label{margin-top:.4rem;font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--c-calm)}
 .tkm-mac{display:grid;grid-template-columns:minmax(0,1fr) min(22rem,46%) minmax(0,1fr);grid-template-areas:"name wave state";align-items:center;gap:1.1rem;padding:1.1rem 1.5rem;background:linear-gradient(90deg,var(--c-line) 50%,transparent 0) 0 0/6px 1px repeat-x;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--c-soft);text-align:left}
 .tkm-mac_name{grid-area:name;justify-self:end;color:var(--c-ink);white-space:nowrap}.tkm-wave{grid-area:wave;display:block;width:100%;height:44px;overflow:visible}

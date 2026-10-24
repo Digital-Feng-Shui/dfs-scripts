@@ -1718,43 +1718,74 @@ function odometer(el, text) {
   }); };
 }
 // his celebration: square pixels in the window lights' colours, flying out and falling away
-function burst(at) {
+function burst(at, dir) {   // dir: fly away that way, within 100 degrees of it (else all round)
   const C = ['#FF5F57', '#FEBC2E', '#28C840', '#0297DB'];
   for (let i = 0; i < 30; i++) {
-    const px = document.createElement('i'), a = Math.random() * Math.PI * 2, d = 60 + Math.random() * 100, sz = 4 + Math.round(Math.random() * 4);
+    const px = document.createElement('i'), a = dir == null ? Math.random() * Math.PI * 2 : dir + (Math.random() - .5) * Math.PI * 100 / 180, d = 60 + Math.random() * 100, sz = 4 + Math.round(Math.random() * 4);
     Object.assign(px.style, { background: C[i % 4], width: sz + 'px', height: sz + 'px' }); at.append(px);
     px.animate([{ transform: 'translate(0,0)', opacity: 1 }, { transform: `translate(${Math.cos(a) * d}px,${Math.sin(a) * d - 24}px)`, opacity: 1, offset: .65 }, { transform: `translate(${Math.cos(a) * d * 1.12}px,${Math.sin(a) * d + 14}px)`, opacity: 0 }], { duration: 1100 + Math.random() * 500, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' }).finished.then(() => px.remove());
   }
 }
 /* ---------- The mess, slurped (Rim, 24 Oct: front-load the value. The homepage's file storm, the pain of the chaos,
    then all of it pulled into the Bin; the result card with the firework) ----------
-   A pinned section (Webflow: .section_tinko-mess 280svh with its sticky pin and head). A canvas behind the pin carries
-   the storm: rows of the homepage's own file icons (its strip, cut into its nine icons), drifting both ways. Scrolling
-   through pulls them into the Bin beside Tinko, the bottom rows first, in arcs, the Bin gulping and the counter adding
-   up; then the head's second line comes in and the result card opens over the empty field with a firework, its grid
-   lit by blue sparks. Scrolling back lets them fly out again. Example figures, marked as such. */
+   A pinned section (Webflow: .section_tinko-mess with its sticky pin and head, tall so the card holds a while). A
+   canvas behind the pin carries the storm: the homepage strip's nine icons as sheets of paper (filled, so one hides
+   the one behind it; Rim: "if it was paper, you couldn't see the other paper behind it"), more of the sad one, drifting
+   both ways. Scrolling pulls them into the Bin beside Tinko, the bottom rows first; the Bin chews, the counter adds up.
+   Then the head's second line comes in and the card opens: the result, not the work (Rim: sell Fire Mario, not the
+   Fire Flower). The space you get back, your Mac's line going from busy to the course player's calm wave, and what
+   stops bothering you. The site's own grid with its blue zips, and a firework flying away from the card. Example
+   figures. Scrolling back lets the files fly out again. */
 const FILE_STRIP = new URL('./media/file-strip.svg', import.meta.url).href;
 const FILE_BOX = [[0, 25.8, 48, 55.5], [66.3, 9.3, 51.3, 56.5], [137.8, 25.8, 48, 55.5], [208.3, 14.5, 41, 35.8], [285, 1.8, 51, 58.8], [360.8, 5, 59.5, 56.8], [438, 8.3, 36, 42.5], [493, 15.5, 52.3, 49.8], [552.5, 4.8, 42.3, 49.3]];
-const MESS = { gb: '104.6', time: '8 min 40 s', stats: [['10', 'background jobs turned off'], ['11', 'apps made quiet'], ['50', 'newsletters unsubscribed']] };
+const SAD = 6;   // the strip's one sad file
+const MESS = { gb: '104.6', time: '8 min 40 s', jobs: 10, stats: [['11', 'apps can’t interrupt you any more'], ['50', 'newsletters you’ll never get again']] };
 let stripImg = null;
 const loadStrip = () => stripImg || (stripImg = new Promise(done => { const im = new Image(); im.crossOrigin = 'anonymous'; im.decoding = 'async'; im.onload = () => done(im); im.onerror = () => done(null); im.src = FILE_STRIP; }));
-// the nine icons, drawn once in the ink colour at the size they're shown (sharp on retina)
-function fileSprites(im, h, ink, dpr) {
+const rgbOf = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+// the nine icons as sheets of paper, drawn once at the size they're shown (sharp on retina): the outline in ink, the
+// paper inside it (whatever a fill from the edges can't reach, the outline grown a pixel so its corner steps don't
+// leak), and a soft shadow under it
+function fileSprites(im, h, ink, paper, shade, dpr) {
+  const [ir, ig, ib] = rgbOf(ink), [pr, pg, pb] = rgbOf(paper);
   return FILE_BOX.map(([x, y, w, bh]) => {
-    const k = h / 56, u = (im.naturalWidth || 597) / 597, c = document.createElement('canvas'); c.width = Math.ceil(w * k * dpr); c.height = Math.ceil(bh * k * dpr);
-    const g = c.getContext('2d'); g.drawImage(im, x * u, y * u, w * u, bh * u, 0, 0, c.width, c.height);
-    g.globalCompositeOperation = 'source-in'; g.fillStyle = ink; g.fillRect(0, 0, c.width, c.height);
-    return { c, w: w * k, h: bh * k };
+    const k = h / 56, u = (im.naturalWidth || 597) / 597, W = Math.ceil(w * k * dpr), H = Math.ceil(bh * k * dpr);
+    const o = document.createElement('canvas'); o.width = W; o.height = H; const og = o.getContext('2d');
+    og.drawImage(im, x * u, y * u, w * u, bh * u, 0, 0, W, H);
+    const d = og.getImageData(0, 0, W, H), px = d.data, n = W * H, wall = new Uint8Array(n), out = new Uint8Array(n);
+    for (let i = 0; i < n; i++) if (px[i * 4 + 3] > 40) wall[i] = 1;
+    const grown = wall.slice();
+    for (let i = 0; i < n; i++) if (wall[i]) { const xx = i % W; if (xx) grown[i - 1] = 1; if (xx < W - 1) grown[i + 1] = 1; if (i >= W) grown[i - W] = 1; if (i < n - W) grown[i + W] = 1; }
+    const q = [], go = i => { if (!out[i] && !grown[i]) { out[i] = 1; q.push(i); } };
+    for (let xx = 0; xx < W; xx++) { go(xx); go(n - W + xx); } for (let yy = 0; yy < H; yy++) { go(yy * W); go(yy * W + W - 1); }
+    while (q.length) { const i = q.pop(), xx = i % W; if (xx) go(i - 1); if (xx < W - 1) go(i + 1); if (i >= W) go(i - W); if (i < n - W) go(i + W); }
+    const edge = i => { const xx = i % W; return (xx && out[i - 1]) || (xx < W - 1 && out[i + 1]) || (i >= W && out[i - W]) || (i < n - W && out[i + W]); };
+    for (let i = 0; i < n; i++) { if (!grown[i] || wall[i]) continue; if (edge(i)) out[i] = 2; }   // the grown rim on the outside stays outside
+    for (let i = 0; i < n; i++) {
+      const j = i * 4, a = px[j + 3] / 255;
+      if (out[i]) { px[j] = ir; px[j + 1] = ig; px[j + 2] = ib; continue; }   // outside: the outline's soft edge, in ink
+      px[j] = ir * a + pr * (1 - a); px[j + 1] = ig * a + pg * (1 - a); px[j + 2] = ib * a + pb * (1 - a); px[j + 3] = 255;
+    }
+    og.putImageData(d, 0, 0);
+    const P = Math.ceil(4 * dpr), c = document.createElement('canvas'); c.width = W + 2 * P; c.height = H + 2 * P;
+    const g = c.getContext('2d'); g.shadowColor = shade; g.shadowBlur = 5 * dpr; g.shadowOffsetY = 1.5 * dpr; g.drawImage(o, P, P);
+    return { c, w: c.width / dpr, h: c.height / dpr };
   });
 }
 // a seeded random, so the storm is the same on every visit (and between a resize and the next)
 const seeded = n => () => (n = n * 16807 % 2147483647) / 2147483647;
+// a smooth random line, for the busy Mac (value noise: a fixed table, eased between its steps)
+const NOISE = (() => { const r = seeded(11); return Array.from({ length: 256 }, () => r()); })();
+const noise = u => { const i = Math.floor(u), f = u - i, s = f * f * (3 - 2 * f); return NOISE[i & 255] * (1 - s) + NOISE[(i + 1) & 255] * s; };
 function initMess(host) {
   const section = host.closest('section') || host, pin = host.parentElement, head = pin.querySelector('.tinko-mess_head'), then = pin.querySelector('[data-tinko-mess-then]') || pin.querySelector('.tinko-mess_head em');
   host.innerHTML = `<div class="tkm-dock"><div class="tkm-tinko"><div class="tkh-tinko" role="img" aria-label="Tinko"></div></div><div class="tkm-bin"><img alt="" src="${MAC('trash-empty')}"><img alt="" src="${MAC('trash-full')}"></div><div class="tkm-count"><b>0.0</b> GB<span>into the Bin</span></div></div>
-    <div class="tkm-card" role="img" aria-label="An example result: ${MESS.gb} GB cleared in ${MESS.time}. ${MESS.stats.map(([n, t]) => n + ' ' + t).join(', ')}."><canvas class="tkm-grid" aria-hidden="true"></canvas><span class="tkm-ex">Example</span>
-      <div class="tkm-top"><span class="tkm-chip">All done</span><span class="tkm-time">in ${MESS.time}</span></div>
-      <div class="tkm-gb"><span class="tkr-odo" aria-hidden="true"></span><small>GB</small></div><div class="tkm-label">cleared</div>
+    <div class="tkm-card" role="img" aria-label="An example result: all done in ${MESS.time}. ${MESS.gb} GB free again. ${MESS.jobs} background jobs turned off, so your Mac runs smoother. ${MESS.stats.map(([n, t]) => n + ' ' + t).join('. ')}.">
+      <div class="tkm-grid grid-background is-full" aria-hidden="true"></div>
+      <div class="tkm-top"><span class="tkm-chip"><b>All done</b><span>${MESS.time}</span></span></div>
+      <div class="tkm-gb"><span class="tkr-odo" aria-hidden="true"></span><small>GB</small></div><div class="tkm-label">free again</div>
+      <div class="tkm-mac"><span class="tkm-mac_name">Your Mac</span><svg class="tkm-wave" viewBox="0 0 600 44" preserveAspectRatio="none" aria-hidden="true"><path/></svg><span class="tkm-mac_state"><i>Busy</i><i>Runs smoother</i></span></div>
+      <div class="tkm-mac_cap">${MESS.jobs} background jobs turned off</div>
       <div class="tkm-stats">${MESS.stats.map(([n, t]) => `<div><b data-to="${n}">0</b><span>${t}</span></div>`).join('')}</div></div>
     <div class="tkm-fx" aria-hidden="true"></div>`;
   pin.classList.add('tkm-pin'); host.classList.add('tkm-stage');
@@ -1764,29 +1795,34 @@ function initMess(host) {
   const tinko = makeTinko(host.querySelector('.tkh-tinko'), {}); tinko.awakeNow();
   if (then) then.classList.add('tkm-then');
   const TOTAL = parseFloat(MESS.gb);
+  // the scroll's beats: the files leave between LEAVE[0] and LEAVE[1], the card comes at UP and holds to the end
+  const LEAVE = [.06, .4], UP = .46, DOWN = .42;
 
-  // the storm: rows across the pin, each icon with its own sprite, tilt, shade, size and moment to leave
+  // the storm: rows across the pin, each sheet with its own icon, tilt, size and moment to leave
   let W = 0, H = 0, dpr = 1, sprites = [], files = [], binAt = { x: 0, y: 0 }, im = null, night = isNight(), headBand = [0, 0];
   function layout() {
     dpr = Math.min(2, devicePixelRatio || 1); W = pin.clientWidth; H = pin.clientHeight;
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     const phone = W < 600, ih = phone ? 28 : 40, gap = phone ? 46 : 62, top = phone ? 64 : 84, bottom = H - (phone ? 140 : 150);
     const rows = Math.max(4, Math.floor((bottom - top) / gap) + 1);
-    if (im) sprites = fileSprites(im, ih, night ? '#fbf7ef' : '#3d3a36', dpr);
+    if (im) sprites = night ? fileSprites(im, ih, '#fbf7ef', '#1a2440', 'rgba(0,0,0,.45)', dpr) : fileSprites(im, ih, '#3d3a36', '#fbf7ef', 'rgba(61,58,53,.2)', dpr);
     const r = bin.getBoundingClientRect(), pr = pin.getBoundingClientRect(); binAt = { x: r.left - pr.left + r.width / 2, y: r.top - pr.top + r.height * .42 };
     if (head) { const hr = head.getBoundingClientRect(); headBand = [hr.top - pr.top - 10, hr.bottom - pr.top + 10]; }
     placeCard();
-    const rnd = seeded(7), step = ih * 1.5, cols = Math.ceil(W / step) + 2, old = files;
+    const rnd = seeded(7), step = ih * 1.5, cols = Math.ceil(W / step) + 2, old = new Map(files.map(f => [f.id, f.fl]));
     files = [];
     for (let row = 0; row < rows; row++) for (let col = 0; col < cols; col++) {
       const down = (row + .5) / rows, y = top + row * (bottom - top) / Math.max(1, rows - 1) + (rnd() - .5) * gap * .75;
-      files.push({ x0: col * step + (row % 2) * step * .5 + rnd() * step * .3, y, span: cols * step, dir: row % 2 ? 1 : -1, v: 14 + (row % 3) * 9 + rnd() * 6,
-        s: Math.floor(rnd() * 9), k: .7 + rnd() * .55 + (rnd() < .07 ? .65 : 0), tilt: (rnd() - .5) * .6, a: (.22 + rnd() * .38) * (y > headBand[0] && y < headBand[1] ? .45 : 1), ph: rnd() * 6.3,
+      const pick = rnd(), s = pick < .26 ? SAD : [0, 1, 2, 3, 4, 5, 7, 8][Math.floor(rnd() * 8)], k = .7 + rnd() * .55 + (rnd() < .07 ? .65 : 0) + (s === SAD ? .12 : 0);
+      const thin = y > headBand[0] && y < headBand[1] && rnd() < .6;   // fewer sheets behind the title
+      const f = { id: row * 1000 + col, x0: col * step + (row % 2) * step * .5 + rnd() * step * .3, y, span: cols * step, dir: row % 2 ? 1 : -1, v: 14 + (row % 3) * 9 + rnd() * 6,
+        s, k, tilt: (rnd() - .5) * .6, ph: rnd() * 6.3,
         // the bottom rows (nearest the Bin) go first, then the ones above, each a little earlier or later
-        t: .1 + (1 - down) * .4 + rnd() * .16, lift: 20 + rnd() * 70, spin: (rnd() - .5) * 7, mb: .3 + rnd(), fl: 0 });
+        t: LEAVE[0] + (1 - down) * (LEAVE[1] - LEAVE[0] - .08) + rnd() * .08, lift: 20 + rnd() * 70, spin: (rnd() - .5) * 7, mb: .3 + rnd(), fl: 0 };
+      if (!thin) files.push(f);
     }
-    // keep where each one was on its way (a resize mid-slurp)
-    if (old.length === files.length) files.forEach((f, i) => { f.fl = old[i].fl; });
+    files.forEach(f => { f.fl = old.get(f.id) || 0; });   // keep where each one was on its way (a resize mid-slurp)
+    files.sort((a, b) => a.k - b.k);   // the small ones behind, the big ones on top
     // their share of the GB: the big ones count more
     const sum = files.reduce((a, f) => a + f.mb, 0); files.forEach(f => { f.mb /= sum; });
   }
@@ -1817,70 +1853,90 @@ function initMess(host) {
       if (!sprites.length) continue;
       if (f.fl > 0) flying++;
       const sp = sprites[f.s], w = sp.w * f.k, h = sp.h * f.k;
-      let x = ((f.x0 + f.dir * f.v * T) % f.span + f.span) % f.span - w, y = f.y + Math.sin(T * 1.1 + f.ph) * 3, rot = f.tilt + Math.sin(T * .7 + f.ph) * .06, sc = 1, a = f.a;
+      let x = ((f.x0 + f.dir * f.v * T) % f.span + f.span) % f.span - w, y = f.y + Math.sin(T * 1.1 + f.ph) * 3, rot = f.tilt + Math.sin(T * .7 + f.ph) * .06, sc = 1;
       if (f.fl > 0) {   // on its way: pulled, slow to let go and then fast, in a low arc into the Bin's mouth, shrinking and turning
         const e = Math.pow(f.fl, 1.7), cx = x + (binAt.x - x) * .35, cy = Math.min(y, binAt.y) - f.lift, u = 1 - e;
         x = u * u * x + 2 * u * e * cx + e * e * (binAt.x - w / 2); y = u * u * y + 2 * u * e * cy + e * e * (binAt.y - h / 2);
         // the last stretch spirals into the Bin's mouth, like water down a drain
         if (e > .5) { const q = (e - .5) / .5, r = 22 * Math.sin(q * Math.PI) * (1 - q * .5), an = q * 10 + f.ph; x += Math.cos(an) * r; y += Math.sin(an) * r * .4; }
-        rot += f.spin * e; sc = 1 - .78 * e; a = f.a + (.85 - f.a) * Math.min(1, f.fl * 4);
+        rot += f.spin * e; sc = 1 - .78 * e;
       }
-      g.globalAlpha = a; g.save(); g.translate(x + w / 2, y + h / 2); g.rotate(rot); g.scale(sc, sc); g.drawImage(sp.c, -w / 2, -h / 2, w, h); g.restore();
+      g.save(); g.translate(x + w / 2, y + h / 2); g.rotate(rot); g.scale(sc, sc); g.drawImage(sp.c, -w / 2, -h / 2, w, h); g.restore();
     }
-    g.globalAlpha = 1;
-    // the Bin chews while they land, and Tinko leans in to watch
+    // the Bin chews while they land
     gulp *= .84; bin.style.transform = `translateY(${gulp * 3}px) scale(${1 + gulp * .16},${1 - gulp * .08}) rotate(${Math.sin(now / 40) * gulp * 4}deg)`;
     bin.classList.toggle('is-full', gb > .02);
     count.textContent = (TOTAL * gb).toFixed(1);
     dock.classList.toggle('is-busy', flying > 0);
     if (flying && !fired) { fired = true; tinko.bwoop?.(); }
     if (!flying && gb < .001) fired = false;
-    // the card: once you're far enough and all of it is in
-    const done = P >= .74 && landed === files.length;
-    if (done !== shown && (done || P < .7)) { shown = done; show(done); }
-    if (then) then.classList.toggle('is-on', P >= .7);
+    // the card: once you're far enough and all of it is in; it holds until the section ends
+    const done = P >= UP && landed === files.length;
+    if (done !== shown && (done || P < DOWN)) { shown = done; show(done); }
+    if (then) then.classList.toggle('is-on', P >= DOWN);
     dock.classList.toggle('is-done', shown);
     // the drift needs every frame while any of the storm is still out; once it's all in, only a scroll wakes it
     if (landed < files.length || moving || gulp > .01) run = requestAnimationFrame(frame);
   }
-  // the card: the odometer, the stats, the firework, and its grid sparking while it's up
-  const grid = card.querySelector('.tkm-grid'), gg = grid.getContext('2d'); let sparks = [], gridRun = 0, upAt = 0;
+
+  // the card: the odometer, your Mac's line settling, the stats, the zips and the firework
+  const mac = card.querySelector('.tkm-mac'), wave = card.querySelector('.tkm-wave path'), gridEl = card.querySelector('.tkm-grid');
+  let upAt = 0, waveRun = 0, zipT = 0, zips = 0, cols = null;
   function show(on) {
     card.classList.toggle('is-on', on);
-    if (!on) return;
+    if (!on) { mac.classList.remove('is-calm'); return; }
     upAt = performance.now(); roll(reduce ? 0 : 2200);
-    card.querySelectorAll('.tkm-stats b').forEach((b, i) => { if (reduce) { b.textContent = b.dataset.to; return; } const to = +b.dataset.to, t0 = performance.now() + 500 + i * 220; const step = now => { const k = clamp01((now - t0) / 900); b.textContent = Math.round(to * out(k)); if (k < 1) requestAnimationFrame(step); }; requestAnimationFrame(step); });
-    if (!reduce) { setTimeout(() => tinko.cheer(2), 300); [[.12, .18], [.88, .24], [.22, .86], [.8, .82], [.5, .02]].forEach(([fxp, fyp], i) => setTimeout(() => { const a = document.createElement('div'); a.className = 'tkm-boom'; const r = card.getBoundingClientRect(), hr = host.getBoundingClientRect(); a.style.left = r.left - hr.left + r.width * fxp + 'px'; a.style.top = r.top - hr.top + r.height * fyp + 'px'; fx.append(a); burst(a); setTimeout(() => a.remove(), 2000); }, 650 + i * 170)); }
-    if (!gridRun) gridRun = requestAnimationFrame(sparkle);
-  }
-  function sparkle(now) {
-    gridRun = 0; if (!card.classList.contains('is-on') || !visible) return;
-    const cw = card.clientWidth, ch = card.clientHeight, d = Math.min(2, devicePixelRatio || 1), cell = 24;
-    if (grid.width !== Math.round(cw * d)) { grid.width = Math.round(cw * d); grid.height = Math.round(ch * d); }
-    gg.setTransform(d, 0, 0, d, 0, 0); gg.clearRect(0, 0, cw, ch);
-    const nightNow = isNight(), line = nightNow ? 'rgba(251,247,239,.06)' : 'rgba(61,58,54,.07)', blue = nightNow ? [29, 171, 250] : [2, 151, 219];
-    gg.strokeStyle = line; gg.lineWidth = 1; gg.beginPath();
-    for (let x = .5; x < cw; x += cell) { gg.moveTo(x, 0); gg.lineTo(x, ch); } for (let y = .5; y < ch; y += cell) { gg.moveTo(0, y); gg.lineTo(cw, y); } gg.stroke();
-    // a spark runs along one grid line, a bright head with a fading tail; many in the first seconds, then now and then
-    const age = (now - upAt) / 1000, rate = age < 2.4 ? .5 : .045;
-    if (!reduce && Math.random() < rate) { const horiz = Math.random() < .5, n = horiz ? Math.floor(ch / cell) : Math.floor(cw / cell), at = (1 + Math.floor(Math.random() * Math.max(1, n - 1))) * cell + .5; sparks.push({ horiz, at, t0: now, len: (horiz ? cw : ch), dur: 700 + Math.random() * 700, back: Math.random() < .5 }); }
-    sparks = sparks.filter(s => now - s.t0 < s.dur);
-    for (const s of sparks) {
-      const k = (now - s.t0) / s.dur, headAt = (s.back ? 1 - k : k) * s.len, tail = 90, dirn = s.back ? 1 : -1;
-      const grad = s.horiz ? gg.createLinearGradient(headAt, 0, headAt + dirn * tail, 0) : gg.createLinearGradient(0, headAt, 0, headAt + dirn * tail);
-      grad.addColorStop(0, `rgba(${blue},.95)`); grad.addColorStop(1, `rgba(${blue},0)`);
-      gg.strokeStyle = grad; gg.lineWidth = 1.5; gg.shadowColor = `rgba(${blue},.9)`; gg.shadowBlur = 8; gg.beginPath();
-      if (s.horiz) { gg.moveTo(headAt, s.at); gg.lineTo(headAt + dirn * tail, s.at); } else { gg.moveTo(s.at, headAt); gg.lineTo(s.at, headAt + dirn * tail); }
-      gg.stroke(); gg.shadowBlur = 0;
-      gg.fillStyle = `rgba(${blue},1)`; if (s.horiz) gg.fillRect(headAt - 1.5, s.at - 1.5, 3, 3); else gg.fillRect(s.at - 1.5, headAt - 1.5, 3, 3);
+    const css = getComputedStyle(card); cols = [css.getPropertyValue('--c-soft'), css.getPropertyValue('--c-calm')].map(c => rgbOf(c.trim()));
+    card.querySelectorAll('.tkm-stats b').forEach((b, i) => { if (reduce) { b.textContent = b.dataset.to; return; } const to = +b.dataset.to, t0 = performance.now() + 900 + i * 260; const step = now => { const k = clamp01((now - t0) / 900); b.textContent = Math.round(to * out(k)); if (k < 1) requestAnimationFrame(step); }; requestAnimationFrame(step); });
+    if (!reduce) {
+      setTimeout(() => tinko.cheer(2), 300);
+      // five bursts around the card's edge, each flying away from it (the TINKO session's win screen: the numbers stay clear)
+      [[0, .2], [1, .26], [.08, 1], [.92, 1], [.5, 0]].forEach(([fxp, fyp], i) => setTimeout(() => {
+        if (!card.classList.contains('is-on')) return;
+        const a = document.createElement('div'), r = card.getBoundingClientRect(), hr = host.getBoundingClientRect();
+        a.className = 'tkm-boom'; a.style.left = r.left - hr.left + r.width * fxp + 'px'; a.style.top = r.top - hr.top + r.height * fyp + 'px';
+        fx.append(a); burst(a, Math.atan2((fyp - .5) * r.height, (fxp - .5) * r.width)); setTimeout(() => a.remove(), 2000);
+      }, 650 + i * 170));
     }
-    gridRun = requestAnimationFrame(sparkle);
+    if (!waveRun) waveRun = requestAnimationFrame(tickWave);
   }
+  // your Mac's line: busy and jagged (all those jobs), settling into the course player's wave (course/v2.js: a sine,
+  // blue, one wave every 1.3 s) as the card comes up; then it keeps flowing while it's on screen
+  const mid = 22;
+  function drawWave(c, t) {
+    let d = '';
+    for (let x = 0; x <= 600; x += 4) {
+      const busy = (noise(x * .11 + t * 9) - .5) * 30 + (noise(x * .37 + t * 17 + 50) - .5) * 16 + Math.max(0, noise(x * .045 + t * 4 + 99) - .7) * 60 * (noise(x * .9 + 7) > .5 ? 1 : -1);
+      const calm = 12 * Math.sin(x / 80 * Math.PI * 2 - t / 1.3 * Math.PI * 2);
+      d += (x ? 'L' : 'M') + x + ' ' + (mid + busy * (1 - c) + calm * c).toFixed(1);
+    }
+    wave.setAttribute('d', d);
+    if (cols) wave.style.stroke = `rgb(${cols[0].map((v, i) => Math.round(v + (cols[1][i] - v) * c)).join(',')})`;
+  }
+  function tickWave(now) {
+    waveRun = 0; if (!card.classList.contains('is-on') || !visible) return;
+    const age = (now - upAt) / 1000, c = reduce ? 1 : inOut(clamp01((age - .7) / 2.4));
+    mac.classList.toggle('is-calm', c > .65);
+    drawWave(c, reduce ? 0 : now / 1000);
+    // the site's grid zips (main.js dfsGridZips): now and then one thin blue line glides down a line of the grid
+    if (!reduce && now > zipT && zips < 4) {
+      zipT = now + 300 + Math.random() * 700;
+      const cw = gridEl.clientWidth, ch = gridEl.clientHeight, n = Math.floor(cw / 32), len = 56 + Math.random() * 100, travel = Math.min(140 + Math.random() * 220, ch - len - 10);
+      if (n > 2 && travel > 60) {
+        const z = document.createElement('span'); z.className = 'dfs-grid-zip';
+        Object.assign(z.style, { left: (1 + Math.floor(Math.random() * (n - 1))) * 32 + 'px', top: Math.random() * (ch - len - travel) + 'px', height: len + 'px' });
+        gridEl.append(z); zips++;
+        z.animate([{ transform: 'translateY(0)', opacity: 0 }, { opacity: 1, offset: .33 }, { opacity: 1, offset: .66 }, { transform: `translateY(${travel}px)`, opacity: 0 }], { duration: 1400 + Math.random() * 1200, easing: 'cubic-bezier(.45,0,.55,1)', fill: 'forwards' }).finished.then(() => { z.remove(); zips--; });
+      }
+    }
+    waveRun = requestAnimationFrame(tickWave);
+  }
+  drawWave(0, 0);
   const kick = () => { if (!run && visible) run = requestAnimationFrame(frame); };
   addEventListener('scroll', () => { p = progress(); kick(); }, { passive: true });
-  new IntersectionObserver(([e]) => { visible = e.isIntersecting; tinko.show(visible); if (visible) { p = progress(); kick(); if (shown && !gridRun) gridRun = requestAnimationFrame(sparkle); } }).observe(section);
+  new IntersectionObserver(([e]) => { visible = e.isIntersecting; tinko.show(visible); if (visible) { p = progress(); kick(); if (shown && !waveRun) waveRun = requestAnimationFrame(tickWave); } }).observe(section);
   new ResizeObserver(() => { layout(); kick(); }).observe(pin);
-  new MutationObserver(() => { const n = isNight(); if (n !== night) { night = n; layout(); kick(); } }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  new MutationObserver(() => { const n = isNight(); if (n !== night) { night = n; layout(); kick(); if (shown) { const css = getComputedStyle(card); cols = [css.getPropertyValue('--c-soft'), css.getPropertyValue('--c-calm')].map(c => rgbOf(c.trim())); } } }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
   loadStrip().then(i => { im = i; layout(); kick(); });
   layout();
 }
@@ -1922,20 +1978,37 @@ const OUTRO_CSS = `
 .tkm-card.is-on{opacity:1;transform:translateX(-50%) scale(var(--fit,1));pointer-events:auto}
 .dfs-night .tkm-card{--c-card:#292724;--c-ink:#fbf7ef;--c-soft:#b3aca2;--c-line:#3d3a36;--c-calm:#1dabfa;--c-calmsoft:#173241;box-shadow:0 50px 100px -40px rgba(0,0,0,.8)}
 .tkm-grid{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.tkm-card>*:not(.tkm-grid){position:relative}
-.tkm-ex{position:absolute!important;right:1.1rem;top:.9rem;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-soft)}
-.tkm-top{display:flex;justify-content:center;align-items:center;gap:.75rem;font-size:11px;letter-spacing:.1em;text-transform:uppercase}
-.tkm-chip{padding:.3em .7em;border-radius:2px;background:var(--c-calmsoft);color:var(--c-calm)}.tkm-time{color:var(--c-soft)}
+.tkm-grid .dfs-grid-zip{top:0}
+.tkm-top{display:flex;justify-content:center}
+.tkm-chip{display:inline-flex;align-items:center;gap:.65rem;padding:.3em .35em .3em .8em;border-radius:3px;background:var(--c-calmsoft);color:var(--c-calm);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+.tkm-chip b{font-weight:400}.tkm-chip span{padding:.15em .55em;border-radius:2px;background:var(--c-card);color:var(--c-ink);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c-calm) 25%,transparent)}
 .tkm-gb{display:flex;justify-content:center;align-items:baseline;gap:.5rem;margin-top:1rem;font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:clamp(4rem,11vw,8.5rem);line-height:1}
 .tkm-gb small{font-size:.38em}.tkr-odo{display:inline-flex}
 .tkr-dig{display:inline-block;height:1em;overflow:hidden;line-height:1}.tkr-dig>span{display:block}.tkr-dig i{display:block;height:1em;font-style:normal;text-align:center}
 .tkm-label{margin-top:.4rem;font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--c-calm)}
-.tkm-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:2rem;border-top:1px solid var(--c-line)}
-.tkm-stats div{display:flex;flex-direction:column;align-items:center;gap:.4rem;padding:1.4rem .75rem 0}.tkm-stats div+div{border-left:1px solid var(--c-line)}
+.tkm-mac{display:grid;grid-template-columns:auto minmax(0,1fr) 9.5rem;grid-template-areas:"name wave state";align-items:center;gap:1.25rem;margin-top:1.75rem;padding:1.1rem 0 .3rem;border-top:1px solid var(--c-line);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--c-soft);text-align:left}
+.tkm-mac_name{grid-area:name;color:var(--c-ink)}.tkm-wave{grid-area:wave;display:block;width:100%;height:44px;overflow:visible}
+.tkm-wave path{fill:none;stroke:var(--c-soft);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.tkm-mac_state{grid-area:state;position:relative;height:1.3em}.tkm-mac_state i{position:absolute;left:0;top:0;font-style:normal;white-space:nowrap;transition:opacity .45s,transform .45s cubic-bezier(.625,.05,0,1)}
+.tkm-mac_state i+i{opacity:0;transform:translateY(8px);color:var(--c-calm)}.tkm-mac.is-calm .tkm-mac_state i:first-child{opacity:0;transform:translateY(-8px)}.tkm-mac.is-calm .tkm-mac_state i+i{opacity:1;transform:none}
+.tkm-mac_cap{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--c-soft)}
+.tkm-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin-top:1.4rem;border-top:1px solid var(--c-line)}
+.tkm-stats div{display:flex;flex-direction:column;align-items:center;gap:.4rem;padding:1.3rem .75rem 0}.tkm-stats div+div{border-left:1px solid var(--c-line)}
 .tkm-stats b{font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:2.75rem;font-weight:400;line-height:1;font-variant-numeric:tabular-nums}
-.tkm-stats span{max-width:12em;font-size:11px;line-height:1.5;letter-spacing:.08em;text-transform:uppercase;color:var(--c-soft)}
+.tkm-stats span{max-width:16em;font-size:11px;line-height:1.5;letter-spacing:.08em;text-transform:uppercase;color:var(--c-soft)}
 .tkm-fx{position:absolute;inset:0;pointer-events:none;z-index:2}.tkm-boom{position:absolute;width:0;height:0}.tkm-boom i{position:absolute;left:-4px;top:-4px}
-@media (max-width:767px){.tkm-card{padding:1.6rem 1.1rem 1.4rem}.tkm-stats{grid-template-columns:1fr;margin-top:1.4rem}.tkm-stats div{flex-direction:row;justify-content:center;gap:.75rem;padding:.8rem 0 0}.tkm-stats div+div{border-left:0}.tkm-stats b{font-size:2rem}.tkm-stats span{text-align:left}.tkm-dock{bottom:1rem}.tkm-bin{width:52px;height:52px}}
+@media (max-width:767px){.tkm-card{padding:1.6rem 1.1rem 1.4rem}.tkm-mac{grid-template-columns:1fr auto;grid-template-areas:"name state" "wave wave";gap:.6rem 1rem;margin-top:1.3rem}.tkm-mac_state{min-width:8.5rem}.tkm-wave{height:36px}.tkm-stats{grid-template-columns:1fr;margin-top:1.1rem}.tkm-stats div{flex-direction:row;justify-content:center;gap:.75rem;padding:.8rem 0 0}.tkm-stats div+div{border-left:0}.tkm-stats b{font-size:2rem}.tkm-stats span{text-align:left}.tkm-dock{bottom:1rem}.tkm-bin{width:52px;height:52px}}
 @media (prefers-reduced-motion:reduce){.tkm-card,.tkm-then{transition:none}}
+/* the key legend (Webflow: .tinko-legend, his two buttons copied): it sits on a strip of his window's paper, the
+   column with its side lines, his 32px grid and the dashed line under the buttons, fading up into the page (Rim, 24 Oct) */
+.tinko-legend{isolation:isolate}
+.tinko-legend::before{content:"";position:absolute;inset:-2.5rem 0 0;z-index:-1;border-inline:1px solid #dfd5ca;background-color:#fbf7ef;background-image:linear-gradient(rgba(61,58,54,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(61,58,54,.05) 1px,transparent 1px);background-size:32px 32px;background-position:-.5px -.5px;-webkit-mask-image:linear-gradient(to bottom,transparent,#000 80%);mask-image:linear-gradient(to bottom,transparent,#000 80%)}
+.tinko-legend::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;z-index:-1;background:linear-gradient(90deg,#dfd5ca 50%,transparent 0) 0 0/6px 1px}
+.dfs-night .tinko-legend::before{border-color:rgba(251,247,239,.1);background-color:rgba(41,39,36,.45);background-image:linear-gradient(rgba(251,247,239,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(251,247,239,.05) 1px,transparent 1px)}
+.dfs-night .tinko-legend::after{background-image:linear-gradient(90deg,#3d3a36 50%,transparent 0)}
+.dfs-night .tinko-legend_btn{background-color:#fbf7ef;color:#292724}.dfs-night .tinko-legend_key{border-color:rgba(41,39,36,.45)}
+.dfs-night .tinko-legend_btn.is-light{background-color:#292724;color:#fbf7ef;border-color:#3d3a36}.dfs-night .tinko-legend_key.is-light{border-color:rgba(251,247,239,.5)}
+
 .tko-peek{--tkh-cell:7px;--c-ink:#3d3a36;transform:translateY(70%);transition:transform .9s cubic-bezier(.34,1.5,.64,1)}
 .tko-peek.is-up{transform:none}
 .dfs-night .tko-peek{--c-ink:#fbf7ef}

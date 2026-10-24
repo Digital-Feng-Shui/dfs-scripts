@@ -2016,8 +2016,7 @@ function initCourse(host) {
 /* ---------- The overview's tiles as one row that keeps moving, inside the page's side lines (Rim, 24 Oct: "one row,
    a marquee that keeps moving within the sidelines") ----------
    Webflow: .tinko-tiles with its tile links. The row gets a copy of itself to run seamlessly (the copy hidden from
-   screen readers and the keyboard), a window as wide as the space between the side lines, and holds still under the
-   pointer so a tile can be clicked. */
+   screen readers and the keyboard) and a window as wide as the space between the side lines. It never stops (Rim). */
 function initTiles(row) {
   if (row.closest('.tkt-view')) return;
   const view = document.createElement('div'); view.className = 'tkt-view';
@@ -2030,6 +2029,29 @@ function initTiles(row) {
     row.style.setProperty('--tkt-d', (row.scrollWidth / 2 / 40).toFixed(1) + 's');   // 40 px a second
   };
   new ResizeObserver(fit).observe(view.parentElement); fit();
+}
+
+/* ---------- The safety sticker (Rim, 24 Oct: the peeking Tinko "feels generated"; a small box, framed stronger, with a
+   badge like the Echo sticker; Apple-approved is where it's heading, not yet: Tinko isn't notarized, so the ring says
+   only what's true today) ----------
+   Webflow: .tinko-safebox with [data-tinko-badge]. A scalloped sticker, tilted a little, its words running round the
+   rim and turning slowly; in the middle a live Tinko whose eyes follow you, bwoop on a click. Hover spins the ring on.
+   Once Tinko is notarized, "NOTARIZED BY APPLE" goes on the ring. */
+const BADGE_WORDS = 'ASKS FIRST • NOTHING IS LOST • NO AI • STAYS ON YOUR MAC • ';
+function initBadge(host) {
+  const N = 26, R = 100, A = 4.2;   // bumps, radius, bump depth (in a 220 box)
+  let d = '';
+  for (let i = 0; i <= 360; i++) { const t = i / 180 * Math.PI, r = R + A * Math.cos(N * t); d += (i ? 'L' : 'M') + (110 + r * Math.cos(t)).toFixed(2) + ' ' + (110 + r * Math.sin(t)).toFixed(2); }
+  const id = 'tkb-' + Math.random().toString(36).slice(2, 7);
+  host.innerHTML = `<div class="tkb"><svg class="tkb-svg" viewBox="0 0 220 220" aria-hidden="true">
+      <path class="tkb-edge" d="${d}Z"/><circle class="tkb-ring" cx="110" cy="110" r="88"/>
+      <defs><path id="${id}" d="M110 110m-76 0a76 76 0 1 1 152 0a76 76 0 1 1-152 0"/></defs>
+      <g class="tkb-spin"><text class="tkb-words"><textPath href="#${id}" textLength="476" lengthAdjust="spacing">${BADGE_WORDS}</textPath></text></g>
+      <circle class="tkb-disc" cx="110" cy="110" r="56"/></svg>
+    <div class="tkb-tinko"><div class="tkh-tinko" role="img" aria-label="Tinko"></div></div></div>`;
+  host.setAttribute('role', 'img'); host.setAttribute('aria-label', 'A sticker: asks first, nothing is lost, no AI, stays on your Mac.');
+  const tinko = makeTinko(host.querySelector('.tkh-tinko')); tinko.awakeNow();
+  new IntersectionObserver(([e]) => tinko.show(e.isIntersecting)).observe(host);
 }
 
 // the first colour behind an element (sections can be see-through), for eyes that should read as holes
@@ -2090,13 +2112,30 @@ const OUTRO_CSS = `
 .tkm-fx{position:absolute;inset:0;pointer-events:none;z-index:2}.tkm-boom{position:absolute;width:0;height:0}.tkm-boom i{position:absolute;left:-4px;top:-4px}
 @media (max-width:767px){.tkm-card{padding:1.6rem 1.1rem 1.4rem}.tkm-mac{grid-template-columns:1fr auto;grid-template-areas:"name state" "wave wave";gap:.6rem 1rem;margin-top:1.3rem}.tkm-mac_state{min-width:8.5rem}.tkm-wave{height:36px}.tkm-stats{grid-template-columns:1fr;margin-top:1.1rem}.tkm-stats div{flex-direction:row;justify-content:center;gap:.75rem;padding:.8rem 0 0}.tkm-stats div+div{border-left:0}.tkm-stats b{font-size:2rem}.tkm-stats span{text-align:left}.tkm-dock{bottom:1rem}.tkm-bin{width:52px;height:52px}}
 @media (prefers-reduced-motion:reduce){.tkm-card,.tkm-then{transition:none}}
+/* the safety box (Webflow: .tinko-safebox): its corner brackets, like the course player's focus frame */
+.tinko-safebox::before{content:"";position:absolute;inset:-5px;pointer-events:none;--k:#3d3a35;background:linear-gradient(var(--k),var(--k)) 0 0/18px 2px,linear-gradient(var(--k),var(--k)) 0 0/2px 18px,linear-gradient(var(--k),var(--k)) 100% 0/18px 2px,linear-gradient(var(--k),var(--k)) 100% 0/2px 18px,linear-gradient(var(--k),var(--k)) 0 100%/18px 2px,linear-gradient(var(--k),var(--k)) 0 100%/2px 18px,linear-gradient(var(--k),var(--k)) 100% 100%/18px 2px,linear-gradient(var(--k),var(--k)) 100% 100%/2px 18px;background-repeat:no-repeat}
+.dfs-night .tinko-safebox{background-color:rgba(251,247,239,.025);border-color:#2a3550}.dfs-night .tinko-safebox::before{--k:#fbf7ef}
+.dfs-night .tinko-safebox_item{color:#b3aca2}.dfs-night .tinko-safebox_name,.dfs-night .tinko-safebox_icon{color:#fbf7ef}
+.tinko-safebox_badge .tinko-ph{display:none!important}
+.tkb{--edge:#0297db;--words:#fbf7ee;--disc:#fbf7ee;--c-ink:#3d3a36;--c-card:#fbf7ee;--tkh-cell:5px;position:absolute;inset:0;transform:rotate(-8deg);filter:drop-shadow(0 10px 14px rgba(61,58,53,.18));transition:transform .5s cubic-bezier(.34,1.5,.64,1)}
+.tkb:hover{transform:rotate(-2deg) scale(1.04)}
+.tkb-svg{display:block;width:100%;height:100%;overflow:visible}
+.tkb-edge{fill:var(--edge)}.tkb-ring{fill:none;stroke:var(--words);stroke-width:1;stroke-dasharray:2 3;opacity:.55}
+.tkb-disc{fill:var(--disc)}
+.tkb-words{fill:var(--words);font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.08em}
+.tkb-spin{transform-origin:110px 110px;animation:tkbSpin 28s linear infinite}
+.tkb:hover .tkb-spin{animation-duration:7s}
+@keyframes tkbSpin{to{transform:rotate(360deg)}}
+.tkb-tinko{position:absolute;left:50%;top:50%;transform:translate(-50%,-52%)}
+@media (max-width:991px){.tkb{--tkh-cell:4px}}@media (max-width:767px){.tkb{--tkh-cell:3.4px}}
+.dfs-night .tkb{--edge:#1dabfa;--words:#0e1628;--disc:#141d33;--c-ink:#fbf7ef;--c-card:#141d33;filter:drop-shadow(0 10px 14px rgba(0,0,0,.4))}
+@media (prefers-reduced-motion:reduce){.tkb-spin{animation:none}}
+
 /* the overview's tiles, one moving row (Webflow: .tinko-tiles) */
 .tkt-view{align-self:stretch;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
 .tinko-tiles.is-marquee{display:flex;flex-wrap:nowrap;width:max-content;max-width:none;gap:1rem;padding-right:1rem;grid-template-columns:none;animation:tktRun var(--tkt-d,40s) linear infinite}
-.tinko-tiles.is-marquee .tinko-tile{flex:0 0 17rem;text-align:left}
-.tkt-view:hover .tinko-tiles,.tkt-view:focus-within .tinko-tiles{animation-play-state:paused}
+.tinko-tiles.is-marquee .tinko-tile{flex:none;text-align:left}
 @keyframes tktRun{to{transform:translateX(-50%)}}
-@media (max-width:767px){.tinko-tiles.is-marquee .tinko-tile{flex-basis:14.5rem}}
 @media (prefers-reduced-motion:reduce){.tinko-tiles.is-marquee{animation:none}.tkt-view{overflow-x:auto}}
 
 /* the course (Webflow: .tinko-course_flow): the lesson clips and his cards */
@@ -2272,6 +2311,7 @@ function init() {
   document.querySelectorAll('[data-tinko-mess]').forEach(initMess);
   document.querySelectorAll('[data-tinko-course]').forEach(initCourse);
   document.querySelectorAll('.tinko-tiles').forEach(initTiles);
+  document.querySelectorAll('[data-tinko-badge]').forEach(initBadge);
   tilt(document.querySelector('.splitter-wrapper'), { max: 3, p: 2200 });
   initPixels();   // before the Osmo script in the footer starts (it waits for DOMContentLoaded)
   const rows = () => document.querySelectorAll('[data-tinko-demo]').forEach(initDemo);

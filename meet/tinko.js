@@ -1740,7 +1740,7 @@ function burst(at, dir) {   // dir: fly away that way, within 100 degrees of it 
 const FILE_STRIP = new URL('./media/file-strip.svg', import.meta.url).href;
 const FILE_BOX = [[0, 25.8, 48, 55.5], [66.3, 9.3, 51.3, 56.5], [137.8, 25.8, 48, 55.5], [208.3, 14.5, 41, 35.8], [285, 1.8, 51, 58.8], [360.8, 5, 59.5, 56.8], [438, 8.3, 36, 42.5], [493, 15.5, 52.3, 49.8], [552.5, 4.8, 42.3, 49.3]];
 const SAD = 6;   // the strip's one sad file
-const MESS = { gb: '104.6', stats: [['10', 'background jobs that no longer run'], ['11', 'apps that can’t ping you any more'], ['50', 'newsletters you’ll never get again']] };   // Rim, 24 Oct: no time (made up), the jobs as a third
+const MESS = { gb: '104.6', time: '8 min 40 s', stats: [['10', 'background jobs that no longer run'], ['11', 'apps that can’t ping you any more'], ['50', 'newsletters you’ll never get again']] };   // Rim, 24 Oct: the jobs as a third; the time back ("juicy"), in one element with All done
 let stripImg = null;
 const loadStrip = () => stripImg || (stripImg = new Promise(done => { const im = new Image(); im.crossOrigin = 'anonymous'; im.decoding = 'async'; im.onload = () => done(im); im.onerror = () => done(null); im.src = FILE_STRIP; }));
 const rgbOf = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
@@ -1781,9 +1781,9 @@ const noise = u => { const i = Math.floor(u), f = u - i, s = f * f * (3 - 2 * f)
 function initMess(host) {
   const section = host.closest('section') || host, pin = host.parentElement, head = pin.querySelector('.tinko-mess_head'), then = pin.querySelector('[data-tinko-mess-then]') || pin.querySelector('.tinko-mess_head em');
   host.innerHTML = `<div class="tkm-dock"><div class="tkm-tinko"><div class="tkh-tinko" role="img" aria-label="Tinko"></div></div><div class="tkm-bin"><img alt="" src="${MAC('trash-empty')}"><img alt="" src="${MAC('trash-full')}"></div><div class="tkm-count"><b>0.0</b> GB<span>into the Bin</span></div></div>
-    <div class="tkm-card" role="img" aria-label="An example result: all done. ${MESS.gb} GB free again, and your Mac runs smoother. ${MESS.stats.map(([n, t]) => n + ' ' + t).join(', ')}.">
+    <div class="tkm-card" role="img" aria-label="An example result: all done in ${MESS.time}. ${MESS.gb} GB free again, and your Mac runs smoother. ${MESS.stats.map(([n, t]) => n + ' ' + t).join(', ')}.">
       <div class="tkm-grid grid-background is-full" aria-hidden="true"></div>
-      <div class="tkm-top"><span class="tkm-chip">All done</span></div>
+      <div class="tkm-top"><span class="tkm-chip">All done <b>in ${MESS.time}</b></span></div>
       <div class="tkm-gb"><span class="tkr-odo" aria-hidden="true"></span><small>GB</small></div><div class="tkm-label">free again</div>
       <div class="tkm-mac"><span class="tkm-mac_name">Your Mac</span><svg class="tkm-wave" viewBox="0 0 600 44" preserveAspectRatio="none" aria-hidden="true"><path/></svg><span class="tkm-mac_state"><i>Busy</i><i>Runs smoother</i></span></div>
       <div class="tkm-stats">${MESS.stats.map(([n, t]) => `<div><b data-to="${n}">0</b><span>${t}</span></div>`).join('')}</div></div>
@@ -2013,6 +2013,25 @@ function initCourse(host) {
   addEventListener('resize', drift); drift();
 }
 
+/* ---------- The overview's tiles as one row that keeps moving, inside the page's side lines (Rim, 24 Oct: "one row,
+   a marquee that keeps moving within the sidelines") ----------
+   Webflow: .tinko-tiles with its tile links. The row gets a copy of itself to run seamlessly (the copy hidden from
+   screen readers and the keyboard), a window as wide as the space between the side lines, and holds still under the
+   pointer so a tile can be clicked. */
+function initTiles(row) {
+  if (row.closest('.tkt-view')) return;
+  const view = document.createElement('div'); view.className = 'tkt-view';
+  row.parentNode.insertBefore(view, row); view.append(row);
+  [...row.children].forEach(t => { const c = t.cloneNode(true); c.setAttribute('aria-hidden', 'true'); c.tabIndex = -1; c.classList.add('is-copy'); row.append(c); });
+  row.classList.add('is-marquee');
+  const fit = () => {
+    const lines = document.querySelector('.page_side-lines'), pr = view.parentElement.getBoundingClientRect();
+    if (lines) { const r = lines.getBoundingClientRect(); view.style.marginLeft = r.left + 1 - pr.left + 'px'; view.style.marginRight = pr.right - r.right + 1 + 'px'; }
+    row.style.setProperty('--tkt-d', (row.scrollWidth / 2 / 40).toFixed(1) + 's');   // 40 px a second
+  };
+  new ResizeObserver(fit).observe(view.parentElement); fit();
+}
+
 // the first colour behind an element (sections can be see-through), for eyes that should read as holes
 function backdrop(el) {
   for (let n = el.parentElement; n; n = n.parentElement) { const c = getComputedStyle(n).backgroundColor; if (c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return c; }
@@ -2054,7 +2073,7 @@ const OUTRO_CSS = `
 .tkm-grid{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.tkm-card>*:not(.tkm-grid){position:relative}
 .tkm-grid .dfs-grid-zip{top:0}
 .tkm-top{display:flex;justify-content:center}
-.tkm-chip{display:inline-flex;align-items:center;padding:.4em .8em;border-radius:3px;background:var(--c-calmsoft);color:var(--c-calm);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+.tkm-chip{display:inline-flex;align-items:center;gap:.5em;padding:.4em .8em;border-radius:3px;background:var(--c-calmsoft);color:var(--c-calm);font-size:11px;letter-spacing:.1em;text-transform:uppercase}.tkm-chip b{font-weight:400;color:var(--c-ink)}
 .tkm-gb{display:flex;justify-content:center;align-items:baseline;gap:.5rem;margin-top:1rem;font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:clamp(4rem,11vw,8.5rem);line-height:1}
 .tkm-gb small{font-size:.38em}.tkr-odo{display:inline-flex}
 .tkr-dig{display:inline-block;height:1.25em;overflow:hidden;line-height:1.25}.tkr-dig>span{display:block}.tkr-dig i{display:block;height:1.25em;font-style:normal;text-align:center}
@@ -2071,6 +2090,15 @@ const OUTRO_CSS = `
 .tkm-fx{position:absolute;inset:0;pointer-events:none;z-index:2}.tkm-boom{position:absolute;width:0;height:0}.tkm-boom i{position:absolute;left:-4px;top:-4px}
 @media (max-width:767px){.tkm-card{padding:1.6rem 1.1rem 1.4rem}.tkm-mac{grid-template-columns:1fr auto;grid-template-areas:"name state" "wave wave";gap:.6rem 1rem;margin-top:1.3rem}.tkm-mac_state{min-width:8.5rem}.tkm-wave{height:36px}.tkm-stats{grid-template-columns:1fr;margin-top:1.1rem}.tkm-stats div{flex-direction:row;justify-content:center;gap:.75rem;padding:.8rem 0 0}.tkm-stats div+div{border-left:0}.tkm-stats b{font-size:2rem}.tkm-stats span{text-align:left}.tkm-dock{bottom:1rem}.tkm-bin{width:52px;height:52px}}
 @media (prefers-reduced-motion:reduce){.tkm-card,.tkm-then{transition:none}}
+/* the overview's tiles, one moving row (Webflow: .tinko-tiles) */
+.tkt-view{align-self:stretch;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
+.tinko-tiles.is-marquee{display:flex;flex-wrap:nowrap;width:max-content;max-width:none;gap:1rem;padding-right:1rem;grid-template-columns:none;animation:tktRun var(--tkt-d,40s) linear infinite}
+.tinko-tiles.is-marquee .tinko-tile{flex:0 0 17rem;text-align:left}
+.tkt-view:hover .tinko-tiles,.tkt-view:focus-within .tinko-tiles{animation-play-state:paused}
+@keyframes tktRun{to{transform:translateX(-50%)}}
+@media (max-width:767px){.tinko-tiles.is-marquee .tinko-tile{flex-basis:14.5rem}}
+@media (prefers-reduced-motion:reduce){.tinko-tiles.is-marquee{animation:none}.tkt-view{overflow-x:auto}}
+
 /* the course (Webflow: .tinko-course_flow): the lesson clips and his cards */
 .tkc-wave{display:block;flex:none;width:2.4rem;height:.8rem;overflow:hidden;color:#1a97d7}
 .tkc-wave path{stroke:currentColor;stroke-width:1.3;stroke-linecap:round;vector-effect:non-scaling-stroke;animation:tkcWave 1.3s linear infinite paused}
@@ -2243,6 +2271,7 @@ function init() {
   document.querySelectorAll('[data-tinko-peek]').forEach(initPeek);
   document.querySelectorAll('[data-tinko-mess]').forEach(initMess);
   document.querySelectorAll('[data-tinko-course]').forEach(initCourse);
+  document.querySelectorAll('.tinko-tiles').forEach(initTiles);
   tilt(document.querySelector('.splitter-wrapper'), { max: 3, p: 2200 });
   initPixels();   // before the Osmo script in the footer starts (it waits for DOMContentLoaded)
   const rows = () => document.querySelectorAll('[data-tinko-demo]').forEach(initDemo);

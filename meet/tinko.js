@@ -1066,7 +1066,7 @@ const DEMOS = {
 };
 
 const DEMO_CSS = `
-.tkd{position:relative;width:100%;overflow:hidden;border-radius:12px;box-shadow:0 0 0 1px rgba(61,58,53,.1),0 30px 70px -36px rgba(61,58,53,.55)}
+.tkd{position:relative;width:100%;overflow:hidden;text-align:left;border-radius:12px;box-shadow:0 0 0 1px rgba(61,58,53,.1),0 30px 70px -36px rgba(61,58,53,.55)}
 .dfs-night .tkd{box-shadow:0 0 0 1px rgba(251,247,239,.08),0 30px 70px -36px rgba(0,0,0,.8)}
 .tkd-scene{position:absolute;left:0;top:0;transform-origin:0 0;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;color:#1d1d1f}
 .tkd-wall{position:absolute;inset:0;background:url(${WALL_DAY}) 30% 100%/cover no-repeat}
@@ -1548,7 +1548,132 @@ function initOutro(host) {
   paint(progress());
 }
 
+/* ---------- Tinko peeking over the safety box (Rim, 24 Oct: "make Tinko peek over a section, hiding behind it") ----------
+   The box sits above him (Webflow: .tinko-safe z-index 1, his spot behind its top edge), so its edge hides his lower half.
+   He waits fully hidden and rises when the box comes into view; then he's himself: eyes after the pointer, blinks,
+   a bwoop on a click. His eyes take the section's colour, so they read as holes, day or night. */
+/* ---------- The result: ten minutes with Tinko, counted (Rim, 24 Oct: "really spicy, a crazy breakdown") ----------
+   Example figures, marked as such: what one round does across his three stages. It plays once when it comes into
+   view: the Bin's odometer rolls up while the Mac column counts, then the inbox, then the setup's keys light up one
+   by one; at the end he cheers in a burst of pixels in the window lights' colours. In the Bin, not "freed": the
+   space comes back when the Bin is emptied (the app's own wording). */
+const RESULT = {
+  gb: '104.6', things: '1,284', time: '8 min 40 s',
+  mac: { bars: [['Desktop', 64, 3], ['Dock', 27, 9], ['Open apps', 16, 4]], lines: [['14', 'big apps gone, leftovers too'], ['9', 'background jobs off'], ['11', 'apps quiet']] },
+  inbox: { bars: [['Unread', 8214, 37]], lines: [['47', 'newsletters unsubscribed'], ['3,912', 'old mails to the Bin']] },
+  setup: { keys: [['Hyper', 'F', 'Finder'], ['Hyper', 'A', 'your browser'], ['Hyper', 'R', 'Rhythms'], ['⌘', 'Space', 'anything else']], lines: [['2', 'essentials installed, signatures checked']] },
+};
+// a number that rolls in like an odometer: one column of digits per place, the right ones turning a little longer
+function odometer(el, text) {
+  const digits = [...text].filter(c => /\d/.test(c)).map(Number);
+  el.innerHTML = [...text].map(c => /\d/.test(c) ? `<span class="tkr-dig"><span>${[...'01234567890123456789'].map(d => `<i>${d}</i>`).join('')}</span></span>` : `<span class="tkr-sep">${c}</span>`).join('');
+  const cols = [...el.querySelectorAll('.tkr-dig > span')];
+  // each window as wide as its own last digit (the heading font's figures aren't all one width), in em so it scales
+  const fit = () => cols.forEach((col, i) => {
+    const probe = document.createElement('span'); probe.textContent = digits[i]; probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap';
+    el.append(probe); col.parentElement.style.width = probe.getBoundingClientRect().width / (parseFloat(getComputedStyle(el).fontSize) || 16) + 'em'; probe.remove();
+  });
+  return dur => { fit(); cols.forEach((col, i) => {
+    const to = `translateY(${-(10 + digits[i]) * 5}%)`;   // twenty digits a column: one is 5% of it
+    if (!dur) { col.style.transform = to; return; }
+    col.animate([{ transform: 'translateY(0)' }, { transform: to }], { duration: dur * (.7 + .3 * i / Math.max(1, cols.length - 1)), easing: 'cubic-bezier(.16,.84,.3,1)', fill: 'forwards' });
+  }); };
+}
+// his celebration: square pixels in the window lights' colours, flying out and falling away
+function burst(at) {
+  const C = ['#FF5F57', '#FEBC2E', '#28C840', '#0297DB'];
+  for (let i = 0; i < 30; i++) {
+    const px = document.createElement('i'), a = Math.random() * Math.PI * 2, d = 60 + Math.random() * 100, sz = 4 + Math.round(Math.random() * 4);
+    Object.assign(px.style, { background: C[i % 4], width: sz + 'px', height: sz + 'px' }); at.append(px);
+    px.animate([{ transform: 'translate(0,0)', opacity: 1 }, { transform: `translate(${Math.cos(a) * d}px,${Math.sin(a) * d - 24}px)`, opacity: 1, offset: .65 }, { transform: `translate(${Math.cos(a) * d * 1.12}px,${Math.sin(a) * d + 14}px)`, opacity: 0 }], { duration: 1100 + Math.random() * 500, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' }).finished.then(() => px.remove());
+  }
+}
+function initResult(host) {
+  const R = RESULT, num = v => v.replace(/,/g, '');
+  const bar = ([name, from, to]) => `<div class="tkr-bar" data-from="${from}" data-to="${to}"><span>${name}</span><i><em></em></i><b><s>${from.toLocaleString('en')}</s> → <u>${from.toLocaleString('en')}</u></b></div>`;
+  const line = ([v, t]) => `<div class="tkr-line"><b data-to="${num(v)}">0</b><span>${t}</span></div>`;
+  const key = ([a, k, t]) => `<div class="tkr-key"><span class="tkr-cap">${a}</span><span class="tkr-cap">${k}</span><em>${t}</em></div>`;
+  host.innerHTML = `<div class="tkr"><span class="tkr-ex">Example</span>
+    <div class="tkr-top"><div class="tkr-tinko"><div class="tkh-tinko" role="img" aria-label="Tinko"></div><div class="tkr-burst" aria-hidden="true"></div></div>
+      <div class="tkr-head"><div class="tkr-tag"><span>All done</span><b>${R.time}</b></div><div class="tkr-gb"><span class="tkr-odo" aria-hidden="true"></span><small>GB</small></div><div class="tkr-sub">in the Bin · ${R.things} things</div></div></div>
+    <div class="tkr-cols"><div class="tkr-col"><h4>Your Mac</h4>${R.mac.bars.map(bar).join('')}${R.mac.lines.map(line).join('')}</div>
+      <div class="tkr-col"><h4>Your inbox</h4>${R.inbox.bars.map(bar).join('')}${R.inbox.lines.map(line).join('')}</div>
+      <div class="tkr-col"><h4>Your setup</h4>${R.setup.keys.map(key).join('')}${R.setup.lines.map(line).join('')}</div></div></div>`;
+  host.setAttribute('role', 'img');
+  host.setAttribute('aria-label', `An example result after ${R.time} with Tinko: ${R.gb} GB in the Bin, ${R.things} things. Desktop 64 to 3, Dock 27 to 9, 47 newsletters unsubscribed, unread mail 8,214 to 37, Arc and Raycast installed with hotkeys.`);
+  const card = host.firstChild, tinko = makeTinko(card.querySelector('.tkh-tinko'), {}); tinko.awakeNow();
+  const roll = odometer(card.querySelector('.tkr-odo'), R.gb), cols = [...card.querySelectorAll('.tkr-col')];
+  const fmt = v => Math.round(v).toLocaleString('en');
+  const countTo = (el, from, to, dur) => { const t0 = performance.now(); const step = now => { const k = clamp01((now - t0) / dur); el.textContent = fmt(from + (to - from) * out(k)); if (k < 1) requestAnimationFrame(step); }; requestAnimationFrame(step); };
+  const shrink = (b, dur) => { const em = b.querySelector('em'), s = `scaleX(${Math.max(.02, b.dataset.to / b.dataset.from)})`; dur ? em.animate([{ transform: 'scaleX(1)' }, { transform: s }], { duration: dur, easing: 'cubic-bezier(.625,.05,0,1)', fill: 'forwards' }) : (em.style.transform = s); };
+  const run = col => {
+    col.classList.add('is-run');
+    col.querySelectorAll('.tkr-bar').forEach((b, i) => setTimeout(() => { shrink(b, 1000); countTo(b.querySelector('u'), +b.dataset.from, +b.dataset.to, 1000); }, i * 180));
+    col.querySelectorAll('.tkr-line b').forEach((b, i) => setTimeout(() => countTo(b, 0, +b.dataset.to, 800), 260 + i * 150));
+    col.querySelectorAll('.tkr-key').forEach((k, i) => setTimeout(() => k.classList.add('is-on'), 150 + i * 230));
+  };
+  const done = () => { roll(0); cols.forEach(c => { c.classList.add('is-run'); c.querySelectorAll('.tkr-bar').forEach(b => { shrink(b, 0); b.querySelector('u').textContent = fmt(+b.dataset.to); }); c.querySelectorAll('.tkr-line b').forEach(b => { b.textContent = fmt(+b.dataset.to); }); c.querySelectorAll('.tkr-key').forEach(k => k.classList.add('is-on')); }); };
+  let played = false;
+  new IntersectionObserver(([e]) => {
+    tinko.show(e.isIntersecting);
+    if (!e.isIntersecting || e.intersectionRatio < .4 || played) return;
+    played = true;
+    if (reduce) return done();
+    roll(2800); [0, 1100, 2100].forEach((t, i) => setTimeout(() => run(cols[i]), 200 + t));
+    setTimeout(() => { tinko.cheer(2); burst(card.querySelector('.tkr-burst')); }, 3200);
+  }, { threshold: [0, .4] }).observe(card);
+}
+
+// the first colour behind an element (sections can be see-through), for eyes that should read as holes
+function backdrop(el) {
+  for (let n = el.parentElement; n; n = n.parentElement) { const c = getComputedStyle(n).backgroundColor; if (c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return c; }
+  return isNight() ? '#0e1628' : '#f1ede2';
+}
+function initPeek(host) {
+  host.classList.add('tko-peek');
+  host.innerHTML = '<div class="tkh-tinko" role="img" aria-label="Tinko, peeking over the edge of the box"></div>';
+  const tinko = makeTinko(host.firstChild, {});
+  tinko.awakeNow();
+  const tone = () => host.style.setProperty('--c-card', backdrop(host));
+  tone(); new MutationObserver(tone).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  const box = host.parentElement.querySelector('.tinko-safe') || host;
+  let up = false;
+  new IntersectionObserver(([e]) => {
+    tinko.show(e.isIntersecting);
+    if (e.isIntersecting && e.intersectionRatio > .45 && !up) { up = true; setTimeout(() => host.classList.add('is-up'), reduce ? 0 : 250); }
+  }, { threshold: [0, .45] }).observe(box);
+}
+
 const OUTRO_CSS = `
+.tkr{--c-card:#fbf7ef;--c-ink:#3d3a36;--c-soft:#7d776f;--c-line:#dfd5ca;--c-calm:#1a97d7;--c-calmsoft:#edf5f9;--tkh-cell:8px;position:relative;overflow:hidden;text-align:left;padding:2.5rem 2.75rem 2.25rem;border:1px solid var(--c-line);border-radius:14px;background:var(--c-card);color:var(--c-ink);font-family:"Space Mono",monospace;-webkit-font-smoothing:antialiased;box-shadow:0 40px 90px -40px rgba(61,58,53,.45)}
+.dfs-night .tkr{--c-card:#292724;--c-ink:#fbf7ef;--c-soft:#b3aca2;--c-line:#3d3a36;--c-calm:#1dabfa;--c-calmsoft:#173241;box-shadow:0 40px 90px -40px rgba(0,0,0,.7)}
+.tkr-ex{position:absolute;right:1.25rem;top:1rem;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-soft)}
+.tkr-top{display:flex;align-items:center;gap:2.25rem;padding-bottom:2rem;border-bottom:1px solid var(--c-line)}
+.tkr-tinko{position:relative;flex:none}.tkr-burst{position:absolute;left:50%;top:45%;width:0;height:0;pointer-events:none}.tkr-burst i{position:absolute;left:-4px;top:-4px}
+.tkr-tag{display:flex;align-items:center;gap:.75rem;font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+.tkr-tag span{padding:.3em .7em;border-radius:2px;background:var(--c-calmsoft);color:var(--c-calm)}.tkr-tag b{font-weight:400;color:var(--c-soft)}
+.tkr-gb{display:flex;align-items:baseline;gap:.4rem;margin-top:.7rem;font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:clamp(3.5rem,8vw,6.5rem);line-height:1}
+.tkr-gb small{font-size:.42em}.tkr-odo{display:inline-flex}
+.tkr-dig{display:inline-block;height:1em;overflow:hidden;line-height:1}.tkr-dig>span{display:block}.tkr-dig i{display:block;height:1em;font-style:normal;text-align:center}
+.tkr-sub{margin-top:.8rem;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--c-soft)}
+.tkr-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2.25rem;margin-top:2rem}
+.tkr-col{opacity:.35;transition:opacity .5s}.tkr-col.is-run{opacity:1}
+.tkr-col h4{margin:0 0 1.1rem;font-family:inherit;font-size:11px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;color:var(--c-calm)}
+.tkr-bar{display:grid;grid-template-columns:5.2rem minmax(0,1fr) auto;align-items:center;gap:.7rem;margin-bottom:.75rem;font-size:12px}
+.tkr-bar span{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--c-soft)}
+.tkr-bar i{height:4px;border-radius:2px;background:var(--c-line);overflow:hidden}.tkr-bar em{display:block;height:100%;background:var(--c-ink);transform-origin:0 50%}
+.tkr-bar b{font-weight:400;white-space:nowrap;font-variant-numeric:tabular-nums}.tkr-bar s{text-decoration:none;color:var(--c-soft)}.tkr-bar u{text-decoration:none}
+.tkr-line{display:flex;align-items:baseline;gap:.65rem;margin-top:.9rem;font-size:12.5px;line-height:1.4}
+.tkr-line b{flex:none;min-width:2.2ch;font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:1.65rem;font-weight:400;line-height:1;font-variant-numeric:tabular-nums}
+.tkr-key{display:flex;align-items:center;gap:.35rem;margin-bottom:.6rem;font-size:12px;opacity:.3;transform:translateY(4px);transition:opacity .35s,transform .35s}.tkr-key.is-on{opacity:1;transform:none}
+.tkr-cap{display:inline-flex;align-items:center;justify-content:center;min-width:1.7rem;height:1.5rem;padding:0 .45rem;border:1px solid var(--c-line);border-bottom-width:2px;border-radius:4px;background:var(--c-card);font-size:10.5px;transition:border-color .35s,color .35s}
+.tkr-key.is-on .tkr-cap{border-color:var(--c-calm);color:var(--c-calm)}.tkr-key em{margin-left:.35rem;font-style:normal;color:var(--c-soft)}
+@media (max-width:767px){.tkr{--tkh-cell:6px;padding:1.75rem 1.25rem 1.5rem}.tkr-top{flex-direction:column;align-items:flex-start;gap:1rem}.tkr-cols{grid-template-columns:1fr;gap:1.75rem}}
+.tko-peek{--tkh-cell:7px;--c-ink:#3d3a36;transform:translateY(70%);transition:transform .9s cubic-bezier(.34,1.5,.64,1)}
+.tko-peek.is-up{transform:none}
+.dfs-night .tko-peek{--c-ink:#fbf7ef}
+@media (max-width:479px){.tko-peek{--tkh-cell:6px}}
+@media (prefers-reduced-motion:reduce){.tko-peek{transition:none}}
 .tko{width:min(100%,calc((100svh - 17rem) * 1.67));margin-inline:auto}
 .tko-tilt{transform-origin:50% 50%;will-change:transform}
 .tko .tkh-win{aspect-ratio:720/430;--tkh-cell:clamp(7px,1.45cqw,12px)}
@@ -1658,6 +1783,8 @@ function init() {
   if (!document.querySelector('[data-tinko-stage]')) heroTitle.play(120);
   document.querySelectorAll('[data-tinko-ba]').forEach(initBA);
   document.querySelectorAll('[data-tinko-outro]').forEach(initOutro);
+  document.querySelectorAll('[data-tinko-peek]').forEach(initPeek);
+  document.querySelectorAll('[data-tinko-result]').forEach(initResult);
   tilt(document.querySelector('.splitter-wrapper'), { max: 3, p: 2200 });
   initPixels();   // before the Osmo script in the footer starts (it waits for DOMContentLoaded)
   const rows = () => document.querySelectorAll('[data-tinko-demo]').forEach(initDemo);

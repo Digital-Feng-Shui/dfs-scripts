@@ -2048,7 +2048,9 @@ function initTiles(row) {
    Webflow: .tinko-safebox with [data-tinko-badge]. A scalloped sticker, tilted a little, the whole edge with its words
    turning slowly (as on Echo's); the Apple mark in the middle (Rim, 24 Oct). A staging exploration: on live only once
    Tinko is notarized, with "NOTARIZED BY APPLE" on the ring, and only if Apple's rules allow the mark. */
-const BADGE_WORDS = 'ASKS FIRST • NOTHING IS LOST • NO AI • STAYS ON YOUR MAC • ';
+// Rim asked for a certificate-like line ("Apple Certified", "Safe Certified"): not true yet, and Apple doesn't allow
+// implying its approval, so a stamp of what's true; "NOTARIZED BY APPLE" once it is
+const BADGE_WORDS = 'SAFE BY DESIGN • SAFE BY DESIGN • SAFE BY DESIGN • ';
 function initBadge(host) {
   const N = 26, R = 100, A = 4.2;   // bumps, radius, bump depth (in a 220 box)
   let d = '';
@@ -2056,11 +2058,11 @@ function initBadge(host) {
   const id = 'tkb-' + Math.random().toString(36).slice(2, 7);
   host.innerHTML = `<div class="tkb"><svg class="tkb-svg" viewBox="0 0 220 220" aria-hidden="true">
       <defs><path id="${id}" d="M110 110m-76 0a76 76 0 1 1 152 0a76 76 0 1 1-152 0"/></defs>
-      <g class="tkb-spin"><path class="tkb-edge" d="${d}Z"/><circle class="tkb-ring" cx="110" cy="110" r="88"/>
+      <g class="tkb-spin"><path class="tkb-edge" d="${d}Z"/><circle class="tkb-ring" cx="110" cy="110" r="60"/>
         <text class="tkb-words"><textPath href="#${id}" textLength="476" lengthAdjust="spacing">${BADGE_WORDS}</textPath></text></g>
-      <circle class="tkb-disc" cx="110" cy="110" r="56"/></svg>
+      </svg>
     <div class="tkb-apple">${APPLE}</div></div>`;
-  host.setAttribute('role', 'img'); host.setAttribute('aria-label', 'A sticker: asks first, nothing is lost, no AI, stays on your Mac.');
+  host.setAttribute('role', 'img'); host.setAttribute('aria-label', 'A sticker: safe by design.');
 }
 
 // the first colour behind an element (sections can be see-through), for eyes that should read as holes
@@ -2131,16 +2133,15 @@ const OUTRO_CSS = `
 .tinko-safebox_badge .tinko-ph{display:none!important}
 .tinko-safebox{background-image:linear-gradient(rgba(61,58,54,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(61,58,54,.055) 1px,transparent 1px);background-size:32px 32px;background-position:-1px -1px}
 .dfs-night .tinko-safebox{background-image:linear-gradient(rgba(251,247,239,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(251,247,239,.045) 1px,transparent 1px)}
-.tkb{--edge:#0297db;--words:#fbf7ee;--disc:#fbf7ee;--c-ink:#3d3a36;--c-card:#fbf7ee;--tkh-cell:5px;position:absolute;inset:0;transform:rotate(-8deg);filter:drop-shadow(0 10px 14px rgba(61,58,53,.18));transition:transform .5s cubic-bezier(.34,1.5,.64,1)}
+.tkb{--edge:#0297db;--words:#fbf7ee;--tkh-cell:5px;position:absolute;inset:0;transform:rotate(-8deg);filter:drop-shadow(0 10px 14px rgba(61,58,53,.18));transition:transform .5s cubic-bezier(.34,1.5,.64,1)}
 .tkb:hover{transform:rotate(-2deg) scale(1.04)}
 .tkb-svg{display:block;width:100%;height:100%;overflow:visible}
-.tkb-edge{fill:var(--edge)}.tkb-ring{fill:none;stroke:var(--words);stroke-width:1;stroke-dasharray:2 3;opacity:.55}
-.tkb-disc{fill:var(--disc)}
+.tkb-edge{fill:var(--edge)}.tkb-ring{fill:none;stroke:var(--words);stroke-width:1;stroke-dasharray:2 3;opacity:.5}
 .tkb-words{fill:var(--words);font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.08em}
 .tkb-spin{transform-origin:110px 110px;animation:tkbSpin 28s linear infinite}
 @keyframes tkbSpin{to{transform:rotate(360deg)}}
-.tkb-apple{position:absolute;left:50%;top:50%;width:24%;color:var(--c-ink);transform:translate(-50%,-56%)}.tkb-apple svg{display:block;width:100%;height:auto}
-.dfs-night .tkb{--edge:#1dabfa;--words:#0e1628;--disc:#141d33;--c-ink:#fbf7ef;--c-card:#141d33;filter:drop-shadow(0 10px 14px rgba(0,0,0,.4))}
+.tkb-apple{position:absolute;left:50%;top:50%;width:24%;color:var(--words);transform:translate(-50%,-56%)}.tkb-apple svg{display:block;width:100%;height:auto}
+.dfs-night .tkb{filter:drop-shadow(0 10px 14px rgba(0,0,0,.4))}
 @media (prefers-reduced-motion:reduce){.tkb-spin{animation:none}}
 
 /* the overview's tiles, one moving row (Webflow: .tinko-tiles) */

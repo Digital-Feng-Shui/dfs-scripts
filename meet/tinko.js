@@ -1965,10 +1965,10 @@ const CHEV = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5L6 8l
 // the V2 menu (courses/fundamentals-v2, 24 Oct), a few lessons per module
 const COURSE = [
   ['0: Start', [['0.1', 'Welcome', '3:09'], ['0.2', 'Install Tinko', 'Action']]],
-  ['1: Clear', [['1.1', 'What Tinko does', '3:00'], ['1.2', 'Clear your Mac', 'Tinko'], ['1.3', 'Distractions purge', '3:00']]],
-  ['2: Setup', [['2.1', 'What’s inside', '3:00'], ['2.2', 'Set up your tools', 'Tinko']]],
-  ['3: Tend', [['3.1', 'The invisible clutter', '3:59'], ['3.2', 'Clarity principles', '6:00']]],
-  ['4: Flow', [['4.1', 'How I navigate', '10:00'], ['4.2', 'One-key capture', 'Action']]],
+  ['1: Clear', [['1.1', 'Before Tinko starts', '3:00'], ['1.2', 'Clear your Mac', 'Tinko'], ['1.3', 'Distractions purge', '3:00'], ['1.4', 'Clear your inbox', 'Tinko'], ['1.5', 'Purge YouTube', 'Action']]],
+  ['2: Setup', [['2.1', 'What’s inside', '3:00'], ['2.2', 'Set up your tools', 'Tinko'], ['2.3', 'Arc and your spaces', '8:00']]],
+  ['3: Tend', [['3.1', 'The invisible clutter', '3:59'], ['3.2', 'Clarity principles', '6:00'], ['3.3', 'Your new workspace', '10:00']]],
+  ['4: Flow', [['4.1', 'How I navigate', '10:00'], ['4.2', 'One-key capture', 'Action'], ['4.3', 'Shortcut masterclass', '14:13']]],
 ];
 const lessonName = n => COURSE.flatMap(m => m[1]).find(l => l[0] === n)?.[1] || '';
 function initCourse(host) {
@@ -2010,19 +2010,24 @@ function initCourse(host) {
   const tinko = makeTinko(win.querySelector('.tkd-tinko')), screen = win.querySelector('.tkd-screen');
   const showScreen = html => { screen.classList.add('is-swap'); screen.innerHTML = html; requestAnimationFrame(() => requestAnimationFrame(() => screen.classList.remove('is-swap'))); };
   const press = k => { const b = screen.querySelector(`[data-k="${k}"]`); if (b) { b.classList.add('is-press'); setTimeout(() => b.classList.remove('is-press'), 200); } };
-  const fitWin = () => win.style.setProperty('--k', Math.min(1, wrap.clientWidth * (innerWidth < 768 ? .84 : .62) / 614).toFixed(3));
+  const fitWin = () => win.style.setProperty('--k', Math.min(1, wrap.clientWidth * (innerWidth < 768 ? .8 : .56) / 614).toFixed(3));
   new ResizeObserver(fitWin).observe(wrap); fitWin();
   const openWin = on => { win.classList.toggle('is-open', on); tinko.show(on); };
 
   // the menu, built once: a module opens and closes like the course's own accordion, the lit row moves
-  menu.innerHTML = `<div class="tkc-menu">${COURSE.map(([title, rows], m) => `<div class="tkc-modwrap" data-m="${m}"><div class="tkc-mod"><b>${title}</b><i class="tkc-chev">${CHEV}</i></div><div class="tkc-lessons"><div class="tkc-lessons_in">${rows.map(([n, name, tail]) => `<div class="tkc-row" data-l="${n}"><span class="tkc-box"></span><b>${n}: ${name}</b><em>${tail}</em>${wave()}</div>`).join('')}</div></div></div>`).join('')}</div>`;
+  const PLAY = '<svg viewBox="0 0 10 10" aria-hidden="true"><rect x=".5" y=".5" width="9" height="9" rx="1" fill="none" stroke="currentColor"/><path d="M4 3l3 2-3 2z" fill="currentColor"/></svg>';
+  menu.innerHTML = `<div class="tkc-menu"><div class="tkc-menu_in">${COURSE.map(([title, rows], m) => `<div class="tkc-modwrap" data-m="${m}"><div class="tkc-mod"><b>${title}</b><i class="tkc-chev">${CHEV}</i></div><div class="tkc-lessons"><div class="tkc-lessons_in">${rows.map(([n, name, tail]) => `<div class="tkc-row" data-l="${n}"><span class="tkc-left"><span class="tkc-box"></span><b>${n}: ${name}</b></span><em>${/:/.test(tail) ? PLAY : ''}${tail}</em>${wave()}</div>`).join('')}</div></div></div>`).join('')}</div></div>`;
+  // a module opens and closes like the course's accordion; the menu is cut off at the player's height, so it scrolls
+  // to keep the open module in view once the accordion has moved
+  let i = -1, token = 0, visible = false;
+  const menuIn = menu.querySelector('.tkc-menu_in');
   const setMenu = (mod, lesson) => {
     menu.querySelectorAll('.tkc-modwrap').forEach(w => w.classList.toggle('is-open', +w.dataset.m === mod));
     menu.querySelectorAll('.tkc-row').forEach(r => r.classList.toggle('is-now', r.dataset.l === lesson));
+    const t = token; setTimeout(() => { if (t !== token) return; const w = menu.querySelector(`.tkc-modwrap[data-m="${mod}"]`); menuIn.style.transform = `translateY(${-Math.max(0, Math.min(w.offsetTop, menuIn.scrollHeight - menu.clientHeight))}px)`; }, 640);
   };
 
   // the sequence; each step's beats run on a token, so leaving the screen (or the next step) cancels them
-  let i = -1, token = 0, visible = false;
   const later = (fn, ms) => { const t = token; setTimeout(() => { if (t === token && visible) fn(); }, ms); };
   const BEATS = {
     video: st => { st.load(); try { st.v.currentTime = st.from; } catch (e) {} st.v.play().catch(() => {}); return (st.to - st.from) * 1000; },
@@ -2210,7 +2215,7 @@ const OUTRO_CSS = `
 @keyframes tkcWave{to{transform:translateX(-13px)}}
 .tinko-course_player .tinko-ph{display:none!important}
 .tkc-wrap{position:relative;min-width:0}
-.tkc-win{left:56%;top:55%;z-index:4;transform-origin:50% 50%;transform:translate(-50%,-50%) scale(calc(var(--k,.6) * .9));opacity:0;pointer-events:none;box-shadow:0 0 0 1px rgba(0,0,0,.12),0 40px 80px -24px rgba(0,0,0,.5);transition:opacity .35s,transform .6s cubic-bezier(.34,1.45,.64,1)}
+.tkc-win{left:56%;top:50%;z-index:4;transform-origin:50% 50%;transform:translate(-50%,-50%) scale(calc(var(--k,.6) * .9));opacity:0;pointer-events:none;box-shadow:0 0 0 1px rgba(0,0,0,.12),0 40px 80px -24px rgba(0,0,0,.5);transition:opacity .35s,transform .6s cubic-bezier(.34,1.45,.64,1)}
 .tkc-win.is-open{opacity:1;transform:translate(-50%,-50%) scale(var(--k,.6))}
 .dfs-night .tkc-win{box-shadow:0 0 0 1px rgba(251,247,239,.16),0 40px 80px -24px rgba(0,0,0,.85)}
 @media (max-width:767px){.tkc-win{left:50%;top:50%}}
@@ -2229,22 +2234,25 @@ const OUTRO_CSS = `
 .tkc-start{display:flex;align-items:center;gap:.8rem;padding:.7rem .7rem .7rem 1.1rem;border-radius:4px;background:var(--c-mod);font-size:.85rem;letter-spacing:.06em;text-transform:uppercase;transition:transform .18s,box-shadow .18s}
 .tkc-start.is-press{transform:scale(.93);box-shadow:0 0 0 3px rgba(26,151,215,.4)}
 .tkc-start i{display:grid;place-items:center;width:1.6rem;height:1.6rem;border-radius:3px;background:var(--c-ink);color:var(--c-card)}
-.tkc-start svg,.tkc-chev svg{width:.75rem;height:.75rem;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.tkc-start svg,.tkc-chev svg{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}.tkc-start svg{width:.75rem;height:.75rem;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .tkc-path{font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--c-soft)}
 .dfs-night .tkc-stage{--c-card:#292724;--c-ink:#fbf7ef;--c-soft:#b3aca2;--c-mod:#33302c;background-image:linear-gradient(rgba(251,247,239,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(251,247,239,.045) 1px,transparent 1px)}
-.tkc-menu{--c-card:#f6f2ea;--c-ink:#3d3a36;--c-soft:#7d776f;--c-line:#dfd5ca;--c-calm:#1a97d7;--c-calmsoft:#e8f1f6;--c-mod:#ebe6dc;overflow:hidden;border:1px solid var(--c-line);border-radius:6px;background:var(--c-card);color:var(--c-ink);text-align:left;box-shadow:0 30px 60px -36px rgba(61,58,53,.5)}
-.tkc-mod{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1.1rem;background:var(--c-mod);font-family:var(--_typography---font-styles--heading),Georgia,serif;font-size:1.35rem;line-height:1}
-.tkc-modwrap+.tkc-modwrap{border-top:1px solid var(--c-line)}
-.tkc-mod{transition:background .5s}.tkc-mod b{font-weight:400}.tkc-modwrap.is-open .tkc-mod{background:var(--c-calmsoft)}
-.tkc-chev{display:grid;place-items:center;width:1.9rem;height:1.9rem;border:1px dashed var(--c-soft);border-radius:4px;color:var(--c-soft);transition:color .5s,border-color .5s}.tkc-modwrap.is-open .tkc-chev{border-color:var(--c-calm);color:var(--c-calm)}
-.tkc-chev svg{transition:transform .55s cubic-bezier(.625,.05,0,1)}.tkc-modwrap.is-open .tkc-chev svg{transform:rotate(180deg)}
+.tkc-menu{position:absolute;inset:0;overflow:hidden;background:var(--brand-colors--light-bage,#fbf7ee);color:var(--brand-colors--dark_gray,#3d3a35);text-align:left}
+.tkc-menu_in{transition:transform .6s cubic-bezier(.625,.05,0,1)}
+.tkc-mod{display:flex;align-items:center;justify-content:space-between;padding:1.5rem 1rem;border-top:1px solid var(--brand-colors--dark-bage,#dfd5c9);border-bottom:1px solid var(--brand-colors--dark-bage,#dfd5c9);background:var(--brand-colors--light-bage,#fbf7ee);transition:background .5s}
+.tkc-modwrap:first-child .tkc-mod{border-top:0}
+.tkc-mod b{font-family:var(--_typography---font-styles--heading),Georgia,serif;font-weight:400;font-size:1.5rem;line-height:1}
+.tkc-modwrap.is-open .tkc-mod{background:var(--brand-colors--light-bleu,#eff9fd)}
+.tkc-chev{display:flex;align-items:center;justify-content:center;flex:none;width:2em;height:2em;border-radius:.25rem;background:var(--brand-colors--dark-bage,#dfd5c9);color:var(--brand-colors--dark_gray,#3d3a35)}
+.tkc-chev svg{width:1em;height:1em;transition:transform .55s cubic-bezier(.625,.05,0,1)}.tkc-modwrap.is-open .tkc-chev svg{transform:rotate(180deg)}
 .tkc-lessons{display:grid;grid-template-rows:0fr;transition:grid-template-rows .6s cubic-bezier(.625,.05,0,1)}.tkc-modwrap.is-open .tkc-lessons{grid-template-rows:1fr}.tkc-lessons_in{min-height:0;overflow:hidden}
+.tkc-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.5rem 1rem;border-bottom:1px dashed var(--brand-colors--dark-bage,#dfd5c9);font-size:.8rem;line-height:1.7;word-spacing:-4px;transition:background .4s,color .4s}
+.tkc-row:last-child{border-bottom:0}
+.tkc-left{display:flex;align-items:center;gap:.5rem;min-width:0}.tkc-left b{font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tkc-row em{display:flex;align-items:center;gap:.35rem;flex:none;font-style:normal;font-size:.7rem;opacity:.75;word-spacing:0}.tkc-row em svg{width:.62rem;height:.62rem}
 .tkc-row .tkc-wave{display:none}.tkc-row.is-now .tkc-wave{display:block}.tkc-row.is-now em{display:none}
-.tkc-row{display:flex;align-items:center;gap:.75rem;padding:.75rem 1.1rem;border-top:1px dashed var(--c-line);font-size:.78rem;letter-spacing:.02em;transition:background .4s,color .4s}
-.tkc-row b{flex:1;min-width:0;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tkc-row em{font-style:normal;font-size:.7rem;color:var(--c-soft)}
-.tkc-row.is-now{background:var(--c-calmsoft);color:var(--c-calm)}.tkc-row .tkc-wave{color:var(--c-calm)}
-.tkc-box{display:grid;place-items:center;flex:none;width:1rem;height:1rem;box-sizing:border-box;border:1.5px solid currentColor;border-radius:2px}.tkc-box::after{content:"";width:.4rem;height:.4rem;background:currentColor}
-.dfs-night .tkc-menu{--c-card:#292724;--c-ink:#fbf7ef;--c-soft:#b3aca2;--c-line:#3d3a36;--c-calm:#1dabfa;--c-calmsoft:#173241;--c-mod:#33302c;box-shadow:0 30px 60px -36px rgba(0,0,0,.85)}
+.tkc-row.is-now{background:var(--brand-colors--light-bleu,#eff9fd);color:var(--brand-colors--blue,#0297db)}.tkc-row .tkc-wave{color:var(--brand-colors--blue,#0297db)}
+.tkc-box{flex:none;width:1rem;height:1rem;box-sizing:border-box;border:1px solid var(--brand-colors--dark_gray,#3d3a35);border-radius:.125rem}
 @media (max-width:767px){.tkc-stage{--tkh-cell:5px;gap:.7rem}.tkc-start{font-size:.65rem;padding:.45rem .45rem .45rem .8rem}.tkc-start i{width:1.2rem;height:1.2rem}.tkc-stage_corner{font-size:.42rem}}
 @media (prefers-reduced-motion:reduce){.tkc-wave path{animation:none}}
 

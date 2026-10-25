@@ -1953,7 +1953,9 @@ function initMess(host) {
    data-step="tinko") and .tinko-course_menu. The player plays them in turn: 0.1 Welcome (Rim, muted); 0.2 Install
    Tinko, and his window opens on top of the course with his hello, then closes; 1.1 (a stand-in clip until the real one
    is recorded); 1.2 Clear your Mac, "Start stage 1", and his window opens on top again, on the desktop. The V2 menu
-   beside it opens the playing module and lights its lesson with the course wave. Only while it's on screen. */
+   beside it opens the playing module and lights its lesson (the course wave on a video lesson). Only while it's on
+   screen. The menu works by hand too (Rim, 25 Oct): it scrolls, its modules open and close, and a lesson the player
+   shows jumps there; when the player moves on, the menu follows it again once the hand has rested 2.5 s. */
 const BUNNY = id => `https://vz-87a2c68f-2a7.b-cdn.net/${id}`;
 // the seconds that play, cut ahead as their own small files (meet/media/course, 720p, ~100 KB each): streaming the whole
 // lesson from Bunny to loop 8 s buffered 3 to 11 MB (audit, 24 Oct). Keyed by the step's video id and data-from; a
@@ -2016,16 +2018,41 @@ function initCourse(host) {
 
   // the menu, built once: a module opens and closes like the course's own accordion, the lit row moves
   const PLAY = '<svg viewBox="0 0 10 10" aria-hidden="true"><rect x=".5" y=".5" width="9" height="9" rx="1" fill="none" stroke="currentColor"/><path d="M4 3l3 2-3 2z" fill="currentColor"/></svg>';
-  menu.innerHTML = `<div class="tkc-menu"><div class="tkc-menu_in">${COURSE.map(([title, rows], m) => `<div class="tkc-modwrap" data-m="${m}"><div class="tkc-mod"><b>${title}</b><i class="tkc-chev">${CHEV}</i></div><div class="tkc-lessons"><div class="tkc-lessons_in">${rows.map(([n, name, tail]) => `<div class="tkc-row" data-l="${n}"><span class="tkc-left"><span class="tkc-box"></span><b>${n}: ${name}</b></span><em>${/:/.test(tail) ? PLAY : ''}${tail}</em>${wave()}</div>`).join('')}</div></div></div>`).join('')}</div></div>`;
-  // a module opens and closes like the course's accordion; the menu is cut off at the player's height, so it scrolls
-  // to keep the open module in view once the accordion has moved
-  let i = -1, token = 0, visible = false;
-  const menuIn = menu.querySelector('.tkc-menu_in');
+  // the wave only on a lesson that's a video (someone talking); a Tinko or Action lesson just lights up. A lesson the
+  // player shows is a button that jumps there
+  const stepOf = n => steps.findIndex(st => st.lesson === n);
+  menu.innerHTML = `<div class="tkc-menu"><div class="tkc-menu_in">${COURSE.map(([title, rows], m) => `<div class="tkc-modwrap" data-m="${m}"><div class="tkc-mod" role="button" tabindex="0" aria-expanded="false"><b>${title}</b><i class="tkc-chev">${CHEV}</i></div><div class="tkc-lessons"><div class="tkc-lessons_in">${rows.map(([n, name, tail]) => { const video = /:/.test(tail), go = stepOf(n) >= 0; return `<div class="tkc-row${video ? ' is-video' : ''}${go ? ' is-go' : ''}" data-l="${n}"${go ? ' role="button" tabindex="0"' : ''}><span class="tkc-left"><span class="tkc-box"></span><b>${n}: ${name}</b></span><em>${video ? PLAY : ''}${tail}</em>${video ? wave() : ''}</div>`; }).join('')}</div></div></div>`).join('')}</div></div>`;
+  // a module opens and closes like the course's accordion. The menu scrolls and its modules open and close by hand;
+  // when the player moves on, it opens the playing module and scrolls it into view, once the hand has rested a moment
+  let i = -1, token = 0, visible = false, touched = 0;
+  const scroller = menu.querySelector('.tkc-menu');
+  const openMod = (w, on) => { w.classList.toggle('is-open', on); w.firstElementChild.setAttribute('aria-expanded', on); };
   const setMenu = (mod, lesson) => {
-    menu.querySelectorAll('.tkc-modwrap').forEach(w => w.classList.toggle('is-open', +w.dataset.m === mod));
     menu.querySelectorAll('.tkc-row').forEach(r => r.classList.toggle('is-now', r.dataset.l === lesson));
-    const t = token; setTimeout(() => { if (t !== token) return; const w = menu.querySelector(`.tkc-modwrap[data-m="${mod}"]`); menuIn.style.transform = `translateY(${-Math.max(0, Math.min(w.offsetTop, menuIn.scrollHeight - menu.clientHeight))}px)`; }, 640);
+    const t = token, follow = () => {
+      if (t !== token) return;
+      const rest = performance.now() - touched;
+      if (rest < 2500) return setTimeout(follow, 2500 - rest);
+      menu.querySelectorAll('.tkc-modwrap').forEach(w => openMod(w, +w.dataset.m === mod));
+      setTimeout(() => { if (t === token) scroller.scrollTo({ top: menu.querySelector(`.tkc-modwrap[data-m="${mod}"]`).offsetTop, behavior: reduce ? 'auto' : 'smooth' }); }, 640);
+    };
+    follow();
   };
+  // the wheel scrolls the menu while it can, then the page again (the page's smooth scroll never sees the menu's part)
+  scroller.addEventListener('wheel', e => {
+    const top = scroller.scrollTop, max = scroller.scrollHeight - scroller.clientHeight;
+    if ((e.deltaY < 0 && top > 0) || (e.deltaY > 0 && top < max - 1)) { e.stopPropagation(); touched = performance.now(); }
+  }, { passive: true });
+  scroller.addEventListener('touchstart', () => { touched = performance.now(); }, { passive: true });
+  const act = el => {
+    touched = performance.now();
+    if (el.classList.contains('tkc-mod')) return openMod(el.parentElement, !el.parentElement.classList.contains('is-open'));
+    const k = stepOf(el.dataset.l);
+    if (reduce) { steps.forEach((o, j) => o.el.classList.toggle('is-on', j === k)); steps[k].load?.(); menu.querySelectorAll('.tkc-row').forEach(r => r.classList.toggle('is-now', r === el)); }
+    else play(k);
+  };
+  scroller.addEventListener('click', e => { const el = e.target.closest('.tkc-mod, .tkc-row.is-go'); if (el) act(el); });
+  scroller.addEventListener('keydown', e => { const el = e.target.closest('.tkc-mod, .tkc-row.is-go'); if (el && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); act(el); } });
 
   // the sequence; each step's beats run on a token, so leaving the screen (or the next step) cancels them
   const later = (fn, ms) => { const t = token; setTimeout(() => { if (t === token && visible) fn(); }, ms); };
@@ -2065,7 +2092,7 @@ function initCourse(host) {
   const play = k => {
     token++; i = k % steps.length; const st = steps[i];
     steps.forEach((o, j) => { o.el.classList.toggle('is-on', j === i); if (o.v && j !== i) o.v.pause(); });
-    if (st.kind !== 'install' && st.kind !== 'tinko') openWin(false);
+    openWin(false);   // a step opens his window itself (and a jump from the menu never lands with the last one open)
     setMenu(st.mod, st.lesson);
     steps[(i + 1) % steps.length].load?.();
     const dur = BEATS[st.kind](st);
@@ -2237,9 +2264,12 @@ const OUTRO_CSS = `
 .tkc-start svg,.tkc-chev svg{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}.tkc-start svg{width:.75rem;height:.75rem;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .tkc-path{font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--c-soft)}
 .dfs-night .tkc-stage{--c-card:#292724;--c-ink:#fbf7ef;--c-soft:#b3aca2;--c-mod:#33302c;background-image:linear-gradient(rgba(251,247,239,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(251,247,239,.045) 1px,transparent 1px)}
-.tkc-menu{position:absolute;inset:0;overflow:hidden;background:var(--brand-colors--light-bage,#fbf7ee);color:var(--brand-colors--dark_gray,#3d3a35);text-align:left}
-.tkc-menu_in{transition:transform .6s cubic-bezier(.625,.05,0,1)}
-.tkc-mod{display:flex;align-items:center;justify-content:space-between;padding:1.5rem 1rem;border-top:1px solid var(--brand-colors--dark-bage,#dfd5c9);border-bottom:1px solid var(--brand-colors--dark-bage,#dfd5c9);background:var(--brand-colors--light-bage,#fbf7ee);transition:background .5s}
+.tkc-menu{position:absolute;inset:0;overflow-x:hidden;overflow-y:auto;scrollbar-width:none;background:var(--brand-colors--light-bage,#fbf7ee);color:var(--brand-colors--dark_gray,#3d3a35);text-align:left}
+.tkc-menu::-webkit-scrollbar{display:none}
+.tkc-mod{display:flex;align-items:center;justify-content:space-between;padding:1.5rem 1rem;border-top:1px solid var(--brand-colors--dark-bage,#dfd5c9);border-bottom:1px solid var(--brand-colors--dark-bage,#dfd5c9);background:var(--brand-colors--light-bage,#fbf7ee);cursor:pointer;transition:background .5s}
+.tkc-modwrap:not(.is-open) .tkc-mod:hover,.tkc-row.is-go:not(.is-now):hover{background:color-mix(in srgb,var(--brand-colors--light-bleu,#eff9fd) 60%,var(--brand-colors--light-bage,#fbf7ee))}
+.tkc-row.is-go{cursor:pointer}
+.tkc-mod:focus-visible,.tkc-row.is-go:focus-visible{outline:1px solid var(--brand-colors--blue,#0297db);outline-offset:-1px}
 .tkc-modwrap:first-child .tkc-mod{border-top:0}
 .tkc-mod b{font-family:var(--_typography---font-styles--heading),Georgia,serif;font-weight:400;font-size:1.5rem;line-height:1}
 .tkc-modwrap.is-open .tkc-mod{background:var(--brand-colors--light-bleu,#eff9fd)}
@@ -2250,7 +2280,7 @@ const OUTRO_CSS = `
 .tkc-row:last-child{border-bottom:0}
 .tkc-left{display:flex;align-items:center;gap:.5rem;min-width:0}.tkc-left b{font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tkc-row em{display:flex;align-items:center;gap:.35rem;flex:none;font-style:normal;font-size:.7rem;opacity:.75;word-spacing:0}.tkc-row em svg{width:.62rem;height:.62rem}
-.tkc-row .tkc-wave{display:none}.tkc-row.is-now .tkc-wave{display:block}.tkc-row.is-now em{display:none}
+.tkc-row .tkc-wave{display:none}.tkc-row.is-now .tkc-wave{display:block}.tkc-row.is-now.is-video em{display:none}.tkc-row.is-now em{opacity:1}
 .tkc-row.is-now{background:var(--brand-colors--light-bleu,#eff9fd);color:var(--brand-colors--blue,#0297db)}.tkc-row .tkc-wave{color:var(--brand-colors--blue,#0297db)}
 .tkc-box{flex:none;width:1rem;height:1rem;box-sizing:border-box;border:1px solid var(--brand-colors--dark_gray,#3d3a35);border-radius:.125rem}
 @media (max-width:767px){.tkc-stage{--tkh-cell:5px;gap:.7rem}.tkc-start{font-size:.65rem;padding:.45rem .45rem .45rem .8rem}.tkc-start i{width:1.2rem;height:1.2rem}.tkc-stage_corner{font-size:.42rem}}

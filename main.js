@@ -2466,8 +2466,15 @@
         if (typeof video.disableRemotePlayback !== 'undefined') video.disableRemotePlayback =
           true;
         if (autoplay) video.autoplay = false;
-        var isSafariNative = !!video.canPlayType('application/vnd.apple.mpegurl');
-        var canUseHlsJs = !!(window.Hls && Hls.isSupported()) && !isSafariNative;
+        // Safari (and every iPhone/iPad browser) plays HLS itself and starts sharp. Chrome-based browsers
+        // can play it natively now too (Chrome 141+), but their own player starts at 240p, so they get
+        // hls.js with a 720p start whenever it's loaded (Rim, 29 Oct)
+        var ua = navigator.userAgent;
+        var isIOS = /iP(hone|ad|od)/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+        var isSafari = /Safari/.test(ua) && !/Chrome|Chromium|CriOS|Edg|OPR|Android|FxiOS/.test(ua);
+        var hlsJsOk = !!(window.Hls && Hls.isSupported());
+        var isSafariNative = !!video.canPlayType('application/vnd.apple.mpegurl') && (isIOS || isSafari || !hlsJsOk);
+        var canUseHlsJs = hlsJsOk && !isSafariNative;
         // Minimal ratio fetch when requested (and not already handled by lazy meta)
         if (updateSize === 'true' && !isLazyMeta) {
           if (isLazyTrue) {
@@ -2517,10 +2524,16 @@
                 .duration));
             }, { once: true });
           } else if (canUseHlsJs) {
-            var hls = new Hls({ maxBufferLength: 10 });
+            // Loading waits for the start level below (autoStartLoad off), so the first segments aren't
+            // hls.js's ~500 kbps guess (240p/360p). capLevelToPlayerSize keeps small players small.
+            var hls = new Hls({ maxBufferLength: 10, capLevelToPlayerSize: true, autoStartLoad: false });
             hls.attachMedia(video);
             hls.on(Hls.Events.MEDIA_ATTACHED, function () { hls.loadSource(src); });
             hls.on(Hls.Events.MANIFEST_PARSED, function () {
+              // Start at 720p (Rim, 29 Oct); the bitrate logic can still climb to 1080p on big screens
+              var start = startLevelIndex(hls.levels);
+              if (start > -1) hls.startLevel = start;
+              hls.startLoad(-1);
               readyIfIdle(player, pendingPlay);
               if (updateSize === 'true') {
                 var lvls = hls.levels || [];
@@ -2939,6 +2952,16 @@
               a;
           },
           levels[0]);
+      }
+      // Helper: the level to start on: 720p, else the highest one below it (-1: none, leave it to hls.js)
+      function startLevelIndex(levels) {
+        var pick = -1, pickH = 0;
+        (levels || []).forEach(function (l, i) {
+          var h = l.height || 0;
+          if (h === 720) { pick = i; pickH = 720; }
+          else if (h < 720 && h > pickH) { pick = i; pickH = h; }
+        });
+        return pick;
       }
       // Helper: Safe programmatic play
       function safePlay(video) {

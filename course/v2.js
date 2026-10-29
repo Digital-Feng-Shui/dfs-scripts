@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.17.0/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.18.0/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -18,7 +18,9 @@
    (blue on the open module), the open lesson's checkbox in blue.
    The open lesson's time: while its video plays, a small blue wave runs in its place; paused, it lies flat.
    End of a video: the Complete and Continue field is darker and flows down behind the controls as a gradient.
-   Copy (0.2 install line): a bubble over the button says it's on the clipboard.
+   Download (0.2, Rim, 29 Oct: Tinko is notarised, the Terminal line goes): Tinko and one Download Tinko button, the
+   stage cards' layout; Osmo's download button behaviour in the site's own button.
+   Copy (the old install line, hidden now): a bubble over the button says it's on the clipboard.
    Big screens: the frame stops at FRAME wide and never so wide that the video and Previous / Next leave the screen;
    cards grow their contents with the card.
    Speed tip: on videos of 8+ minutes still playing at 1x, a short bubble over the speed control suggests 1.5x.
@@ -127,6 +129,27 @@ const css = `
   background:inherit;rotate:45deg}
 .v2-speed-tip.is-in,.v2-copy-pop.is-in{opacity:1;translate:0 0}
 .v2-copy-pop{z-index:60;pointer-events:none;white-space:nowrap}
+/* the Download Tinko button (0.2): the site's card button with Osmo's download icon in its square. Hover lifts the
+   arrow and widens its line; done (or handed to the browser), the arrow drops through the line, the line goes and
+   a tick draws in (see "download" below) */
+[data-download-icon-wrap]{justify-content:center}
+/* (the label carries data-download-success too, as its "done" text: these are for the svg only) */
+svg[data-download-icon],svg[data-download-success]{flex:none;width:.6em;height:.6em;overflow:visible}
+svg[data-download-success]{position:absolute}
+[data-download-arrow],[data-download-base]{transition:transform .5s cubic-bezier(.625,.05,0,1)}
+[data-download-base]{transform-origin:center center}
+[data-download-success] path{transition:stroke-dashoffset .4s cubic-bezier(.625,.05,0,1)}
+[data-download-src][data-download-state="downloading"]{pointer-events:none}
+body:has([data-download-src][data-download-state="downloading"]){cursor:progress}
+[data-download-src]:is([data-download-state="ready"],[data-download-state="fallback"]) [data-download-arrow]{transform:translate(0,200%)}
+[data-download-src]:is([data-download-state="ready"],[data-download-state="fallback"]) [data-download-base]{transition-delay:.1s;transform:scale(0,1)}
+[data-download-src]:is([data-download-state="ready"],[data-download-state="fallback"]) [data-download-success] path{transition-delay:.25s;stroke-dashoffset:0}
+@media (hover:hover) and (pointer:fine){
+  [data-download-src][data-download-state="idle"]:hover [data-download-arrow]{transform:translate(0,-30%)}
+  [data-download-src][data-download-state="idle"]:hover [data-download-base]{transform:scale(1.2,1)}
+}
+[data-download-src][data-download-state="idle"]:focus-visible [data-download-arrow]{transform:translate(0,-30%)}
+[data-download-src][data-download-state="idle"]:focus-visible [data-download-base]{transform:scale(1.2,1)}
 /* the player hides its controls while a video plays; under the tip they stay, so the bubble points at something */
 .bunny-player.v2-tip-on[data-player-status] .bunny-player__interface{opacity:1;transform:translateY(0) rotate(.001deg)}
 @media (prefers-reduced-motion:reduce){.v2-speed-tip,.v2-copy-pop{translate:none;transition:opacity .3s ease}}
@@ -702,3 +725,56 @@ const cardSize = new ResizeObserver((entries) => {
   }
 });
 document.querySelectorAll('.v2-card').forEach((card) => cardSize.observe(card));
+
+/* ---------- download (0.2) ---------- */
+// Osmo's download button (Osmo Supply, Rim, 29 Oct), wired the same way: a click fetches [data-download-src] and saves
+// it as [data-download-name]; where the host doesn't allow the fetch (CORS), the browser takes it from the link
+// itself. data-download-state = idle | downloading | ready | fallback drives the icon (CSS above); the label says
+// [data-download-success] for 3 s. Listens on window in the capture phase, before Webflow's href="#" scroll.
+const DONE_FOR = 3000; // ms
+function saveFile(url, name) {
+  const a = document.createElement('a');
+  a.href = url;
+  if (name) a.download = name;
+  a.rel = 'noopener';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+document.querySelectorAll('[data-download-src]').forEach((el) => { el.dataset.downloadState = 'idle'; });
+addEventListener('click', async (e) => {
+  const el = e.target.closest && e.target.closest('[data-download-src]');
+  if (!el) return;
+  e.preventDefault();
+  e.stopPropagation();
+  if (el.dataset.downloadState === 'downloading') return;
+  const src = el.getAttribute('data-download-src');
+  if (!src) return;
+  const name = el.getAttribute('data-download-name') || new URL(src, location.href).pathname.split('/').pop() || 'download';
+  const labelEl = el.querySelector('[data-download-label]');
+  if (labelEl && labelEl.dataset.downloadOriginalLabel == null) labelEl.dataset.downloadOriginalLabel = labelEl.textContent;
+  el.blur();
+  const done = (state) => {
+    el.dataset.downloadState = state;
+    const said = labelEl && labelEl.getAttribute('data-download-success');
+    if (said) labelEl.textContent = said;
+    clearTimeout(el._downloadReset);
+    el._downloadReset = setTimeout(() => {
+      el.dataset.downloadState = 'idle';
+      if (labelEl && labelEl.dataset.downloadOriginalLabel != null) labelEl.textContent = labelEl.dataset.downloadOriginalLabel;
+    }, DONE_FOR);
+  };
+  try {
+    el.dataset.downloadState = 'downloading';
+    const res = await fetch(src, { mode: 'cors', credentials: 'omit' });
+    if (!res.ok) throw new Error('bad status');
+    const url = URL.createObjectURL(await res.blob());
+    saveFile(url, name);
+    done('ready');
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } catch (err) {
+    saveFile(src, name);
+    done('fallback');
+  }
+}, true);

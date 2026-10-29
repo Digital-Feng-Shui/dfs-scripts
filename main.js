@@ -2390,6 +2390,7 @@
     }
 
     function initBunnyPlayer() {
+      bunnyFetchSigned();   // signed links for every lesson on the page, usually in before the first play
       document.querySelectorAll('[data-bunny-player-init]').forEach(function (player) {
         var src = player.getAttribute('data-player-src');
         if (!src) return;
@@ -2488,12 +2489,12 @@
               video.preload = prev || '';
             };
             video.addEventListener('loadedmetadata', onMeta2, { once: true });
-            video.src = src;
+            bunnySrc(src).then(function (s) { if (!isAttached) video.src = s; });
           }
         }
         //  Lazy meta fetch (duration + aspect) without attaching playback
         function fetchMetaOnce() {
-          getSourceMeta(src, canUseHlsJs).then(function (meta) {
+          bunnySrc(src).then(function (metaSrc) { return getSourceMeta(metaSrc, canUseHlsJs); }).then(function (meta) {
             if (meta.width && meta.height) setBeforeRatio(player, updateSize, meta.width,
               meta
               .height);
@@ -2512,9 +2513,51 @@
           if (isAttached) return;
           isAttached = true;
           if (player._hls) { try { player._hls.destroy(); } catch (_) {} player._hls = null; }
+          // The signed link is usually in by now (asked for on page load): then this stays inside the tap,
+          // which iPhones need to start sound. Else wait for it (2.5 s at most) and start the play from here.
+          var now = bunnySrcNow(src);
+          if (now) return attachSrc(now);
+          bunnySrc(src).then(function (s) {
+            if (!player.isConnected) return;
+            attachSrc(s);
+            if (pendingPlay) safePlay(video);
+          });
+        }
+
+        // A signed link that ran out (Bunny answers 401/403): ask again and carry on where it was
+        var renewals = 0, resumeAt = 0;
+        function renewSrc() {
+          if (renewals >= 2 || !bunnyWasSigned(src)) return;
+          renewals++;
+          var at = video.currentTime, wasPlaying = !video.paused;
+          bunnyFetchSigned(true).then(function () {
+            var s = bunnySrcNow(src);
+            if (!s || !player.isConnected) return;
+            if (player._hls) {
+              // a fresh hls.js on the new link (loadSource on a live one re-attaches and reloads the old src)
+              try { player._hls.destroy(); } catch (_) {}
+              player._hls = null;
+              resumeAt = at;
+              attachSrc(s);
+              if (wasPlaying) safePlay(video);
+              return;
+            }
+            video.src = s;
+            video.addEventListener('loadedmetadata', function () {
+              try { video.currentTime = at; } catch (_) {}
+              if (wasPlaying) safePlay(video);
+            }, { once: true });
+          });
+        }
+
+        function attachSrc(playSrc) {
           if (isSafariNative) {
             video.preload = (isLazyTrue || isLazyMeta) ? 'auto' : video.preload;
-            video.src = src;
+            video.src = playSrc;
+            video.addEventListener('error', function () {
+              var code = video.error && video.error.code;
+              if (code === 2 || code === 4) renewSrc();   // network, or the playlist refused
+            });
             video.addEventListener('loadedmetadata', function () {
               readyIfIdle(player, pendingPlay);
               if (updateSize === 'true') setBeforeRatio(player, updateSize, video
@@ -2528,12 +2571,18 @@
             // hls.js's ~500 kbps guess (240p/360p). capLevelToPlayerSize keeps small players small.
             var hls = new Hls({ maxBufferLength: 10, capLevelToPlayerSize: true, autoStartLoad: false });
             hls.attachMedia(video);
-            hls.on(Hls.Events.MEDIA_ATTACHED, function () { hls.loadSource(src); });
+            var sourceSet = false;
+            hls.on(Hls.Events.MEDIA_ATTACHED, function () { if (sourceSet) return; sourceSet = true; hls.loadSource(playSrc); });
+            hls.on(Hls.Events.ERROR, function (e, data) {
+              var code = data && data.response && data.response.code;
+              if (code === 401 || code === 403) renewSrc();
+            });
             hls.on(Hls.Events.MANIFEST_PARSED, function () {
               // Start at 720p (Rim, 29 Oct); the bitrate logic can still climb to 1080p on big screens
               var start = startLevelIndex(hls.levels);
               if (start > -1) hls.startLevel = start;
-              hls.startLoad(-1);
+              hls.startLoad(resumeAt > 0 ? resumeAt : -1);
+              resumeAt = 0;
               readyIfIdle(player, pendingPlay);
               if (updateSize === 'true') {
                 var lvls = hls.levels || [];
@@ -2552,7 +2601,7 @@
             });
             player._hls = hls;
           } else {
-            video.src = src;
+            video.src = playSrc;
           }
         }
         // Initialize based on lazy mode
@@ -6907,6 +6956,71 @@
       });
     }).catch(function () { return null; });
   }
+
+  // =========================================================
+  // SIGNED COURSE VIDEOS — Bunny token authentication (Rim, 29 Oct; plan:
+  // team-nieuw/website/bunny-token-auth-2026-10-29). The course page asks the dfs-helper worker once
+  // (POST /course/video, the same member token / ticket as Tinko Link) for signed links to every lesson
+  // video on the page, and initBunnyPlayer plays those. A signed link has its token in the path, so the
+  // playlist's relative 720p/… and .m4s links carry it too, and it lasts 6 hours: it's asked again 5 minutes
+  // before that, and when Bunny says 401/403. On any other answer (no plan, worker down, no key yet) the plain
+  // link plays, which keeps working until token authentication is switched on in Bunny.
+  // =========================================================
+  var bunnySigned = { urls: {}, until: 0, pending: null, done: false, timer: 0 };
+
+  function bunnyId(src) {
+    var m = /b-cdn\.net\/([0-9a-f-]{36})\//i.exec(src || '');
+    return m ? m[1].toLowerCase() : '';
+  }
+
+  function bunnyIdsOnPage() {
+    var ids = {};
+    document.querySelectorAll('[data-player-src],[data-video-src]').forEach(function (el) {
+      var id = bunnyId(el.getAttribute('data-player-src') || el.getAttribute('data-video-src'));
+      if (id) ids[id] = 1;
+    });
+    return Object.keys(ids).slice(0, 100);
+  }
+
+  // Resolves when the worker has answered, or after 2.5 s, so a slow answer never holds a video back
+  function bunnyFetchSigned(force) {
+    if (!force && bunnySigned.done && (Date.now() < bunnySigned.until || !bunnySigned.pending)) return Promise.resolve();
+    if (!bunnySigned.pending) {
+      var ids = bunnyIdsOnPage();
+      if (!ids.length) { bunnySigned.done = true; return Promise.resolve(); }
+      bunnySigned.pending = tinkoAsk('video', { ids: ids }).then(function (j) {
+        if (j && j.status === 200 && j.urls) {
+          var life = Math.max(60, (+j.expiresIn || 21600) - 300);
+          bunnySigned.urls = j.urls;
+          bunnySigned.until = Date.now() + life * 1000;
+          clearTimeout(bunnySigned.timer);
+          bunnySigned.timer = setTimeout(function () { bunnyFetchSigned(true); }, life * 1000);
+        }
+      }).catch(function () {}).then(function () { bunnySigned.done = true; bunnySigned.pending = null; });
+    }
+    return Promise.race([bunnySigned.pending, new Promise(function (r) { setTimeout(r, 2500); })])
+      .then(function () { bunnySigned.done = true; });
+  }
+
+  // The link to play: the signed one while it's fresh, else the plain one; null while the first answer is
+  // still on its way (the player then waits for bunnySrc). The worker signs /<id>/playlist.m3u8; any other
+  // file in that folder works by swapping the name.
+  function bunnySrcNow(src) {
+    var id = bunnyId(src);
+    if (!id) return src;
+    var signed = Date.now() < bunnySigned.until && bunnySigned.urls[id];
+    if (signed) {
+      var file = src.split('?')[0].split('/').pop() || 'playlist.m3u8';
+      return file === 'playlist.m3u8' ? signed : signed.replace(/[^/]*$/, file);
+    }
+    return bunnySigned.done ? src : null;
+  }
+
+  function bunnySrc(src) {
+    return bunnyFetchSigned().then(function () { return bunnySrcNow(src) || src; });
+  }
+
+  function bunnyWasSigned(src) { return !!bunnySigned.urls[bunnyId(src)]; }
 
   function dfsTinkoInstallCode() {
     function refresh() {

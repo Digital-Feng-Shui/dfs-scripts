@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.20.0/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.21.0/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -11,7 +11,7 @@
    The tab sits centred on the button's line: same job, same row (Rim, 21 Oct). Desktop only
    (under 992px the menu is a bar above the lesson anyway) and only over a video. While the pointer rests on the
    button, the video keeps its hover look (darker, controls) under it.
-   The button is a viewfinder on the fullscreen icon's line: a small FOCUS in a roomy frame of thin marks (Rim, 29 Oct);
+   The button is a viewfinder level with the menu's "0: Start" chevron: a small FOCUS in a 32px frame (Rim, 29/30 Oct);
    in focus mode the word backs out letter by letter and the marks turn in, leaving an exit icon.
    Tab lab (?lab=corner, Rim choosing): the menu tab on the video's edge or a little off it; ?tab= holds the choice.
    The menu: panels a step darker than the page, lesson rows alternating darker / lighter, dashed chevron buttons
@@ -40,7 +40,7 @@ const MAX_H = 820; // px, the tallest the video gets in focus mode (a big screen
 const FRAME = 1760; // px, the widest the page's frame gets (big screens get wider margins instead)
 const CARD_W = 1100, CARD_MAX = 1.3; // a card wider than CARD_W px grows its contents with it, up to CARD_MAX times
 const TAB_GAP = 12; // px between the video's edge and the menu tab, in the lab's "gap" variant
-const WORD = 'Focus', SIDE = 14, LETTER_MS = 40; // the button's word, px of air either side, ms per letter
+const WORD = 'Focus', SIDE = 16, LETTER_MS = 40; // the button's word, px of air either side, ms per letter
 
 const css = `
 :root.dfs-v2 .course_module:not(.is-active){background-color:var(--brand-colors--bage)}
@@ -163,15 +163,16 @@ html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--
 @media (min-width:992px){
   /* the focus button is a viewfinder: a small FOCUS inside a roomy frame of thin corner marks (Rim, 29 Oct: smaller
      word, bigger square, just "focus"), so it reads apart from the player's compact, heavier fullscreen icon below.
-     It keeps that icon's line: its right edge where the icon's marks end (27px in) and its middle as far down from the
-     top as the controls' middle is up from the bottom (28px). In focus mode the word backs out letter by letter, the
-     frame steps in to a square after it and the marks turn round to point in (see "the word" below) */
-  .v2-focus-btn{position:absolute;top:14px;right:27px;z-index:15;display:flex;align-items:center;justify-content:center;
-    box-sizing:border-box;width:28px;height:28px;padding:0;border:0;background:none;color:rgba(255,255,255,.92);cursor:pointer;
+     It sits on the menu's first line (Rim, 30 Oct): as tall as the "0: Start" chevron button (32px) and level with it
+     (24px down, its middle on the title's), its right edge on the fullscreen icon's line (27px in). In focus mode the
+     word backs out letter by letter, the frame steps in to a 32px square, the chevron's size, and the marks turn round
+     to point in (see "the word" below) */
+  .v2-focus-btn{position:absolute;top:24px;right:27px;z-index:15;display:flex;align-items:center;justify-content:center;
+    box-sizing:border-box;width:32px;height:32px;padding:0;border:0;background:none;color:rgba(255,255,255,.92);cursor:pointer;
     font-family:var(--_typography---font-styles--mono);font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;line-height:1;
     transition:width 60ms linear,opacity .3s ease,visibility 0s linear 0s}
   /* a target as tall as the menu tab, not just the marks */
-  .v2-focus-btn::before{content:"";position:absolute;inset:-4px}
+  .v2-focus-btn::before{content:"";position:absolute;inset:-2px}
   .v2-fc{position:absolute;width:6px;height:6px;pointer-events:none;border:0 solid currentColor;
     transition:scale .4s cubic-bezier(.6,0,.3,1),translate .35s cubic-bezier(.3,.7,.4,1)}
   .v2-fc.is-tl{top:0;left:0;border-top-width:1.5px;border-left-width:1.5px}
@@ -212,9 +213,9 @@ html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--
   /* a lesson without a video yet (and without a card): a quiet panel instead of the last lesson's video */
   .next_lesson_container.v2-no-video .bunny-player,.next_lesson_container.v2-no-video .v2-focus-btn{visibility:hidden}
   /* the menu tab: waits behind the video's right edge; focus mode slides it out and it stays hanging on that edge, a
-     square open on the video's side, centred on the focus button's line (19 + 9 - 18) */
-  .v2-menu-box{position:absolute;top:10px;left:100%;z-index:5;display:flex;align-items:center;justify-content:center;
-    box-sizing:border-box;width:2.25rem;height:2.25rem;padding:0;border:1px solid var(--brand-colors--dark-bage);border-left:0;
+     square open on the video's side, the chevron's size on the focus button's line (it does the chevron's job there) */
+  .v2-menu-box{position:absolute;top:24px;left:100%;z-index:5;display:flex;align-items:center;justify-content:center;
+    box-sizing:border-box;width:2rem;height:2rem;padding:0;border:1px solid var(--brand-colors--dark-bage);border-left:0;
     background-color:var(--brand-colors--bage);color:var(--brand-colors--dark_gray);cursor:pointer;visibility:hidden;
     transition:background-color .2s ease}
   .v2-menu-box svg{width:.9375rem;height:.625rem;flex:none}
@@ -289,7 +290,7 @@ const corner = { tab: TABS.includes(params.get('tab')) ? params.get('tab') : 'ed
 const tabGap = () => (corner.tab === 'gap' ? TAB_GAP : 0);
 const dressTab = () => box.classList.toggle('is-gap', corner.tab === 'gap');
 
-// The word: the marks sit SIDE px either side of it, on whole pixels; with no word they close to the 28px square
+// The word: the marks sit SIDE px either side of it, on whole pixels; with no word they close to the 32px square
 function fitWord() {
   const w = label.getBoundingClientRect().width;
   button.style.width = w ? Math.round(w - parseFloat(getComputedStyle(label).letterSpacing) + 2 * SIDE) + 'px' : '';

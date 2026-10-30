@@ -6968,30 +6968,35 @@
   // =========================================================
   var bunnySigned = { urls: {}, until: 0, pending: null, done: false, timer: 0 };
 
-  function bunnyId(src) {
-    var m = /b-cdn\.net\/([0-9a-f-]{36})\//i.exec(src || '');
-    return m ? m[1].toLowerCase() : '';
+  // A lesson's link as the worker knows it: https://<library host>/<guid>/playlist.m3u8 (both Bunny libraries,
+  // the first course's and "Fundamentals V2"), lower case for the lookup. '' when it isn't a Bunny video.
+  function bunnyKey(src) {
+    var m = /^https:\/\/([a-z0-9-]+\.b-cdn\.net)\/([0-9a-f-]{36})\//i.exec((src || '').trim());
+    return m ? ('https://' + m[1] + '/' + m[2] + '/playlist.m3u8').toLowerCase() : '';
   }
 
-  function bunnyIdsOnPage() {
-    var ids = {};
+  function bunnySrcsOnPage() {
+    var srcs = {};
     document.querySelectorAll('[data-player-src],[data-video-src]').forEach(function (el) {
-      var id = bunnyId(el.getAttribute('data-player-src') || el.getAttribute('data-video-src'));
-      if (id) ids[id] = 1;
+      var key = bunnyKey(el.getAttribute('data-player-src') || el.getAttribute('data-video-src'));
+      if (key) srcs[key] = 1;
     });
-    return Object.keys(ids).slice(0, 100);
+    return Object.keys(srcs).slice(0, 100);
   }
 
   // Resolves when the worker has answered, or after 2.5 s, so a slow answer never holds a video back
   function bunnyFetchSigned(force) {
     if (!force && bunnySigned.done && (Date.now() < bunnySigned.until || !bunnySigned.pending)) return Promise.resolve();
     if (!bunnySigned.pending) {
-      var ids = bunnyIdsOnPage();
-      if (!ids.length) { bunnySigned.done = true; return Promise.resolve(); }
-      bunnySigned.pending = tinkoAsk('video', { ids: ids }).then(function (j) {
+      var srcs = bunnySrcsOnPage();
+      if (!srcs.length) { bunnySigned.done = true; return Promise.resolve(); }
+      bunnySigned.pending = tinkoAsk('video', { srcs: srcs }).then(function (j) {
+        // per-link errors (unknown-host, no-video-key, bad-src) just aren't in urls: those links play plain
         if (j && j.status === 200 && j.urls) {
           var life = Math.max(60, (+j.expiresIn || 21600) - 300);
-          bunnySigned.urls = j.urls;
+          var urls = {};
+          Object.keys(j.urls).forEach(function (k) { urls[k.trim().toLowerCase()] = j.urls[k]; });
+          bunnySigned.urls = urls;
           bunnySigned.until = Date.now() + life * 1000;
           clearTimeout(bunnySigned.timer);
           bunnySigned.timer = setTimeout(function () { bunnyFetchSigned(true); }, life * 1000);
@@ -7003,12 +7008,12 @@
   }
 
   // The link to play: the signed one while it's fresh, else the plain one; null while the first answer is
-  // still on its way (the player then waits for bunnySrc). The worker signs /<id>/playlist.m3u8; any other
+  // still on its way (the player then waits for bunnySrc). The worker signs /<guid>/playlist.m3u8; any other
   // file in that folder works by swapping the name.
   function bunnySrcNow(src) {
-    var id = bunnyId(src);
-    if (!id) return src;
-    var signed = Date.now() < bunnySigned.until && bunnySigned.urls[id];
+    var key = bunnyKey(src);
+    if (!key) return src;
+    var signed = Date.now() < bunnySigned.until && bunnySigned.urls[key];
     if (signed) {
       var file = src.split('?')[0].split('/').pop() || 'playlist.m3u8';
       return file === 'playlist.m3u8' ? signed : signed.replace(/[^/]*$/, file);
@@ -7020,7 +7025,7 @@
     return bunnyFetchSigned().then(function () { return bunnySrcNow(src) || src; });
   }
 
-  function bunnyWasSigned(src) { return !!bunnySigned.urls[bunnyId(src)]; }
+  function bunnyWasSigned(src) { return !!bunnySigned.urls[bunnyKey(src)]; }
 
   function dfsTinkoInstallCode() {
     function refresh() {

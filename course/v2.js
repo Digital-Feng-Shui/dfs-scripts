@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.22.0/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.23.0/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -125,20 +125,24 @@ const css = `
 :root.dfs-v2 .bunny-player__interface::before{content:"";position:absolute;left:0;right:0;bottom:0;height:3.5rem;pointer-events:none;
   background-color:rgba(24,23,22,.94);opacity:0;transition:opacity .2s ease}
 :root.dfs-v2 .next_lesson_container:has(#finish_video[style*="flex"]) .bunny-player__interface::before{opacity:1;transition:opacity .5s ease .3s}
-/* the progress bar as a blue light trace (Rim, 30 Oct): deeper blue at the start, brightest at its head (the bar is a
-   full-width strip slid left as the video plays, so its right end is always the head). While the video plays it glows
-   and, while the controls are up, a soft light runs along it towards the head; paused it rests, unlit; at the end
-   (Complete and Continue) it stays lit, still. The drag handle is a blue light too, not the template's red. The bar's
-   own clipping would cut the glow off: it clips the sides only */
-[data-bunny-player-init] .bunny-player__timeline-bar{overflow:visible;clip-path:inset(-12px 0)}
-[data-bunny-player-init] .bunny-player__timeline-progress{overflow:hidden;transition:box-shadow .5s ease;
-  background-image:linear-gradient(90deg,#0277b6,var(--brand-colors--bleu-pop) 70%,#9be3ff)}
+/* the progress bar as a blue light trace (Rim, 30 Oct): bleu-pop, a step deeper at the start, with a lighter tip on its
+   head's last 32px (the bar is a full-width strip slid left as the video plays, so its right end is always the head).
+   While the video plays it glows and, while the controls are up, a soft light runs along it towards the head; paused it
+   rests, unlit; at the end (Complete and Continue) it stays lit, still. The glow is a drop shadow on the bar, after
+   its own rounded clipping, so it wraps the rounded start as it wraps the head; the grey track is drawn just behind
+   the bar so it doesn't glow along. The drag handle is a blue light too, not the template's red */
+[data-bunny-player-init] .bunny-player__timeline::before{content:"";position:absolute;left:0;right:0;top:50%;height:30%;translate:0 -50%;
+  border-radius:1em;background-color:#ffffff26;pointer-events:none}
+[data-bunny-player-init] .bunny-player__timeline-bg{opacity:0}
+[data-bunny-player-init] .bunny-player__timeline-bar{transition:filter .5s ease}
+[data-bunny-player-init] .bunny-player__timeline-progress{overflow:hidden;
+  background-image:linear-gradient(90deg,#0277b6,var(--brand-colors--bleu-pop) calc(100% - 32px),#66ccff)}
 [data-bunny-player-init] .bunny-player__timeline-progress::after{content:"";position:absolute;top:0;bottom:0;left:-160px;right:0;
   background-image:repeating-linear-gradient(90deg,#fff0 0,#ffffff52 80px,#fff0 160px);opacity:0;transition:opacity .4s ease}
 @keyframes v2-flow{to{translate:160px 0}}
-[data-bunny-player-init][data-player-status="playing"] .bunny-player__timeline-progress{box-shadow:0 0 6px #00acffa6,0 0 16px #00acff4d}
+[data-bunny-player-init][data-player-status="playing"] .bunny-player__timeline-bar{filter:drop-shadow(0 0 3px #00acffb3) drop-shadow(0 0 8px #00acff59)}
 [data-bunny-player-init][data-player-status="playing"][data-player-hover="active"] .bunny-player__timeline-progress::after{opacity:1;animation:v2-flow 1.6s linear infinite}
-.next_lesson_container:has(#finish_video[style*="flex"]) .bunny-player__timeline-progress{box-shadow:0 0 6px #00acff8c,0 0 14px #00acff33}
+.next_lesson_container:has(#finish_video[style*="flex"]) .bunny-player__timeline-bar{filter:drop-shadow(0 0 3px #00acff99) drop-shadow(0 0 7px #00acff40)}
 [data-bunny-player-init] .bunny-player__timeline-handle{background-color:var(--brand-colors--bleu-pop);box-shadow:0 0 0 4px #00acff33,0 0 14px #00acffb3}
 @media (prefers-reduced-motion:reduce){[data-bunny-player-init] .bunny-player__timeline-progress::after{animation:none;opacity:0}}
 /* the arrows by PREVIOUS / NEXT / COMPLETE AND CONTINUE sat on their box's text line, so how high depended on the

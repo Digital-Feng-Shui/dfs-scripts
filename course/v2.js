@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.24.0/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.25.0/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -18,7 +18,7 @@
    The open lesson's time: while its video plays, a small blue wave runs in its place; paused, it lies flat.
    End of a video, one moment: the whole player darkens as one surface, the bar's light sweeps once, COMPLETE AND
    CONTINUE types itself in (the mono of Previous / Next) and its arrow arrives; arrows nudge on hover.
-   Course progress (Fundamentals n%): each digit wheel as wide as its digit; the bar is the player's, with a light
+   Course progress (Fundamentals n%): each digit wheel glides once to the width of the digit it lands on; the bar is the player's, with a light
    that runs root to head each time it grows.
    The progress bar: a blue light trace that glows and flows while the video plays, rests when paused, stays lit at
    the end; its drag handle is blue.
@@ -126,6 +126,8 @@ const css = `
 :root.dfs-v2 .lesson-complete_overlay,:root.dfs-v2 .lesson-complete_overlay:hover{background-color:transparent;column-gap:2rem}
 .next_lesson_container:has(#finish_video[style*="flex"]) .bunny-player__dark{background-color:#181716;opacity:.94;
   transition:opacity .5s cubic-bezier(.33,1,.68,1)}
+/* the player counts as paused there, which shows its big play button in the middle: not on the field */
+.next_lesson_container:has(#finish_video[style*="flex"]) .bunny-player__playpause{opacity:0;visibility:hidden}
 .lesson-complete_overlay .v2-chr{opacity:0}
 .lesson-complete_overlay.v2-in .v2-chr{opacity:1;transition:opacity 60ms linear calc(.25s + var(--i) * 22ms)}
 :root.dfs-v2 .lesson-complete_overlay .svg_arrow{opacity:0;transform:translateX(-12px);transition:translate .35s cubic-bezier(.3,.7,.4,1)}
@@ -828,12 +830,13 @@ if (field && fieldLabel) {
 
 /* ---------- course progress ---------- */
 // The percentage is three digit wheels (main.js rolls each one's list with gsap yPercent). Each wheel was as wide as its
-// widest digit, so a narrow 1 stood apart from its neighbour ("1 2%"): now each wheel is as wide as the digit it shows,
-// following the roll, and the empty first wheel takes no room.
+// widest digit, so a narrow 1 stood apart from its neighbour ("1 2%"). Now each wheel takes the width of the digit it
+// lands on, the empty first one none: once per roll, gliding on the roll's own time and curve (power2.out), so the
+// number settles into place instead of twitching with every digit that rolls past (Rim, 30 Oct).
 const numbers = document.querySelector('[data-progress-numbers="fundamentals-v2"]');
 if (numbers && window.gsap) {
   const wheels = [...numbers.querySelectorAll('.loading__number-group')].map((group) => ({
-    group, list: group.querySelector('.loading__number-wrap'), widths: [],
+    group, list: group.querySelector('.loading__number-wrap'), widths: [], at: -1,
   })).filter((w) => w.list);
   const measure = () => wheels.forEach((w) => {
     w.widths = [...w.list.children].map((digit) => {
@@ -843,16 +846,21 @@ if (numbers && window.gsap) {
       return range.getBoundingClientRect().width;
     });
   });
-  const fit = (w) => {
+  // the digit a wheel is heading for (the running roll's end), or the one it shows
+  const fit = (w, force) => {
     const n = w.list.children.length;
-    const at = Math.max(0, Math.min(n - 1, -(Number(gsap.getProperty(w.list, 'yPercent')) || 0) / (100 / n)));
-    const i = Math.floor(at), t = at - i;
-    const a = w.widths[i] || 0, b = w.widths[Math.min(n - 1, i + 1)] || 0;
-    w.group.style.width = (a + (b - a) * t).toFixed(2) + 'px';
+    const roll = gsap.getTweensOf(w.list, true)[0];
+    const y = roll && typeof roll.vars.yPercent === 'number' ? roll.vars.yPercent : Number(gsap.getProperty(w.list, 'yPercent')) || 0;
+    const at = Math.max(0, Math.min(n - 1, Math.round(-y / (100 / n))));
+    if (at === w.at && !force) return;
+    w.at = at;
+    const left = roll ? roll.duration() * (1 - roll.progress()) : 0;
+    w.group.style.transition = left > 0.05 ? `width ${left.toFixed(2)}s cubic-bezier(.33,1,.68,1)` : 'none';
+    w.group.style.width = (w.widths[at] || 0).toFixed(2) + 'px';
   };
   measure();
-  wheels.forEach(fit);
-  if (document.fonts) document.fonts.ready.then(() => { measure(); wheels.forEach(fit); });
+  wheels.forEach((w) => fit(w, true));
+  if (document.fonts) document.fonts.ready.then(() => { measure(); wheels.forEach((w) => fit(w, true)); });
   wheels.forEach((w) => new MutationObserver(() => fit(w)).observe(w.list, { attributes: true, attributeFilter: ['style'] }));
 }
 // The bar: --v2-fill follows the fill as main.js moves it; when it grows, one light runs root to head (CSS above)

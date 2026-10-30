@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.23.0/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.24.0/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -16,8 +16,10 @@
    The menu: panels a step darker than the page, lesson rows alternating darker / lighter, dashed chevron buttons
    (blue on the open module), the open lesson's checkbox in blue.
    The open lesson's time: while its video plays, a small blue wave runs in its place; paused, it lies flat.
-   End of a video: the Complete and Continue field is darker, runs on behind the controls to the bottom edge, and
-   speaks in the mono of Previous / Next; their arrows nudge on hover like its arrow.
+   End of a video, one moment: the whole player darkens as one surface, the bar's light sweeps once, COMPLETE AND
+   CONTINUE types itself in (the mono of Previous / Next) and its arrow arrives; arrows nudge on hover.
+   Course progress (Fundamentals n%): each digit wheel as wide as its digit; the bar is the player's, with a light
+   that runs root to head each time it grows.
    The progress bar: a blue light trace that glows and flows while the video plays, rests when paused, stays lit at
    the end; its drag handle is blue.
    Download (0.2, Rim, 29 Oct: Tinko is notarised, the Terminal line goes): Tinko and one Download Tinko button, the
@@ -115,16 +117,30 @@ const css = `
   background-image:linear-gradient(#3d3a3512 1px,#0000 1px),linear-gradient(90deg,#3d3a3512 1px,#0000 1px);background-size:32px 32px;
   border:1px solid var(--brand-colors--dark-bage);
   font-family:var(--_typography---font-styles--mono);font-size:.75rem;letter-spacing:.1em;text-transform:uppercase}
-/* the end of a video ("Complete and Continue"): a darker field that carries on, just as dark, behind the controls to
-   the player's bottom edge, so field and controls are one (Rim, 30 Oct: the lighter band at the bottom went); it comes
-   in with the field. Its label is the mono of PREVIOUS / NEXT, as far from its arrow as theirs (Webflow: v2-mono).
-   Hover nudges the arrow instead of changing the shade, which would open a seam */
-:root.dfs-v2 .lesson-complete_overlay,:root.dfs-v2 .lesson-complete_overlay:hover{background-color:rgba(24,23,22,.94);column-gap:2rem}
-:root.dfs-v2 .lesson-complete_overlay .svg_arrow{transition:translate .35s cubic-bezier(.3,.7,.4,1)}
+/* the end of a video ("Complete and Continue"), as one moment (Rim, 30 Oct). The field is the player's own dark layer
+   (the one that dims it when paused), under the controls: at the end it deepens to the field's shade over the whole
+   player, so video, controls strip and field go dark as one surface, on the field's own clock (main.js fades the label
+   block in over .5s, power2.out). Then the bar's light sweeps once from root to end, the words type themselves in,
+   letter by letter in the mono of PREVIOUS / NEXT, and the arrow arrives after the last letter (see "the end" below).
+   Hover nudges the arrow */
+:root.dfs-v2 .lesson-complete_overlay,:root.dfs-v2 .lesson-complete_overlay:hover{background-color:transparent;column-gap:2rem}
+.next_lesson_container:has(#finish_video[style*="flex"]) .bunny-player__dark{background-color:#181716;opacity:.94;
+  transition:opacity .5s cubic-bezier(.33,1,.68,1)}
+.lesson-complete_overlay .v2-chr{opacity:0}
+.lesson-complete_overlay.v2-in .v2-chr{opacity:1;transition:opacity 60ms linear calc(.25s + var(--i) * 22ms)}
+:root.dfs-v2 .lesson-complete_overlay .svg_arrow{opacity:0;transform:translateX(-12px);transition:translate .35s cubic-bezier(.3,.7,.4,1)}
+:root.dfs-v2 .lesson-complete_overlay.v2-in .svg_arrow{opacity:1;transform:none;
+  transition:translate .35s cubic-bezier(.3,.7,.4,1),opacity .3s ease calc(.3s + var(--n) * 22ms),transform .55s cubic-bezier(.3,.7,.4,1) calc(.3s + var(--n) * 22ms)}
 :root.dfs-v2 .lesson-complete_overlay:hover .svg_arrow{translate:6px 0}
-:root.dfs-v2 .bunny-player__interface::before{content:"";position:absolute;left:0;right:0;bottom:0;height:3.5rem;pointer-events:none;
-  background-color:rgba(24,23,22,.94);opacity:0;transition:opacity .2s ease}
-:root.dfs-v2 .next_lesson_container:has(#finish_video[style*="flex"]) .bunny-player__interface::before{opacity:1;transition:opacity .5s ease .3s}
+@keyframes v2-sweep{from{translate:-100% 0}to{translate:520% 0}}
+[data-bunny-player-init] .bunny-player__timeline-progress::before{content:"";position:absolute;top:0;bottom:0;left:0;width:18%;z-index:1;
+  background-image:linear-gradient(90deg,#fff0,#ffffffd9 60%,#fff0);translate:-100% 0;pointer-events:none}
+.next_lesson_container:has(#finish_video[style*="flex"]) .bunny-player__timeline-progress::before{animation:v2-sweep .95s cubic-bezier(.45,.05,.3,1) .1s both}
+@media (prefers-reduced-motion:reduce){
+  .lesson-complete_overlay.v2-in .v2-chr{transition:none}
+  :root.dfs-v2 .lesson-complete_overlay.v2-in .svg_arrow{transform:none;transition:opacity .3s ease}
+  .next_lesson_container:has(#finish_video[style*="flex"]) .bunny-player__timeline-progress::before{animation:none}
+}
 /* the progress bar as a blue light trace (Rim, 30 Oct): bleu-pop, a step deeper at the start, with a lighter tip on its
    head's last 32px (the bar is a full-width strip slid left as the video plays, so its right end is always the head).
    While the video plays it glows and, while the controls are up, a soft light runs along it towards the head; paused it
@@ -145,6 +161,23 @@ const css = `
 .next_lesson_container:has(#finish_video[style*="flex"]) .bunny-player__timeline-bar{filter:drop-shadow(0 0 3px #00acff99) drop-shadow(0 0 7px #00acff40)}
 [data-bunny-player-init] .bunny-player__timeline-handle{background-color:var(--brand-colors--bleu-pop);box-shadow:0 0 0 4px #00acff33,0 0 14px #00acffb3}
 @media (prefers-reduced-motion:reduce){[data-bunny-player-init] .bunny-player__timeline-progress::after{animation:none;opacity:0}}
+/* the course progress (Fundamentals n%): its bar is the player's, the same thickness (.3rem) and the same blue (deeper at
+   the start, a lighter tip on the head); each time it grows a light runs from its root to its head, stretching as it
+   goes, and lights the head as it arrives (see "course progress" below). The fill is a full-width strip slid left
+   (main.js, gsap xPercent), so the root of what shows is at 100% minus the fill */
+:root.dfs-v2 .progression_bar{height:.3rem;border-radius:1em}
+:root.dfs-v2 .progress_juice{position:relative;overflow:hidden;
+  background-image:linear-gradient(90deg,#0277b6,var(--brand-colors--bleu-pop) calc(100% - 32px),#66ccff)}
+:root.dfs-v2 .progress_juice::after{content:"";position:absolute;top:0;bottom:0;left:100%;width:56px;pointer-events:none;
+  background-image:linear-gradient(90deg,#fff0,#ffffffcc 65%,#fff0);transform-origin:left center}
+@keyframes v2-pulse{
+  0%{left:calc(100% - var(--v2-fill,0%) - 56px);transform:scaleX(.6);opacity:0}
+  15%{opacity:1}
+  55%{transform:scaleX(1.7)}
+  100%{left:100%;transform:scaleX(1);opacity:.9}
+}
+:root.dfs-v2 .progress_juice.v2-pulse::after{animation:v2-pulse 1.1s cubic-bezier(.45,.05,.3,1)}
+@media (prefers-reduced-motion:reduce){:root.dfs-v2 .progress_juice.v2-pulse::after{animation:none}}
 /* the arrows by PREVIOUS / NEXT / COMPLETE AND CONTINUE sat on their box's text line, so how high depended on the
    font around them (2.7px over the capitals' middle below, 1.3px under it in the field): centred in their box they
    share the capitals' middle (Rim, 30 Oct) */
@@ -167,7 +200,7 @@ const css = `
    arrow and widens its line; done (or handed to the browser), the arrow drops through the line, the line goes and
    a tick draws in (see "download" below) */
 [data-download-icon-wrap]{justify-content:center}
-/* (the label carries data-download-success too, as its "done" text: these are for the svg only) */
+/* (the label may carry data-download-success too, Osmo's "done" text, unused: the label keeps its words) */
 svg[data-download-icon],svg[data-download-success]{flex:none;width:.6em;height:.6em;overflow:visible}
 svg[data-download-success]{position:absolute}
 [data-download-arrow],[data-download-base]{transition:transform .5s cubic-bezier(.625,.05,0,1)}
@@ -720,8 +753,9 @@ document.querySelectorAll('.v2-card').forEach((card) => cardSize.observe(card));
 /* ---------- download (0.2) ---------- */
 // Osmo's download button (Osmo Supply, Rim, 29 Oct), wired the same way: a click fetches [data-download-src] and saves
 // it as [data-download-name]; where the host doesn't allow the fetch (CORS), the browser takes it from the link
-// itself. data-download-state = idle | downloading | ready | fallback drives the icon (CSS above); the label says
-// [data-download-success] for 3 s. Listens on window in the capture phase, before Webflow's href="#" scroll.
+// itself. data-download-state = idle | downloading | ready | fallback drives the icon (CSS above) for 3 s; the label
+// keeps its words, like Osmo's demo (Rim, 30 Oct: no "Downloaded" swap, it flashed). Listens on window in the capture
+// phase, before Webflow's href="#" scroll.
 const DONE_FOR = 3000; // ms
 function saveFile(url, name) {
   const a = document.createElement('a');
@@ -743,18 +777,11 @@ addEventListener('click', async (e) => {
   const src = el.getAttribute('data-download-src');
   if (!src) return;
   const name = el.getAttribute('data-download-name') || new URL(src, location.href).pathname.split('/').pop() || 'download';
-  const labelEl = el.querySelector('[data-download-label]');
-  if (labelEl && labelEl.dataset.downloadOriginalLabel == null) labelEl.dataset.downloadOriginalLabel = labelEl.textContent;
   el.blur();
   const done = (state) => {
     el.dataset.downloadState = state;
-    const said = labelEl && labelEl.getAttribute('data-download-success');
-    if (said) labelEl.textContent = said;
     clearTimeout(el._downloadReset);
-    el._downloadReset = setTimeout(() => {
-      el.dataset.downloadState = 'idle';
-      if (labelEl && labelEl.dataset.downloadOriginalLabel != null) labelEl.textContent = labelEl.dataset.downloadOriginalLabel;
-    }, DONE_FOR);
+    el._downloadReset = setTimeout(() => { el.dataset.downloadState = 'idle'; }, DONE_FOR);
   };
   try {
     el.dataset.downloadState = 'downloading';
@@ -769,3 +796,76 @@ addEventListener('click', async (e) => {
     done('fallback');
   }
 }, true);
+
+/* ---------- the end ---------- */
+// COMPLETE AND CONTINUE types itself in when main.js shows the field (display flex), each letter on its own delay (CSS
+// above, --i), the arrow after the last (--n); hidden again, it's ready to type the next time.
+const field = document.getElementById('finish_video');
+const fieldLabel = field && field.querySelector('.inherit_txt_cl');
+if (field && fieldLabel) {
+  const text = fieldLabel.textContent;
+  field.setAttribute('aria-label', text);
+  fieldLabel.setAttribute('aria-hidden', 'true');
+  fieldLabel.textContent = '';
+  [...text].forEach((ch, i) => {
+    const c = document.createElement('span');
+    c.className = 'v2-chr';
+    c.style.setProperty('--i', i);
+    c.textContent = ch;
+    if (ch === ' ') c.style.whiteSpace = 'pre';
+    fieldLabel.appendChild(c);
+  });
+  field.style.setProperty('--n', text.length);
+  let shown = false;
+  new MutationObserver(() => {
+    const on = getComputedStyle(field).display !== 'none';
+    if (on === shown) return;
+    shown = on;
+    if (on) requestAnimationFrame(() => requestAnimationFrame(() => field.classList.add('v2-in')));
+    else field.classList.remove('v2-in');
+  }).observe(field, { attributes: true, attributeFilter: ['style'] });
+}
+
+/* ---------- course progress ---------- */
+// The percentage is three digit wheels (main.js rolls each one's list with gsap yPercent). Each wheel was as wide as its
+// widest digit, so a narrow 1 stood apart from its neighbour ("1 2%"): now each wheel is as wide as the digit it shows,
+// following the roll, and the empty first wheel takes no room.
+const numbers = document.querySelector('[data-progress-numbers="fundamentals-v2"]');
+if (numbers && window.gsap) {
+  const wheels = [...numbers.querySelectorAll('.loading__number-group')].map((group) => ({
+    group, list: group.querySelector('.loading__number-wrap'), widths: [],
+  })).filter((w) => w.list);
+  const measure = () => wheels.forEach((w) => {
+    w.widths = [...w.list.children].map((digit) => {
+      if (!digit.textContent.trim()) return 0;
+      const range = document.createRange();
+      range.selectNodeContents(digit);
+      return range.getBoundingClientRect().width;
+    });
+  });
+  const fit = (w) => {
+    const n = w.list.children.length;
+    const at = Math.max(0, Math.min(n - 1, -(Number(gsap.getProperty(w.list, 'yPercent')) || 0) / (100 / n)));
+    const i = Math.floor(at), t = at - i;
+    const a = w.widths[i] || 0, b = w.widths[Math.min(n - 1, i + 1)] || 0;
+    w.group.style.width = (a + (b - a) * t).toFixed(2) + 'px';
+  };
+  measure();
+  wheels.forEach(fit);
+  if (document.fonts) document.fonts.ready.then(() => { measure(); wheels.forEach(fit); });
+  wheels.forEach((w) => new MutationObserver(() => fit(w)).observe(w.list, { attributes: true, attributeFilter: ['style'] }));
+}
+// The bar: --v2-fill follows the fill as main.js moves it; when it grows, one light runs root to head (CSS above)
+const juice = document.querySelector('.progress_juice');
+if (juice && window.gsap) {
+  let last = null;
+  new MutationObserver(() => {
+    const x = Number(gsap.getProperty(juice, 'xPercent')) || 0;
+    juice.style.setProperty('--v2-fill', (100 + x).toFixed(2) + '%');
+    if (last !== null && x > last + 0.05 && !juice.classList.contains('v2-pulse')) {
+      juice.classList.add('v2-pulse');
+      juice.addEventListener('animationend', () => juice.classList.remove('v2-pulse'), { once: true });
+    }
+    last = x;
+  }).observe(juice, { attributes: true, attributeFilter: ['style'] });
+}

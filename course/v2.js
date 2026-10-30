@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.19.0/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.20.0/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -17,7 +17,8 @@
    The menu: panels a step darker than the page, lesson rows alternating darker / lighter, dashed chevron buttons
    (blue on the open module), the open lesson's checkbox in blue.
    The open lesson's time: while its video plays, a small blue wave runs in its place; paused, it lies flat.
-   End of a video: the Complete and Continue field is darker and flows down behind the controls as a gradient.
+   End of a video: the Complete and Continue field is darker, runs on behind the controls to the bottom edge, and
+   speaks in the mono of Previous / Next; their arrows nudge on hover like its arrow.
    Download (0.2, Rim, 29 Oct: Tinko is notarised, the Terminal line goes): Tinko and one Download Tinko button, the
    stage cards' layout; Osmo's download button behaviour in the site's own button.
    Copy (the old install line, hidden now): a bubble over the button says it's on the clipboard.
@@ -110,16 +111,20 @@ const css = `
   background-image:linear-gradient(#3d3a3512 1px,#0000 1px),linear-gradient(90deg,#3d3a3512 1px,#0000 1px);background-size:32px 32px;
   border:1px solid var(--brand-colors--dark-bage);
   font-family:var(--_typography---font-styles--mono);font-size:.75rem;letter-spacing:.1em;text-transform:uppercase}
-/* the end of a video ("Complete and Continue"): a darker field, and instead of stopping hard above the controls it
-   carries on down behind them as a gradient (as dark as the field right under its edge, lighter towards the bottom),
-   so field and player read as one; it fades in with the field. Hover nudges the arrow instead of changing the shade,
-   which would open a seam */
-:root.dfs-v2 .lesson-complete_overlay,:root.dfs-v2 .lesson-complete_overlay:hover{background-color:rgba(24,23,22,.94)}
+/* the end of a video ("Complete and Continue"): a darker field that carries on, just as dark, behind the controls to
+   the player's bottom edge, so field and controls are one (Rim, 30 Oct: the lighter band at the bottom went); it comes
+   in with the field. Its label is the mono of PREVIOUS / NEXT, as far from its arrow as theirs (Webflow: v2-mono).
+   Hover nudges the arrow instead of changing the shade, which would open a seam */
+:root.dfs-v2 .lesson-complete_overlay,:root.dfs-v2 .lesson-complete_overlay:hover{background-color:rgba(24,23,22,.94);column-gap:2rem}
 :root.dfs-v2 .lesson-complete_overlay .svg_arrow{transition:translate .35s cubic-bezier(.3,.7,.4,1)}
 :root.dfs-v2 .lesson-complete_overlay:hover .svg_arrow{translate:6px 0}
 :root.dfs-v2 .bunny-player__interface::before{content:"";position:absolute;left:0;right:0;bottom:0;height:3.5rem;pointer-events:none;
-  background-image:linear-gradient(rgba(24,23,22,.94),rgba(24,23,22,.3));opacity:0;transition:opacity .2s ease}
+  background-color:rgba(24,23,22,.94);opacity:0;transition:opacity .2s ease}
 :root.dfs-v2 .next_lesson_container:has(#finish_video[style*="flex"]) .bunny-player__interface::before{opacity:1;transition:opacity .5s ease .3s}
+/* Previous / Next: the same nudge, each arrow towards where it goes */
+:root.dfs-v2 .cnb_option .svg_arrow{transition:translate .35s cubic-bezier(.3,.7,.4,1)}
+:root.dfs-v2 .cnb_option:hover .svg_arrow{translate:6px 0}
+:root.dfs-v2 #previous.cnb_option:hover .svg_arrow{translate:-6px 0}
 /* the speed tip: a small bubble over the speed control on long videos (see "speed tip" below) */
 .v2-speed-tip,.v2-copy-pop{position:absolute;z-index:16;pointer-events:auto;cursor:pointer;max-width:15rem;padding:.7rem .9rem;
   background-color:#fbf7ee;color:#3d3a35;border-radius:.25rem;box-shadow:0 6px 24px rgba(0,0,0,.25);

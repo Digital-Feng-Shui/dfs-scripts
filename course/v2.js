@@ -1,24 +1,25 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.21.0/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.22.0/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
    the lesson folds up into the line under the top bar, so the video rises to sit right under it; then the video
    slides out into the room the menu left, sized so it and the Previous / Next bar fill the screen (never taller than
    MAX_H: past that, black bars at the sides); then a menu tab (three bars) slides out from behind the video's right
-   edge and stays hanging on it. The tab, the button again or Esc play it back the other way. It stays on from lesson
+   edge and rests 1rem off it. The tab, the button again or Esc play it back the other way. It stays on from lesson
    to lesson (Rim, 21 Oct): cards and actions show bigger in it, actions with more room around their two columns.
    The tab sits centred on the button's line: same job, same row (Rim, 21 Oct). Desktop only
    (under 992px the menu is a bar above the lesson anyway) and only over a video. While the pointer rests on the
    button, the video keeps its hover look (darker, controls) under it.
-   The button is a viewfinder level with the menu's "0: Start" chevron: a small FOCUS in a 32px frame (Rim, 29/30 Oct);
+   The button is a viewfinder level with the menu's "0: Start" chevron: a small FOCUS in a 28px frame (Rim, 29/30 Oct);
    in focus mode the word backs out letter by letter and the marks turn in, leaving an exit icon.
-   Tab lab (?lab=corner, Rim choosing): the menu tab on the video's edge or a little off it; ?tab= holds the choice.
    The menu: panels a step darker than the page, lesson rows alternating darker / lighter, dashed chevron buttons
    (blue on the open module), the open lesson's checkbox in blue.
    The open lesson's time: while its video plays, a small blue wave runs in its place; paused, it lies flat.
    End of a video: the Complete and Continue field is darker, runs on behind the controls to the bottom edge, and
    speaks in the mono of Previous / Next; their arrows nudge on hover like its arrow.
+   The progress bar: a blue light trace that glows and flows while the video plays, rests when paused, stays lit at
+   the end; its drag handle is blue.
    Download (0.2, Rim, 29 Oct: Tinko is notarised, the Terminal line goes): Tinko and one Download Tinko button, the
    stage cards' layout; Osmo's download button behaviour in the site's own button.
    Copy (the old install line, hidden now): a bubble over the button says it's on the clipboard.
@@ -39,8 +40,8 @@ const BURGER = '<svg viewBox="0 0 15 10" fill="currentColor" shape-rendering="cr
 const MAX_H = 820; // px, the tallest the video gets in focus mode (a big screen would otherwise be all video)
 const FRAME = 1760; // px, the widest the page's frame gets (big screens get wider margins instead)
 const CARD_W = 1100, CARD_MAX = 1.3; // a card wider than CARD_W px grows its contents with it, up to CARD_MAX times
-const TAB_GAP = 12; // px between the video's edge and the menu tab, in the lab's "gap" variant
-const WORD = 'Focus', SIDE = 16, LETTER_MS = 40; // the button's word, px of air either side, ms per letter
+const TAB_GAP = 16; // px between the video's edge and the menu tab (1rem, Rim, 30 Oct)
+const WORD = 'Focus', SIDE = 14, LETTER_MS = 40; // the button's word, px of air either side, ms per letter
 
 const css = `
 :root.dfs-v2 .course_module:not(.is-active){background-color:var(--brand-colors--bage)}
@@ -52,6 +53,9 @@ const css = `
   transition:transform .6s cubic-bezier(.625,.05,0,1),border-color .2s ease,color .2s ease,background-color .2s ease}
 :root.dfs-v2 .course_module.is-active .accordion-css__item-icon{border-color:var(--brand-colors--blue);color:var(--brand-colors--blue)}
 :root.dfs-v2 .course_module.is-active .accordion-css__item-icon{background-color:transparent}
+/* module titles: their capitals sat about 2px above the chevron's middle (PP Mondwest's line box is taller above the
+   letters than below); 2px down centres them on it (Rim, 30 Oct), the optional tags with them */
+:root.dfs-v2 .course_module .course_item_title{translate:0 2px}
 :root.dfs-v2 .c_item .check_box{transition:border-color .25s ease}
 :root.dfs-v2 .c_item.is-active .check_box{border-color:var(--brand-colors--blue)}
 :root.dfs-v2 .c_item.is-active .check_fill{background-color:var(--brand-colors--blue)}
@@ -121,6 +125,27 @@ const css = `
 :root.dfs-v2 .bunny-player__interface::before{content:"";position:absolute;left:0;right:0;bottom:0;height:3.5rem;pointer-events:none;
   background-color:rgba(24,23,22,.94);opacity:0;transition:opacity .2s ease}
 :root.dfs-v2 .next_lesson_container:has(#finish_video[style*="flex"]) .bunny-player__interface::before{opacity:1;transition:opacity .5s ease .3s}
+/* the progress bar as a blue light trace (Rim, 30 Oct): deeper blue at the start, brightest at its head (the bar is a
+   full-width strip slid left as the video plays, so its right end is always the head). While the video plays it glows
+   and, while the controls are up, a soft light runs along it towards the head; paused it rests, unlit; at the end
+   (Complete and Continue) it stays lit, still. The drag handle is a blue light too, not the template's red. The bar's
+   own clipping would cut the glow off: it clips the sides only */
+[data-bunny-player-init] .bunny-player__timeline-bar{overflow:visible;clip-path:inset(-12px 0)}
+[data-bunny-player-init] .bunny-player__timeline-progress{overflow:hidden;transition:box-shadow .5s ease;
+  background-image:linear-gradient(90deg,#0277b6,var(--brand-colors--bleu-pop) 70%,#9be3ff)}
+[data-bunny-player-init] .bunny-player__timeline-progress::after{content:"";position:absolute;top:0;bottom:0;left:-160px;right:0;
+  background-image:repeating-linear-gradient(90deg,#fff0 0,#ffffff52 80px,#fff0 160px);opacity:0;transition:opacity .4s ease}
+@keyframes v2-flow{to{translate:160px 0}}
+[data-bunny-player-init][data-player-status="playing"] .bunny-player__timeline-progress{box-shadow:0 0 6px #00acffa6,0 0 16px #00acff4d}
+[data-bunny-player-init][data-player-status="playing"][data-player-hover="active"] .bunny-player__timeline-progress::after{opacity:1;animation:v2-flow 1.6s linear infinite}
+.next_lesson_container:has(#finish_video[style*="flex"]) .bunny-player__timeline-progress{box-shadow:0 0 6px #00acff8c,0 0 14px #00acff33}
+[data-bunny-player-init] .bunny-player__timeline-handle{background-color:var(--brand-colors--bleu-pop);box-shadow:0 0 0 4px #00acff33,0 0 14px #00acffb3}
+@media (prefers-reduced-motion:reduce){[data-bunny-player-init] .bunny-player__timeline-progress::after{animation:none;opacity:0}}
+/* the arrows by PREVIOUS / NEXT / COMPLETE AND CONTINUE sat on their box's text line, so how high depended on the
+   font around them (2.7px over the capitals' middle below, 1.3px under it in the field): centred in their box they
+   share the capitals' middle (Rim, 30 Oct) */
+:root.dfs-v2 :is(.cnb_option,.lesson-complete_overlay) .svg_arrow{display:flex;align-items:center}
+:root.dfs-v2 :is(.cnb_option,.lesson-complete_overlay) .svg_arrow svg{display:block}
 /* Previous / Next: the same nudge, each arrow towards where it goes */
 :root.dfs-v2 .cnb_option .svg_arrow{transition:translate .35s cubic-bezier(.3,.7,.4,1)}
 :root.dfs-v2 .cnb_option:hover .svg_arrow{translate:6px 0}
@@ -163,16 +188,16 @@ html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--
 @media (min-width:992px){
   /* the focus button is a viewfinder: a small FOCUS inside a roomy frame of thin corner marks (Rim, 29 Oct: smaller
      word, bigger square, just "focus"), so it reads apart from the player's compact, heavier fullscreen icon below.
-     It sits on the menu's first line (Rim, 30 Oct): as tall as the "0: Start" chevron button (32px) and level with it
-     (24px down, its middle on the title's), its right edge on the fullscreen icon's line (27px in). In focus mode the
-     word backs out letter by letter, the frame steps in to a 32px square, the chevron's size, and the marks turn round
-     to point in (see "the word" below) */
-  .v2-focus-btn{position:absolute;top:24px;right:27px;z-index:15;display:flex;align-items:center;justify-content:center;
-    box-sizing:border-box;width:32px;height:32px;padding:0;border:0;background:none;color:rgba(255,255,255,.92);cursor:pointer;
+     It sits on the menu's first line (Rim, 30 Oct): its middle level with the "0: Start" chevron's and title's (40px
+     down), a notch smaller than the chevron (28px against 32), its right edge on the fullscreen icon's line (27px in).
+     In focus mode the word backs out letter by letter, the frame steps in to a 28px square and the marks turn round to
+     point in (see "the word" below) */
+  .v2-focus-btn{position:absolute;top:26px;right:27px;z-index:15;display:flex;align-items:center;justify-content:center;
+    box-sizing:border-box;width:28px;height:28px;padding:0;border:0;background:none;color:rgba(255,255,255,.92);cursor:pointer;
     font-family:var(--_typography---font-styles--mono);font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;line-height:1;
     transition:width 60ms linear,opacity .3s ease,visibility 0s linear 0s}
   /* a target as tall as the menu tab, not just the marks */
-  .v2-focus-btn::before{content:"";position:absolute;inset:-2px}
+  .v2-focus-btn::before{content:"";position:absolute;inset:-4px}
   .v2-fc{position:absolute;width:6px;height:6px;pointer-events:none;border:0 solid currentColor;
     transition:scale .4s cubic-bezier(.6,0,.3,1),translate .35s cubic-bezier(.3,.7,.4,1)}
   .v2-fc.is-tl{top:0;left:0;border-top-width:1.5px;border-left-width:1.5px}
@@ -212,15 +237,14 @@ html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--
   :root.dfs-v2 .v2-card{border-width:0}
   /* a lesson without a video yet (and without a card): a quiet panel instead of the last lesson's video */
   .next_lesson_container.v2-no-video .bunny-player,.next_lesson_container.v2-no-video .v2-focus-btn{visibility:hidden}
-  /* the menu tab: waits behind the video's right edge; focus mode slides it out and it stays hanging on that edge, a
-     square open on the video's side, the chevron's size on the focus button's line (it does the chevron's job there) */
-  .v2-menu-box{position:absolute;top:24px;left:100%;z-index:5;display:flex;align-items:center;justify-content:center;
-    box-sizing:border-box;width:2rem;height:2rem;padding:0;border:1px solid var(--brand-colors--dark-bage);border-left:0;
+  /* the menu tab: waits behind the video's right edge; focus mode slides it out to rest a step (1rem) off that edge, a
+     square the chevron's size on the focus button's line (it does the chevron's job there) */
+  .v2-menu-box{position:absolute;top:24px;left:calc(100% + ${TAB_GAP}px);z-index:5;display:flex;align-items:center;justify-content:center;
+    box-sizing:border-box;width:2rem;height:2rem;padding:0;border:1px solid var(--brand-colors--dark-bage);
     background-color:var(--brand-colors--bage);color:var(--brand-colors--dark_gray);cursor:pointer;visibility:hidden;
     transition:background-color .2s ease}
   .v2-menu-box svg{width:.9375rem;height:.625rem;flex:none}
   .v2-menu-box:hover{background-color:var(--brand-colors--dark-bage)}
-  .v2-menu-box.is-gap{left:calc(100% + ${TAB_GAP}px);border-left-width:1px}
 
   /* as big as fits between the top bar and Previous / Next (--v2-fit, set by fitVideo); past that, black sides */
   :root.v2-focus .bunny-player{background-color:#000}
@@ -241,15 +265,7 @@ html.dfs-night .next_lesson_container.v2-no-video::after{background-color:var(--
   /* cards grow with the frame (see "big cards" below) */
   .v2-card>*{zoom:var(--v2-zoom,1)}
 }
-/* the corner lab (?lab=corner): a small panel to flip between the focus button's and the menu tab's variants */
-.v2-lab{position:fixed;left:1rem;bottom:1rem;z-index:10000;display:grid;gap:.5rem;padding:.75rem;
-  background-color:var(--brand-colors--bage);border:1px solid var(--brand-colors--dark-bage);color:var(--brand-colors--dark_gray);
-  font-family:var(--_typography---font-styles--mono);font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;line-height:1}
-.v2-lab div{display:flex;flex-wrap:wrap;align-items:center;gap:.25rem}
-.v2-lab b{width:3.25rem;font-weight:400;opacity:.6}
-.v2-lab button{padding:.45rem .55rem;border:1px solid var(--brand-colors--dark-bage);background:none;color:inherit;cursor:pointer;
-  font:inherit;letter-spacing:inherit;text-transform:inherit}
-.v2-lab button.is-on{background-color:var(--brand-colors--blue);border-color:var(--brand-colors--blue);color:#fff}`;
+`;
 const style = document.createElement('style');
 style.id = 'dfs-course-v2-css';
 style.textContent = css;
@@ -283,14 +299,7 @@ if (ready) {
   stage.appendChild(box);
 }
 
-// The menu tab's variants, still open (Rim, 21 Oct): edge = hangs on the video's edge, gap = TAB_GAP px off it
-const TABS = ['edge', 'gap'];
-const params = new URLSearchParams(location.search);
-const corner = { tab: TABS.includes(params.get('tab')) ? params.get('tab') : 'edge' };
-const tabGap = () => (corner.tab === 'gap' ? TAB_GAP : 0);
-const dressTab = () => box.classList.toggle('is-gap', corner.tab === 'gap');
-
-// The word: the marks sit SIDE px either side of it, on whole pixels; with no word they close to the 32px square
+// The word: the marks sit SIDE px either side of it, on whole pixels; with no word they close to the 28px square
 function fitWord() {
   const w = label.getBoundingClientRect().width;
   button.style.width = w ? Math.round(w - parseFloat(getComputedStyle(label).letterSpacing) + 2 * SIDE) + 'px' : '';
@@ -322,36 +331,8 @@ function dressButton(on) {
 let focused = false;
 let tl = null;
 if (ready) {
-  dressTab();
   fitWord();
   if (document.fonts) document.fonts.ready.then(fitWord);
-}
-
-// ?lab=corner: a panel to flip through the variants; the choice goes into the address, so a link shows the same
-if (ready && params.get('lab') === 'corner') {
-  const lab = document.createElement('div');
-  lab.className = 'v2-lab';
-  const rows = [['tab', 'Menu', [['edge', 'On the edge'], ['gap', 'With a gap']]]];
-  for (const [key, title, options] of rows) {
-    const row = document.createElement('div');
-    row.innerHTML = `<b>${title}</b>`;
-    for (const [value, text] of options) {
-      const pick = document.createElement('button');
-      pick.type = 'button';
-      pick.textContent = text;
-      pick.classList.toggle('is-on', corner[key] === value);
-      pick.addEventListener('click', () => {
-        corner[key] = value;
-        row.querySelectorAll('button').forEach((b) => b.classList.toggle('is-on', b === pick));
-        params.set(key, value);
-        history.replaceState(null, '', location.pathname + '?' + params + location.hash);
-        dressTab();
-      });
-      row.appendChild(pick);
-    }
-    lab.appendChild(row);
-  }
-  document.body.appendChild(lab);
 }
 
 // Rolling an element up to its top (or back down) only over the part that's on screen, so it starts moving at once
@@ -383,7 +364,7 @@ function enter() {
   root.classList.add('v2-focus');
   fitVideo();
   toTop();
-  const away = -(box.offsetWidth + tabGap());
+  const away = -(box.offsetWidth + TAB_GAP);
   const from = spacing.getBoundingClientRect().width;
   if (!g || reduce) {
     menu.style.visibility = 'hidden';
@@ -436,7 +417,7 @@ function leave() {
   tl = g.timeline({ onComplete: done });
   // the same steps backwards: the box slides back in behind the video, the video draws in, then the progress
   // block opens out of the line and the menu rolls down
-  tl.to(box, { x: -(box.offsetWidth + tabGap()), duration: 0.35, ease: 'power2.in' }, 0);
+  tl.to(box, { x: -(box.offsetWidth + TAB_GAP), duration: 0.35, ease: 'power2.in' }, 0);
   tl.set(box, { visibility: 'hidden' });
   tl.fromTo(spacing, { minWidth: now }, { minWidth: to, duration: 0.7, ease: 'power3.inOut' }, 0.25);
   if (block) {

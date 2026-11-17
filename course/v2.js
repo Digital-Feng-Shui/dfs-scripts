@@ -1,5 +1,5 @@
 /* Fundamentals V2 (/courses/fundamentals-v2, staging). Loaded only on that page (page head code):
-   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.25.0/course/v2.js"></script>
+   <script type="module" src="https://cdn.jsdelivr.net/gh/Digital-Feng-Shui/dfs-scripts@course-v2-v0.25.1/course/v2.js"></script>
    The course itself (lessons, player, cards) is dfsCourse in main.js; this adds the V2-only parts on top of it.
 
    Focus mode: a corner button on the video (FOCUS MODE). The menu rolls up to its top and the progress block above
@@ -27,7 +27,7 @@
    Copy (the old install line, hidden now): a bubble over the button says it's on the clipboard.
    Big screens: the frame stops at FRAME wide and never so wide that the video and Previous / Next leave the screen;
    cards grow their contents with the card.
-   Speed tip: on videos of 8+ minutes still playing at 1x, a short bubble over the speed control suggests 1.5x.
+   Speed tip: on videos of 7+ minutes still playing at 1x, a short bubble over the speed control suggests 1.5x.
    The instructor panel in 0.1 Welcome: the photo floats, the dashed circles turn; on desktop it runs the full width.
    Lesson texts: the tag sits top right on the title's line, with the same inset as the text; extra tags (workfile ↓,
    resources ↓) stack under it and glide down to the link boxes below the text. */
@@ -618,11 +618,11 @@ document.addEventListener('click', (e) => {
 
 /* ---------- speed tip ---------- */
 
-// Long lessons (8+ minutes) go down better a little faster. A few seconds into one, while it still plays at 1x, a small
+// Long lessons (7+ minutes; was 8 until 1.1 Before Tinko starts came in at 7:56, Rim 17 Nov) go down better a little faster. A few seconds into one, while it still plays at 1x, a small
 // bubble over the speed control says so for a few seconds; a click on it sets 1.5x. Once per video per visit, and it
 // leaves early on pause, a speed change or another lesson. Media events don't bubble, so this listens in the capture
 // phase (the player element is swapped for every lesson).
-const TIP_LONG = 8 * 60, TIP_AT = 8, TIP_FOR = 6500; // s, s, ms
+const TIP_LONG = 7 * 60, TIP_AT = 8, TIP_FOR = 6500; // s, s, ms
 const tipSeen = new Set();
 let tip = null, tipTimer = 0;
 

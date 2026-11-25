@@ -2602,6 +2602,9 @@
               if (code >= 400 || (data && data.fatal && data.type === Hls.ErrorTypes.NETWORK_ERROR)) signedFailed();
             });
             hls.on(Hls.Events.MANIFEST_PARSED, function () {
+              // Firefox and Zen say they play HEVC, then loop on the same two chunks and freeze on every
+              // jump (Rim, 26 Nov). Bunny makes H.264 copies of every size too, so Firefox gets only those
+              if (/Firefox\//.test(navigator.userAgent)) dropHevc(hls);
               // Start at 720p (Rim, 29 Oct); the bitrate logic can still climb to 1080p on big screens
               var start = startLevelIndex(hls.levels);
               if (start > -1) hls.startLevel = start;
@@ -3042,6 +3045,13 @@
               a;
           },
           levels[0]);
+      }
+      // Helper: remove the HEVC levels when H.264 ones exist (top index first, so the others keep theirs)
+      function dropHevc(hls) {
+        var isHevc = function (l) { return /^(hvc1|hev1)/.test(l.videoCodec || ''); };
+        var lv = hls.levels || [];
+        if (!lv.some(function (l) { return !isHevc(l); })) return;
+        for (var i = lv.length - 1; i >= 0; i--) if (isHevc(lv[i])) hls.removeLevel(i);
       }
       // Helper: the level to start on: 720p, else the highest one below it (-1: none, leave it to hls.js)
       function startLevelIndex(levels) {

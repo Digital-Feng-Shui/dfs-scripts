@@ -6046,12 +6046,12 @@
 
   // =========================================================
   // SQUARE FIELD ICONS — the success / error icons in form fields (.form-field-icon, a Webflow embed)
-  // were circles; the outline becomes a square with barely rounded corners, more on-brand. The tick
+  // and beside the pick-one groups (.radiocheck-field-icon, Rim 25 Nov) were circles; the outline becomes a square with barely rounded corners, more on-brand. The tick
   // and the exclamation mark inside stay as they are.
   // =========================================================
   function dfsSquareFieldIcons() {
     var SQUARE = 'M4.5 3.5h15a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1Z';
-    document.querySelectorAll('.form-field-icon svg path').forEach(function (path) {
+    document.querySelectorAll('.form-field-icon svg path, .radiocheck-field-icon svg path').forEach(function (path) {
       var d = path.getAttribute('d') || '';
       if (/^M3 12C3 /.test(d) || /^M12 3C16\.971 3 21 7\.029/.test(d)) path.setAttribute('d', SQUARE);
     });
@@ -8110,7 +8110,7 @@
     if (document.querySelector('[data-greet-name]')) dfsGreeting();
     if (document.querySelector('a[data-help-mail]')) dfsHelpMail();
     if (document.querySelector('[data-login-help]')) dfsLoginHelp();
-    if (document.querySelector('.form-field-icon')) dfsSquareFieldIcons();
+    if (document.querySelector('.form-field-icon, .radiocheck-field-icon')) dfsSquareFieldIcons();
     if (document.querySelector('[data-rhythms-app]')) dfsRhythmsApp();
     if (document.querySelector('[data-rhythms-marquee]')) dfsRhythmsMarquee();
     if (document.querySelector('[data-tinko-gate], [data-lesson-stage], [data-tinko-show]')) dfsTinko();

@@ -2524,40 +2524,54 @@
           });
         }
 
-        // A signed link that ran out (Bunny answers 401/403): ask again and carry on where it was
-        var renewals = 0, resumeAt = 0;
-        function renewSrc() {
-          if (renewals >= 2 || !bunnyWasSigned(src)) return;
-          renewals++;
-          var at = video.currentTime, wasPlaying = !video.paused;
-          bunnyFetchSigned(true).then(function () {
-            var s = bunnySrcNow(src);
-            if (!s || !player.isConnected) return;
-            if (player._hls) {
-              // a fresh hls.js on the new link (loadSource on a live one re-attaches and reloads the old src)
-              try { player._hls.destroy(); } catch (_) {}
-              player._hls = null;
-              resumeAt = at;
-              attachSrc(s);
-              if (wasPlaying) safePlay(video);
-              return;
-            }
-            video.src = s;
-            video.addEventListener('loadedmetadata', function () {
-              try { video.currentTime = at; } catch (_) {}
-              if (wasPlaying) safePlay(video);
-            }, { once: true });
-          });
+        // A signed link Bunny turns away. Past its 6 hours: ask for a new one. Still fresh: that library doesn't
+        // take signed links (yet), so play its plain link. Either way carry on where it was.
+        var renewals = 0, resumeAt = 0, playing = '';
+        function signedFailed() {
+          if (!playing || playing === src || !bunnyWasSigned(src)) return;
+          playing = '';   // once per failure: the errors of this attempt are handled
+          if (Date.now() >= bunnySigned.until && renewals < 2) {
+            renewals++;
+            bunnyFetchSigned(true).then(function () { switchTo(bunnySrcNow(src)); });
+            return;
+          }
+          bunnyRefuse(src);
+          switchTo(src);
         }
 
+        function switchTo(s) {
+          if (!s || !player.isConnected) return;
+          var at = video.currentTime, wasPlaying = !video.paused || pendingPlay;
+          if (player._hls) {
+            // a fresh hls.js on the new link (loadSource on a live one re-attaches and reloads the old src)
+            try { player._hls.destroy(); } catch (_) {}
+            player._hls = null;
+            resumeAt = at;
+            attachSrc(s);
+            if (wasPlaying) safePlay(video);
+            return;
+          }
+          playing = s;
+          video.src = s;
+          video.addEventListener('loadedmetadata', function () {
+            try { if (at) video.currentTime = at; } catch (_) {}
+            if (wasPlaying) safePlay(video);
+          }, { once: true });
+        }
+
+        var nativeErrors = false;
         function attachSrc(playSrc) {
+          playing = playSrc;
           if (isSafariNative) {
             video.preload = (isLazyTrue || isLazyMeta) ? 'auto' : video.preload;
             video.src = playSrc;
-            video.addEventListener('error', function () {
-              var code = video.error && video.error.code;
-              if (code === 2 || code === 4) renewSrc();   // network, or the playlist refused
-            });
+            if (!nativeErrors) {
+              nativeErrors = true;
+              video.addEventListener('error', function () {
+                var code = video.error && video.error.code;
+                if (code === 2 || code === 4) signedFailed();   // network, or the playlist refused
+              });
+            }
             video.addEventListener('loadedmetadata', function () {
               readyIfIdle(player, pendingPlay);
               if (updateSize === 'true') setBeforeRatio(player, updateSize, video
@@ -2575,7 +2589,7 @@
             hls.on(Hls.Events.MEDIA_ATTACHED, function () { if (sourceSet) return; sourceSet = true; hls.loadSource(playSrc); });
             hls.on(Hls.Events.ERROR, function (e, data) {
               var code = data && data.response && data.response.code;
-              if (code === 401 || code === 403) renewSrc();
+              if (code >= 400 || (data && data.fatal && data.type === Hls.ErrorTypes.NETWORK_ERROR)) signedFailed();
             });
             hls.on(Hls.Events.MANIFEST_PARSED, function () {
               // Start at 720p (Rim, 29 Oct); the bitrate logic can still climb to 1080p on big screens
@@ -6966,7 +6980,7 @@
   // before that, and when Bunny says 401/403. On any other answer (no plan, worker down, no key yet) the plain
   // link plays, which keeps working until token authentication is switched on in Bunny.
   // =========================================================
-  var bunnySigned = { urls: {}, until: 0, pending: null, done: false, timer: 0 };
+  var bunnySigned = { urls: {}, until: 0, pending: null, done: false, timer: 0, refused: {} };
 
   // A lesson's link as the worker knows it: https://<library host>/<guid>/playlist.m3u8 (both Bunny libraries,
   // the first course's and "Fundamentals V2"), lower case for the lookup. '' when it isn't a Bunny video.
@@ -7013,6 +7027,7 @@
   function bunnySrcNow(src) {
     var key = bunnyKey(src);
     if (!key) return src;
+    if (bunnySigned.refused[key.split('/')[2]]) return src;
     var signed = Date.now() < bunnySigned.until && bunnySigned.urls[key];
     if (signed) {
       var file = src.split('?')[0].split('/').pop() || 'playlist.m3u8';
@@ -7026,6 +7041,10 @@
   }
 
   function bunnyWasSigned(src) { return !!bunnySigned.urls[bunnyKey(src)]; }
+
+  // A library whose signed links Bunny turns away while they're fresh (its token authentication isn't switched
+  // on yet: Bunny then reads the token as part of the path and answers 404): play its plain links on this page
+  function bunnyRefuse(src) { var key = bunnyKey(src); if (key) bunnySigned.refused[key.split('/')[2]] = true; }
 
   function dfsTinkoInstallCode() {
     function refresh() {

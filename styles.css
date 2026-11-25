@@ -935,6 +935,10 @@ html.dfs-night .tk-key{color:#1E7A3A}
 html.dfs-night .tk_copy{background-color:#cdc5b3}
 html.dfs-night .tk_copy:hover{background-color:#c2baa7}
 
+/* V2 course menu: its lesson lists carry .is-designer-open so the Designer shows every module open; on the site
+   they collapse like every other accordion (same rule as the line in the V2 page head, so either can go) */
+.overflowhide_this.is-designer-open{overflow:hidden!important}
+
 /* Dashboard: a course or tool card that's coming soon isn't a link (no hover arrow, no pointer) */
 .course_card:has(.coming_soon) .cover_course-card{pointer-events:none;cursor:default}
 /* Dashboard feedback cards: on hover the arrow slides out to the right and the next one slides in */

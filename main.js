@@ -2954,6 +2954,23 @@
         player.addEventListener('pointerdown', wakeControls);
         listen(document, 'fullscreenchange', wakeControls);
         listen(document, 'webkitfullscreenchange', wakeControls);
+        // ← / → jump 5 s back / forward (Rim, 26 Nov), once this player has played and while it's on
+        // screen; never while typing, never with ⌘/Ctrl/Alt held, and only one player takes the key
+        listen(document, 'keydown', function (e) {
+          if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+          if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+          var t = e.target;
+          if (t && t.closest && t.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) return;
+          if (player.getAttribute('data-player-activated') !== 'true' || !isFinite(video.duration)) return;
+          var r = player.getBoundingClientRect();
+          if (!r.width || r.bottom < 0 || r.top > window.innerHeight) return;
+          e.preventDefault();
+          var to = video.currentTime + (e.key === 'ArrowRight' ? 5 : -5);
+          video.currentTime = Math.max(0, Math.min(to, video.duration - 0.1));
+          updateProgressVisuals();
+          updateTimeTexts();
+          wakeControls();
+        });
         var trackingMove = false;
         player._cleanup.push(() => window.removeEventListener('pointermove', onPointerMoveGlobal));
 

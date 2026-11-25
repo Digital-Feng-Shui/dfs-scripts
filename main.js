@@ -378,6 +378,16 @@
       if (e.target && e.target.nodeName === 'IMG') e.preventDefault();
     });
 
+    // One store link for every browser (Rim, 25 Nov): a link with data-href-firefox goes there in
+    // Firefox and Zen (both say "Firefox/" in their user agent); every other browser keeps the href
+    // (Chrome store: Chrome, Arc, Brave, Edge). Inside it, [data-text-firefox] swaps its text too
+    if (/Firefox\//.test(navigator.userAgent)) {
+      document.querySelectorAll('a[data-href-firefox]').forEach(function (a) {
+        a.href = a.getAttribute('data-href-firefox');
+        a.querySelectorAll('[data-text-firefox]').forEach(function (t) { t.textContent = t.getAttribute('data-text-firefox'); });
+      });
+    }
+
     // single interval timer (updates all [data-timer] elements)
     (function () {
       const deadline = COUNTDOWN_DEADLINE;

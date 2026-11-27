@@ -961,7 +961,7 @@ html.dfs-night .tk_copy:hover{background-color:#c2baa7}
    buttons turn light at night). Look: the page's DNA (square card, faint grid, dashed line) with Rhythms' controls
    (4px corners, its toggle, its buttons: the dark one rolls its word, the light ones and icon buttons draw a 2px ring in and icons turn a quarter; its curve .625,.05,0,1 / .6s). As little text as possible: Preferences is a cog
    (its word stays for screen readers); the panel shows only the categories, not the technical cookie lists.
-   Reject and Accept are the same size (EU rule). The app's own fade is off; the entrance is here. */
+   Reject and Accept are the same size (EU rule). The app's own fade is off; the in and out are here. */
 .consent_opt-in_banner{inset:auto 1rem 1rem auto;margin:0;z-index:99999}
 .consent_banner{max-width:22rem;margin:0;padding:1rem;border:1px solid var(--brand-colors--dark-bage);border-radius:0;background-color:var(--brand-colors--light-bage);background-image:linear-gradient(to right,color-mix(in srgb,var(--brand-colors--dark-bage) 45%,transparent) 1px,transparent 1px),linear-gradient(to bottom,color-mix(in srgb,var(--brand-colors--dark-bage) 45%,transparent) 1px,transparent 1px);background-size:1.5rem 1.5rem;background-position:-1px -1px;color:var(--brand-colors--dark_gray);font-family:var(--_typography---font-styles--mono);box-shadow:0 12px 28px -16px rgba(0,0,0,.2)}
 .consent_banner_wrapper{gap:1rem}
@@ -1026,13 +1026,23 @@ html.dfs-night .tk_copy:hover{background-color:#c2baa7}
 /* No blue rings on click; a dashed ink ring only for keyboard users */
 .consent_button_prefs:focus,.consent_button_reject:focus,.consent_button_accept:focus,.consent_button_prefs-submit:focus,.consent_prefs_close:focus,.consent_banner_privacy-link:focus{outline:none}
 .consent_button_prefs:focus-visible,.consent_button_reject:focus-visible,.consent_button_accept:focus-visible,.consent_button_prefs-submit:focus-visible,.consent_prefs_close:focus-visible,.consent_banner_privacy-link:focus-visible{outline:1px dashed var(--brand-colors--dark_gray);outline-offset:2px}
-@keyframes dfsConsentIn{from{opacity:0;transform:translateY(1.5rem)}to{opacity:1;transform:none}}
-@keyframes dfsConsentFade{from{opacity:0}to{opacity:1}}
-@keyframes dfsConsentPanel{from{opacity:0;transform:translateY(.75rem)}to{opacity:1;transform:none}}
-[fs-consent-element="banner"] .consent_banner{animation:dfsConsentIn 1s cubic-bezier(.625,.05,0,1) 1.2s both}
-[fs-consent-element="preferences"] .consent_prefs_form{animation:dfsConsentPanel .55s cubic-bezier(.33,1,.68,1) both}
-[fs-consent-element="preferences"] .consent_prefs_overlay{animation:dfsConsentFade .55s cubic-bezier(.33,1,.68,1) both}
-@media (prefers-reduced-motion:reduce){.consent_button_reject:hover span,.consent_button_accept:hover span,.consent_button_prefs-submit:hover+div span,.consent_prefs_close:hover .consent_prefs_close-icon{transform:none}[fs-consent-element="banner"] .consent_banner{animation:dfsConsentFade .3s ease 1.2s both}[fs-consent-element="preferences"] .consent_prefs_form{animation:dfsConsentFade .3s ease both}.consent_button_prefs:hover::before{transform:none}}
+/* In and out. Consent Pro shows/hides by adding/removing [fs-consent-active], which flips display at once, so the
+   banner and panel stay rendered here and that attribute drives a fade + slide instead: in 1.2 s after load over 1 s on
+   the button curve, out the same way in reverse (the curve backwards) about 15% faster. Hidden = visibility hidden, so
+   nothing invisible catches clicks. @starting-style covers a banner that arrives already active. */
+.consent_opt-in_banner[fs-consent-element="banner"],.consent_opt-in_prefs[fs-consent-element="preferences"]{display:block;visibility:hidden;pointer-events:none;transition:visibility 0s linear .85s}
+.consent_opt-in_banner[fs-consent-element="banner"][fs-consent-active],.consent_opt-in_prefs[fs-consent-element="preferences"][fs-consent-active]{visibility:visible;pointer-events:auto;transition-delay:0s}
+[fs-consent-element="banner"] .consent_banner{opacity:0;transform:translateY(1.5rem);transition:opacity .85s cubic-bezier(1,0,.375,.95),transform .85s cubic-bezier(1,0,.375,.95)}
+[fs-consent-element="banner"][fs-consent-active] .consent_banner{opacity:1;transform:none;transition:opacity 1s cubic-bezier(.625,.05,0,1) 1.2s,transform 1s cubic-bezier(.625,.05,0,1) 1.2s}
+@starting-style{[fs-consent-element="banner"][fs-consent-active] .consent_banner{opacity:0;transform:translateY(1.5rem)}}
+[fs-consent-element="preferences"] .consent_prefs_form{opacity:0;transform:translateY(.75rem);transition:opacity .45s cubic-bezier(.32,0,.67,0),transform .45s cubic-bezier(.32,0,.67,0)}
+[fs-consent-element="preferences"][fs-consent-active] .consent_prefs_form{opacity:1;transform:none;transition:opacity .55s cubic-bezier(.33,1,.68,1),transform .55s cubic-bezier(.33,1,.68,1)}
+[fs-consent-element="preferences"] .consent_prefs_overlay{opacity:0;transition:opacity .45s cubic-bezier(.32,0,.67,0)}
+[fs-consent-element="preferences"][fs-consent-active] .consent_prefs_overlay{opacity:1;transition:opacity .55s cubic-bezier(.33,1,.68,1)}
+@starting-style{[fs-consent-element="preferences"][fs-consent-active] .consent_prefs_form{opacity:0;transform:translateY(.75rem)}[fs-consent-element="preferences"][fs-consent-active] .consent_prefs_overlay{opacity:0}}
+.consent_opt-in_prefs[fs-consent-element="preferences"]{transition-duration:0s;transition-delay:.45s}
+.consent_opt-in_prefs[fs-consent-element="preferences"][fs-consent-active]{transition-delay:0s}
+@media (prefers-reduced-motion:reduce){[fs-consent-element="banner"] .consent_banner,[fs-consent-element="banner"][fs-consent-active] .consent_banner,[fs-consent-element="preferences"] .consent_prefs_form,[fs-consent-element="preferences"][fs-consent-active] .consent_prefs_form{transform:none}.consent_button_reject:hover span,.consent_button_accept:hover span,.consent_button_prefs-submit:hover+div span,.consent_prefs_close:hover .consent_prefs_close-icon,.consent_button_prefs:hover::before{transform:none}}
 @media (max-width:479px){
   .consent_opt-in_banner{inset:auto .75rem .75rem .75rem}
   .consent_banner{max-width:none}

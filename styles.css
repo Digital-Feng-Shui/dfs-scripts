@@ -957,25 +957,28 @@ html.dfs-night .tk_copy:hover{background-color:#c2baa7}
 
 /* COOKIE BANNER — Consent Pro (Webflow app, Rim 27 Nov). Consent Pro copies the banner from /consent-pro into a shadow
    root together with this stylesheet, so these rules reach it. Colours are the site's brand variables: they're set on
-   <html> and inherit into the shadow root, so night mode (html.dfs-night) comes along without extra rules.
-   Look: the "We've sent you a code" toast — square, 1px line, RM Mono. Reject and Accept are the same size (EU rule).
-   The app's own fade is off; the entrance is here: 1 s after load it rises in. */
+   <html> and inherit into the shadow root, so night mode (html.dfs-night) comes along without extra rules (the dark
+   buttons turn light at night). Look: 1px line, small Rhythms-style corners and toggles, RM Mono, as little text as possible; Preferences is a cog
+   (its word stays for screen readers). Reject and Accept are the same size (EU rule). The app's own fade is off;
+   the entrance is here: 1 s after load it rises in. */
 .consent_opt-in_banner{inset:auto 1.5rem 1.5rem auto;margin:0;z-index:99999}
-.consent_banner{max-width:25rem;margin:0;padding:1.25rem;border:1px solid var(--brand-colors--dark-bage);border-radius:0;background-color:var(--brand-colors--light-bage);color:var(--brand-colors--dark_gray);font-family:var(--_typography---font-styles--mono);box-shadow:0 10px 24px -12px rgba(0,0,0,.18)}
-.consent_banner_wrapper{gap:1.25rem}
+.consent_banner{max-width:22rem;margin:0;padding:1rem;border:1px solid var(--brand-colors--dark-bage);border-radius:.5rem;background-color:var(--brand-colors--light-bage);color:var(--brand-colors--dark_gray);font-family:var(--_typography---font-styles--mono);box-shadow:0 10px 24px -12px rgba(0,0,0,.18)}
+.consent_banner_wrapper{gap:1rem}
 .consent_banner_paragraph{font-size:.8125rem;line-height:1.6;color:var(--brand-colors--dark_gray)}
 .consent_banner_paragraph strong{font-weight:400}
-.consent_banner_privacy-link{color:var(--brand-colors--blue);text-decoration:underline;text-underline-offset:2px}
-.consent_banner_privacy-link:hover{color:var(--brand-colors--bleu-pop)}
-.consent_banner_buttons{display:flex;flex-flow:row wrap;align-items:center;justify-content:flex-end;gap:.5rem}
-.consent_button_prefs,.consent_button_reject,.consent_button_accept,.consent_button_prefs-submit{font-family:var(--_typography---font-styles--mono);text-transform:uppercase;font-size:.75rem;line-height:1.2;letter-spacing:.02em;border-radius:0;cursor:pointer;transition:background-color .3s,border-color .3s,color .3s,opacity .3s;opacity:1}
-.consent_button_prefs{margin-right:auto;padding:.5rem 0;background:none;border:0;border-bottom:1px solid currentColor;color:var(--brand-colors--80-dark_gray)}
-.consent_button_prefs:hover{opacity:1;color:var(--brand-colors--dark_gray)}
-.consent_button_reject,.consent_button_accept,.consent_button_prefs-submit{min-width:7rem;padding:.75rem 1rem;border:1px solid var(--brand-colors--blue);text-align:center}
-.consent_button_reject{background-color:transparent;color:var(--brand-colors--blue)}
-.consent_button_reject:hover{opacity:1;background-color:var(--brand-colors--light-bleu)}
-.consent_button_accept,.consent_button_prefs-submit{background-color:var(--brand-colors--blue);color:var(--brand-colors--light-bage);border:1px solid var(--brand-colors--blue)}
-.consent_button_accept:hover,.consent_button_prefs-submit:hover{opacity:1;background-color:var(--brand-colors--bleu-pop);border-color:var(--brand-colors--bleu-pop)}
+.consent_banner_privacy-link{margin-left:.5em;color:var(--brand-colors--80-dark_gray);text-decoration:underline;text-underline-offset:2px;white-space:nowrap}
+.consent_banner_privacy-link:hover{color:var(--brand-colors--dark_gray)}
+.consent_banner_buttons{display:grid;grid-template-columns:2.5rem 1fr 1fr;gap:.5rem;align-items:stretch}
+.consent_button_prefs,.consent_button_reject,.consent_button_accept,.consent_button_prefs-submit{font-family:var(--_typography---font-styles--mono);text-transform:uppercase;font-size:.75rem;line-height:1.2;letter-spacing:.02em;border-radius:.375rem;cursor:pointer;transition:background-color .3s,border-color .3s,color .3s;opacity:1}
+.consent_button_prefs{position:relative;width:auto;min-height:2.5rem;margin:0;padding:0;background:none;border:1px solid var(--brand-colors--dark-bage);color:var(--brand-colors--80-dark_gray)}
+.consent_button_prefs>div{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.consent_button_prefs::before{content:"";position:absolute;inset:0;margin:auto;width:1.125rem;height:1.125rem;background-color:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linejoin='round'%3E%3Cpath d='M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linejoin='round'%3E%3Cpath d='M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E") center/contain no-repeat}
+.consent_button_prefs:hover{opacity:1;color:var(--brand-colors--dark_gray);border-color:var(--brand-colors--dark_gray)}
+.consent_button_reject,.consent_button_accept,.consent_button_prefs-submit{min-width:6rem;padding:.75rem 1rem;border:1px solid var(--brand-colors--dark_gray);text-align:center}
+.consent_button_reject{background-color:transparent;color:var(--brand-colors--dark_gray)}
+.consent_button_reject:hover{opacity:1;background-color:var(--brand-colors--bage)}
+.consent_button_accept,.consent_button_prefs-submit{background-color:var(--brand-colors--dark_gray);color:var(--brand-colors--light-bage)}
+.consent_button_accept:hover,.consent_button_prefs-submit:hover{opacity:1;background-color:var(--brand-colors--80-dark_gray);border-color:var(--brand-colors--80-dark_gray)}
 .consent_button_prefs:focus-visible,.consent_button_reject:focus-visible,.consent_button_accept:focus-visible,.consent_button_prefs-submit:focus-visible,.consent_prefs_close:focus-visible,.consent_prefs_open-button:focus-visible{outline:1px solid var(--brand-colors--blue);outline-offset:2px}
 @keyframes dfsConsentIn{from{opacity:0;transform:translateY(1rem)}to{opacity:1;transform:none}}
 @keyframes dfsConsentFade{from{opacity:0}to{opacity:1}}
@@ -983,33 +986,35 @@ html.dfs-night .tk_copy:hover{background-color:#c2baa7}
 @media (prefers-reduced-motion:reduce){[fs-consent-element="banner"] .consent_banner{animation:dfsConsentFade .3s ease 1s both}}
 @media (max-width:479px){
   .consent_opt-in_banner{inset:auto 1rem 1rem 1rem}
-  .consent_banner{max-width:none;padding:1rem}
-  .consent_banner_buttons{display:grid;grid-template-columns:1fr 1fr}
-  .consent_button_prefs{grid-column:1/-1;grid-row:2;justify-self:center;margin:0}
+  .consent_banner{max-width:none}
   .consent_button_reject,.consent_button_accept{min-width:0}
 }
 /* Preferences panel */
 .consent_prefs_overlay{background-color:rgba(14,22,40,.35)}
-.consent_prefs_form{border:1px solid var(--brand-colors--dark-bage);border-radius:0;background-color:var(--brand-colors--light-bage);color:var(--brand-colors--dark_gray);font-family:var(--_typography---font-styles--mono)}
+.consent_prefs_form{border:1px solid var(--brand-colors--dark-bage);border-radius:.5rem;background-color:var(--brand-colors--light-bage);color:var(--brand-colors--dark_gray);font-family:var(--_typography---font-styles--mono)}
 .consent_prefs_header{background-color:var(--brand-colors--light-bage);border-bottom:1px solid var(--brand-colors--dark-bage)}
 .consent_prefs_heading{font-family:var(--_typography---font-styles--mono);text-transform:uppercase;font-size:.875rem;font-weight:400;letter-spacing:.02em}
-.consent_prefs_close{border-radius:0;color:var(--brand-colors--dark_gray)}
-.consent_prefs_close-icon{color:var(--brand-colors--dark_gray)}
+.consent_prefs_close{width:2.25rem;height:2.25rem;padding:0;justify-content:center;align-items:center;border:1px solid var(--brand-colors--dark-bage);border-radius:.375rem;background-color:var(--brand-colors--light-bage);color:var(--brand-colors--dark_gray);transition:background-color .3s,border-color .3s}
+.consent_prefs_close:hover{opacity:1;background-color:var(--brand-colors--bage);border-color:var(--brand-colors--80-dark_gray)}
+.consent_prefs_close-icon{width:.875rem;color:var(--brand-colors--dark_gray)}
 .consent_prefs_item{border-bottom:1px solid var(--brand-colors--dark-bage)}
-.consent_checkbox_label{font-size:.8125rem;font-weight:400;text-transform:uppercase;letter-spacing:.02em}
+.consent_checkbox_label{font-size:.8125rem;font-weight:400;text-transform:uppercase;letter-spacing:.02em;color:var(--brand-colors--dark_gray)}
+.consent_prefs_heading,.consent_prefs_icon,.consent_prefs_caret,.consent_prefs_category-accordion,.consent_prefs_provider-accordion{color:var(--brand-colors--dark_gray)}
 .consent_prefs_description,.consent_prefs_value,.consent_prefs_empty-message{font-size:.8125rem;line-height:1.6;color:var(--brand-colors--80-dark_gray)}
 .consent_prefs_label{font-weight:400;color:var(--brand-colors--dark_gray)}
-.consent_prefs_label-active{border:1px solid var(--brand-colors--dark-bage);border-radius:0;color:var(--brand-colors--80-dark_gray);font-size:.75rem;text-transform:uppercase}
-.consent_prefs_category-content{border:1px solid var(--brand-colors--dark-bage);border-radius:0}
-.consent_prefs_tracker-template,.consent_prefs_empty-state{background-color:var(--brand-colors--bage);border-radius:0}
+.consent_prefs_label-active{border:1px solid var(--brand-colors--dark-bage);border-radius:.375rem;color:var(--brand-colors--80-dark_gray);font-size:.75rem;text-transform:uppercase}
+.consent_prefs_category-content{border:1px solid var(--brand-colors--dark-bage);border-radius:.375rem}
+.consent_prefs_tracker-template,.consent_prefs_empty-state{background-color:var(--brand-colors--bage);border-radius:.25rem}
 .consent_prefs_page{color:var(--brand-colors--blue)}
-.consent_prefs_checkbox-field{border-radius:0;background-color:var(--brand-colors--dark-bage)}
-.consent_prefs_checkbox-field.is-active{background-color:var(--brand-colors--blue)}
+.consent_prefs_checkbox-field{width:2.75rem;height:1.5rem;padding:.1875rem;border-radius:.375rem;background-color:var(--brand-colors--dark-bage);box-shadow:inset 0 1px 2px rgba(0,0,0,.08);transition:background-color .3s}
+.consent_prefs_checkbox-field.is-active{background-color:var(--brand-colors--blue);background-image:linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,255,255,0) 60%)}
 .consent_prefs_checkbox-field.is-focused{outline:1px solid var(--brand-colors--blue)}
-.consent_prefs_checkbox-toggle,.consent_prefs_checkbox-toggle.is-active{border-radius:0;background-color:var(--brand-colors--light-bage)}
+.consent_prefs_checkbox-toggle,.consent_prefs_checkbox-toggle.is-active{width:1.125rem;height:1.125rem;border-radius:.25rem;background-color:#f7f5f0;box-shadow:0 1px 2px rgba(0,0,0,.18);transition:margin-left .25s cubic-bezier(.625,.05,0,1)}
+.consent_prefs_checkbox-toggle.is-active{margin-left:1.25rem}
 .consent_prefs_buttons{background-color:var(--brand-colors--bage);border-top:1px solid var(--brand-colors--dark-bage)}
+.consent_prefs_buttons .consent_button_prefs-submit{width:100%}
 /* The small button that reopens the choice after it's made (bottom left) */
 .consent_opt-in_open-prefs{padding:0;inset:auto auto 1rem 1rem}
-.consent_prefs_open-button{border:1px solid var(--brand-colors--dark-bage);border-radius:0;background-color:var(--brand-colors--light-bage);color:var(--brand-colors--80-dark_gray);font-family:var(--_typography---font-styles--mono);text-transform:uppercase;font-size:.6875rem;padding:.4rem .6rem;gap:.4rem}
+.consent_prefs_open-button{border:1px solid var(--brand-colors--dark-bage);border-radius:.375rem;background-color:var(--brand-colors--light-bage);color:var(--brand-colors--80-dark_gray);font-family:var(--_typography---font-styles--mono);text-transform:uppercase;font-size:.6875rem;padding:.4rem .6rem;gap:.4rem}
 .consent_prefs_open-button:hover{opacity:1;color:var(--brand-colors--dark_gray)}
 .consent_prefs_open-icon{width:1rem}

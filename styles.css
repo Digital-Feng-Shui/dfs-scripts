@@ -1010,6 +1010,8 @@ html.dfs-night .terms_conditions:has(.hero)::before{background-image:url(night/H
    (at top:0 it first scrolled 4rem along and then "clicked" still). Subsection entries in the index in capitals too.
    Email addresses in the text are blue links. */
 .legal_body a[href^="mailto:"]{color:var(--brand-colors--blue);text-decoration-color:currentColor}
+/* On phones the list squares sit centred on the page's left outline, like the homepage's "Is this you?" list. */
+@media (max-width:767px){.legal_body .toc_list{padding-left:7px}}
 
 /* BLOG — /resources topic filter (main.js dfsFilter, Osmo Supply). The look is on Webflow's filter-* / res_* / feat_*
    classes (site variables, so night mode comes along); here only the data-attribute states. The article text and

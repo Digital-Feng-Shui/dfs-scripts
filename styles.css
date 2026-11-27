@@ -945,6 +945,20 @@ html.dfs-night .tk_copy:hover{background-color:#c2baa7}
 .dash-card:hover .dash-card_arrows,.dash-card:focus-visible .dash-card_arrows{transform:translateX(0)}
 @media (prefers-reduced-motion:reduce){.dash-card_arrows{transition:none}}
 
+/* LEGAL PAGES (Privacy, Terms; Rim 27 Nov) — the "On this page" list beside the text, like Cloudflare's article index in DFS
+   style. The look is on Webflow's legal_* classes; here only the states. Built by dfsToc (the blog's script) from the
+   H2/H3s in [data-toc-content]: the section you're reading gets data-toc-status="active" → a solid blue line slides in
+   over the dashed rail; H3s sit one step in. On tablets and phones the list goes and the text takes the width. */
+.legal_toc-link{transition:color .6s cubic-bezier(.625,.05,0,1)}
+.legal_toc-link::before{content:"";position:absolute;left:-1px;top:0;bottom:0;width:1px;background:var(--brand-colors--blue);transform:scaleY(0);transform-origin:top;transition:transform .6s cubic-bezier(.625,.05,0,1)}
+.legal_toc-link:hover{color:var(--brand-colors--dark_gray)}
+.legal_toc-link[data-toc-status="active"]{color:var(--brand-colors--dark_gray)}
+.legal_toc-link[data-toc-status="active"]::before{transform:scaleY(1)}
+.legal_toc-link[data-toc-depth="3"]{padding-left:1.75rem;font-size:.75rem}
+.legal_toc-list{max-height:calc(100vh - 10rem);overflow:auto;scrollbar-width:none}
+@media (max-width:991px){.legal_layout{grid-template-columns:minmax(0,42rem)}.legal_toc{display:none}}
+@media (prefers-reduced-motion:reduce){.legal_toc-link::before{transition:none}}
+
 /* BLOG — /resources topic filter (main.js dfsFilter, Osmo Supply). The look is on Webflow's filter-* / res_* / feat_*
    classes (site variables, so night mode comes along); here only the data-attribute states. The article text and
    "On this page" styles are in an embed on the article page, so the Designer shows them too. */

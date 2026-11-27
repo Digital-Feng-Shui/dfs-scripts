@@ -7391,6 +7391,11 @@
       if (!levelSelector) return;
 
       const offset = parseInt(root.getAttribute('data-toc-offset')) || 50;
+      // Where a heading becomes the active entry. By default the same line a click scrolls it to (offset); the legal pages
+      // switch earlier, once a heading passes 40% of the screen (Rim 27 Nov: at 120px the index lagged behind the text).
+      const triggerAttr = root.getAttribute('data-toc-trigger') || (root.classList.contains('legal_layout') ? '40%' : '');
+      const triggerPct = /^\d+(\.\d+)?%$/.test(triggerAttr) ? parseFloat(triggerAttr) : null;
+      const triggerPx = () => triggerPct !== null ? window.innerHeight * triggerPct / 100 : offset;
       const marker = '{skip}';
 
       const slugCounts = new Map();
@@ -7457,32 +7462,29 @@
       listEl.querySelectorAll('[data-toc-link]').forEach(el => el.remove());
       const rail = (root.hasAttribute('data-toc-rail') || root.classList.contains('legal_layout')) ? dfsTocRail(listEl, tocLinks) : null;
 
-      // Active state tracking via ScrollTrigger
-      if (typeof ScrollTrigger !== 'undefined') {
-        function setActive(index) {
-          tocLinks.forEach(link => link.setAttribute('data-toc-status', ''));
-          if (tocLinks[index]) tocLinks[index].setAttribute('data-toc-status', 'active');
-          if (rail) rail.update();
-        }
-
-        headings.forEach((heading, i) => {
-          const nextHeading = headings[i + 1];
-
-          ScrollTrigger.create({
-            trigger: heading,
-            start: 'top ' + (offset + 1) + 'px',
-            endTrigger: nextHeading || contentEl,
-            end: nextHeading ? 'top ' + (offset + 1) + 'px' : 'bottom top',
-            onToggle: self => {
-              if (self.isActive) setActive(i);
-            }
-          });
-        });
-
-        if (window.scrollY <= headings[0].getBoundingClientRect().top + window.scrollY - offset) {
-          setActive(0);
-        }
+      // Active state: the last heading that has passed the trigger line. Above the first heading the first entry stays
+      // active; at the very bottom of the page the last entry lights up, even when its heading can't reach the line.
+      let activeIndex = -1;
+      function setActive(index) {
+        if (index === activeIndex) return;
+        activeIndex = index;
+        tocLinks.forEach(link => link.setAttribute('data-toc-status', ''));
+        if (tocLinks[index]) tocLinks[index].setAttribute('data-toc-status', 'active');
+        if (rail) rail.update();
       }
+      function track() {
+        const line = triggerPx() + 1;
+        let index = 0;
+        headings.forEach((heading, i) => { if (heading.getBoundingClientRect().top <= line) index = i; });
+        const doc = document.documentElement;
+        if (window.scrollY > 0 && window.scrollY + window.innerHeight >= doc.scrollHeight - 2 && contentEl.getBoundingClientRect().bottom <= window.innerHeight) index = headings.length - 1;
+        setActive(index);
+      }
+      let tracking = false;
+      const onScroll = () => { if (tracking) return; tracking = true; requestAnimationFrame(() => { tracking = false; track(); }); };
+      window.addEventListener('scroll', onScroll, { passive: true });
+      window.addEventListener('resize', onScroll, { passive: true });
+      track();
 
       // Click handler with smooth scroll
       listEl.addEventListener('click', e => {

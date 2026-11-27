@@ -994,13 +994,17 @@ html.dfs-night .tk_copy:hover{background-color:#c2baa7}
 .consent_button_reject span:nth-child(6),.consent_button_accept span:nth-child(6){transition-delay:0.05s}
 .consent_button_reject span:nth-child(7),.consent_button_accept span:nth-child(7){transition-delay:0.06s}
 .consent_button_reject span:nth-child(8),.consent_button_accept span:nth-child(8){transition-delay:0.07s}
+.consent_button_accept span:nth-child(9){transition-delay:0.08s}
+.consent_button_accept span:nth-child(10){transition-delay:0.09s}
 .consent_button_accept:hover{opacity:1}
 /* Save preferences: Webflow keeps a form's submit as an <input>, which can't hold letters, so its own text is clear
    and a letter label (aria-hidden, the field still names itself) lies on top; clicks pass through to the field */
-.consent_prefs_buttons{position:relative;padding:.75rem 1rem}
-.consent_button_prefs-submit{color:transparent}
-.consent_button_prefs-submit:hover{opacity:1}
-.consent_prefs_buttons>div[aria-hidden]{position:absolute;left:1rem;right:1rem;top:50%;height:1.2em;margin-top:-.6em;display:flex;justify-content:center;overflow:hidden;pointer-events:none;font-family:var(--_typography---font-styles--mono);text-transform:uppercase;font-size:.75rem;line-height:1.2;letter-spacing:.05em;color:var(--brand-colors--light-bage)}
+/* Panel: Save preferences (light, ring) and Accept all (dark, letters roll) side by side, the banner's pair */
+.consent_prefs_buttons{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:.5rem;padding:.75rem 1rem}
+.consent_prefs_buttons .consent_button_prefs-submit{grid-column:1;grid-row:1;width:100%;color:transparent;background-color:var(--brand-colors--light-bage);border:1px solid var(--brand-colors--dark-bage);box-shadow:inset 0 0 0 0 var(--brand-colors--dark-bage)}
+.consent_prefs_buttons .consent_button_prefs-submit:hover{opacity:1;background-color:var(--brand-colors--light-bage);box-shadow:inset 0 0 0 2px var(--brand-colors--dark-bage)}
+.consent_prefs_buttons .consent_button_accept{grid-column:2;grid-row:1;display:flex;align-items:center;justify-content:center;text-decoration:none}
+.consent_prefs_buttons>div[aria-hidden]{position:absolute;left:1rem;right:calc(50% + .25rem);top:50%;height:1.2em;margin-top:-.6em;display:flex;justify-content:center;overflow:hidden;pointer-events:none;font-family:var(--_typography---font-styles--mono);text-transform:uppercase;font-size:.75rem;line-height:1.2;letter-spacing:.05em;color:var(--brand-colors--dark_gray)}
 .consent_prefs_buttons>div[aria-hidden] span{display:inline-block;white-space:pre;text-shadow:0 1.2em 0 currentColor;transition:transform .6s cubic-bezier(.625,.05,0,1)}
 .consent_button_prefs-submit:hover+div span{transform:translateY(-1.2em)}
 .consent_prefs_buttons>div[aria-hidden] span:nth-child(2){transition-delay:0.01s}
@@ -1056,7 +1060,7 @@ html.dfs-night .tk_copy:hover{background-color:#c2baa7}
    the top left, a touch deeper at the bottom right, matched to Rim's Rhythms screenshot) fades in */
 .consent_prefs_checkbox-field{width:2.75rem;height:1.5rem;padding:.1875rem;border-radius:.25rem;position:relative;background-color:var(--brand-colors--dark-bage);cursor:pointer;transition:filter .3s}
 .consent_prefs_checkbox-field.is-active{background-color:#3897db}
-.consent_prefs_checkbox-field::before{content:"";display:block;position:absolute;inset:0;width:auto;height:auto;grid-area:auto;border-radius:inherit;background:radial-gradient(ellipse farthest-corner at 25% 20%,#62b2ea 0%,#3897db 60%,#2a8bd3 100%);opacity:0;transition:opacity .6s cubic-bezier(.625,.05,0,1)}
+.consent_prefs_checkbox-field::before{content:"";display:block;position:absolute;inset:0;width:auto;height:auto;grid-area:auto;border-radius:inherit;background:radial-gradient(ellipse farthest-corner at 25% 20%,#74bdf0 0%,#3a97db 55%,#2384cf 100%);opacity:0;transition:opacity .6s cubic-bezier(.625,.05,0,1)}
 .consent_prefs_checkbox-field.is-active::before{opacity:1}
 .consent_prefs_checkbox-toggle{position:relative;z-index:1}
 .consent_prefs_checkbox-field:hover{filter:brightness(1.03)}
@@ -1065,4 +1069,3 @@ html.dfs-night .tk_copy:hover{background-color:#c2baa7}
 .consent_prefs_checkbox-toggle,.consent_prefs_checkbox-toggle.is-active{width:1.125rem;height:1.125rem;border-radius:3px;background-color:#fff;box-shadow:0 .5px 1px rgba(0,0,0,.15);transition:margin-left .6s cubic-bezier(.625,.05,0,1)}
 .consent_prefs_checkbox-toggle.is-active{margin-left:1.25rem}
 .consent_prefs_buttons{background-color:transparent;border-top:1px dashed var(--brand-colors--dark-bage)}
-.consent_prefs_buttons .consent_button_prefs-submit{width:100%}

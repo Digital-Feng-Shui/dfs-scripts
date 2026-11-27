@@ -981,11 +981,20 @@ html.dfs-night .tk_copy:hover{background-color:#c2baa7}
 .consent_button_reject{background-color:var(--brand-colors--light-bage);color:var(--brand-colors--dark_gray);border:1px solid var(--brand-colors--dark-bage);box-shadow:inset 0 0 0 0 var(--brand-colors--dark-bage)}
 .consent_button_reject:hover{opacity:1;box-shadow:inset 0 0 0 2px var(--brand-colors--dark-bage)}
 .consent_button_accept,.consent_button_prefs-submit{background-color:var(--brand-colors--dark_gray);color:var(--brand-colors--light-bage);border:1px solid var(--brand-colors--dark_gray)}
-/* The dark button rolls its word up on hover, like Rhythms (the copy waits below, out of sight) */
-.consent_button_accept{overflow:hidden}
-.consent_button_accept>div{display:inline-block;text-shadow:0 2.5em 0 currentColor;transition:transform .6s cubic-bezier(.625,.05,0,1)}
+/* Both buttons roll their letters up on hover, one after another (0.01 s apart, like Rhythms' RollingText); each
+   letter has its copy waiting one line below, and the line clips both, so only one shows. The light one also draws its 2px ring in. */
+.consent_button_reject,.consent_button_accept{overflow:hidden}
+.consent_button_reject>div,.consent_button_accept>div{display:inline-flex;height:1.2em;line-height:1.2;overflow:hidden;vertical-align:top}
+.consent_button_reject span,.consent_button_accept span{display:inline-block;text-shadow:0 1.2em 0 currentColor;transition:transform .6s cubic-bezier(.625,.05,0,1)}
+.consent_button_reject:hover span,.consent_button_accept:hover span{transform:translateY(-1.2em)}
+.consent_button_reject span:nth-child(2),.consent_button_accept span:nth-child(2){transition-delay:0.01s}
+.consent_button_reject span:nth-child(3),.consent_button_accept span:nth-child(3){transition-delay:0.02s}
+.consent_button_reject span:nth-child(4),.consent_button_accept span:nth-child(4){transition-delay:0.03s}
+.consent_button_reject span:nth-child(5),.consent_button_accept span:nth-child(5){transition-delay:0.04s}
+.consent_button_reject span:nth-child(6),.consent_button_accept span:nth-child(6){transition-delay:0.05s}
+.consent_button_reject span:nth-child(7),.consent_button_accept span:nth-child(7){transition-delay:0.06s}
+.consent_button_reject span:nth-child(8),.consent_button_accept span:nth-child(8){transition-delay:0.07s}
 .consent_button_accept:hover{opacity:1}
-.consent_button_accept:hover>div{transform:translateY(-2.5em)}
 .consent_button_prefs-submit:hover{opacity:1;background-color:var(--brand-colors--80-dark_gray);border-color:var(--brand-colors--80-dark_gray)}
 /* No blue rings on click; a dashed ink ring only for keyboard users */
 .consent_button_prefs:focus,.consent_button_reject:focus,.consent_button_accept:focus,.consent_button_prefs-submit:focus,.consent_prefs_close:focus,.consent_banner_privacy-link:focus{outline:none}
@@ -996,7 +1005,7 @@ html.dfs-night .tk_copy:hover{background-color:#c2baa7}
 [fs-consent-element="banner"] .consent_banner{animation:dfsConsentIn 1s cubic-bezier(.625,.05,0,1) 1.2s both}
 [fs-consent-element="preferences"] .consent_prefs_form{animation:dfsConsentPanel .55s cubic-bezier(.33,1,.68,1) both}
 [fs-consent-element="preferences"] .consent_prefs_overlay{animation:dfsConsentFade .55s cubic-bezier(.33,1,.68,1) both}
-@media (prefers-reduced-motion:reduce){.consent_button_accept:hover>div,.consent_prefs_close:hover .consent_prefs_close-icon{transform:none}[fs-consent-element="banner"] .consent_banner{animation:dfsConsentFade .3s ease 1.2s both}[fs-consent-element="preferences"] .consent_prefs_form{animation:dfsConsentFade .3s ease both}.consent_button_prefs:hover::before{transform:none}}
+@media (prefers-reduced-motion:reduce){.consent_button_reject:hover span,.consent_button_accept:hover span,.consent_prefs_close:hover .consent_prefs_close-icon{transform:none}[fs-consent-element="banner"] .consent_banner{animation:dfsConsentFade .3s ease 1.2s both}[fs-consent-element="preferences"] .consent_prefs_form{animation:dfsConsentFade .3s ease both}.consent_button_prefs:hover::before{transform:none}}
 @media (max-width:479px){
   .consent_opt-in_banner{inset:auto .75rem .75rem .75rem}
   .consent_banner{max-width:none}

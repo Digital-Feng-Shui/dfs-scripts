@@ -996,6 +996,16 @@ html.dfs-night .terms_conditions:has(.hero)::before{background-image:url(night/H
 .legal_body .toc_list .list-item{margin-bottom:.5rem}
 .legal_body .tac_chapter>:last-child,.legal_body .legalpage_chapter>:last-child{margin-bottom:0}
 @media (max-width:767px){.legal_body .tac_chapter{margin-top:4rem}}
+/* Round 3 (Rim 27 Nov): main entries in the index in mono capitals, subsections in normal case; Mondwest only for the main
+   headings, the small headings in mono capitals, and the long text in a clean sans that reads easier than mono in bulk.
+   Text column and opening sit 2rem further left. */
+.legal_toc-link[data-toc-depth="2"]{text-transform:uppercase;letter-spacing:.04em;font-size:.6875rem}
+.legal_toc-link[data-toc-depth="3"]{text-transform:none;font-size:.75rem}
+.legal_body .legalpage_chapter>h3{font-family:var(--_typography---font-styles--mono);text-transform:uppercase;letter-spacing:.05em;font-size:.875rem;line-height:1.4;margin:0 0 .5rem}
+.legal_body .text-style-paragraph,.legal_body .toc_list,.terms_conditions:has(.hero) .hero .text-style-paragraph{font-family:system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;font-size:1.0625rem;line-height:1.7;letter-spacing:0}
+.legal_body{position:relative;left:-2rem}
+.terms_conditions:has(.hero) .container-small{left:-2rem}
+@media (max-width:991px){.legal_body,.terms_conditions:has(.hero) .container-small{left:0}}
 
 /* BLOG — /resources topic filter (main.js dfsFilter, Osmo Supply). The look is on Webflow's filter-* / res_* / feat_*
    classes (site variables, so night mode comes along); here only the data-attribute states. The article text and

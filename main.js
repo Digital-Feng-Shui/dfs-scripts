@@ -7326,6 +7326,57 @@
   // One link per H2/H3; the heading you're reading gets data-toc-status="active" (styles.css).
   // {skip} in a heading leaves it out of the list. The click scrolls through Lenis.
   // =========================================================
+  // The index line for [data-toc-rail] lists (legal pages; Rim 27 Nov, after Cloudflare's article index): one SVG path
+  // runs down beside the entries, straight next to each one and curving in one step for an H3 (and back out for the next
+  // H2). Two copies: a dashed one in the line colour, and a blue one on top that's cut down to the active entry, so the
+  // blue stretch slides along the same path (clip-path transition, styles.css). Redrawn when the list changes size.
+  function dfsTocRail(listEl, links) {
+    const NS = 'http://www.w3.org/2000/svg';
+    const X = { 2: 0.5, 3: 12.5 };           // the line's x for an H2 entry and an H3 entry
+    const svgs = ['muted', 'active'].map(kind => {
+      const svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('class', 'toc_rail is-' + kind);
+      svg.setAttribute('aria-hidden', 'true');
+      const path = document.createElementNS(NS, 'path');
+      path.setAttribute('fill', 'none');
+      svg.appendChild(path);
+      listEl.prepend(svg);
+      return svg;
+    });
+    listEl.classList.add('has-rail');
+    let spans = [];
+    function draw() {
+      let d = '', width = 0, height = 0, prev = null;
+      spans = links.map(link => {
+        const x = X[link.getAttribute('data-toc-depth')] || X[2];
+        const top = link.offsetTop + 6, bottom = link.offsetTop + link.offsetHeight - 6;
+        if (!prev) d += 'M' + x + ' ' + top + ' L' + x + ' ' + bottom;
+        else d += ' C' + prev.x + ' ' + (prev.bottom + (top - prev.bottom) * 0.6) + ' ' + x + ' ' + (prev.bottom + (top - prev.bottom) * 0.4) + ' ' + x + ' ' + top + ' L' + x + ' ' + bottom;
+        width = Math.max(width, x + 1); height = Math.max(height, bottom);
+        prev = { x, bottom };
+        return { top, bottom };
+      });
+      svgs.forEach(svg => {
+        svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+        svg.setAttribute('width', width);
+        svg.setAttribute('height', height);
+        svg.firstChild.setAttribute('d', d);
+      });
+      update();
+    }
+    function update() {
+      const i = links.findIndex(l => l.getAttribute('data-toc-status') === 'active');
+      const s = spans[i];
+      svgs[1].style.clipPath = s ? 'inset(' + s.top + 'px 0 calc(100% - ' + s.bottom + 'px) 0)' : 'inset(0 0 100% 0)';
+    }
+    let raf = 0;
+    const redraw = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(draw); };
+    if (window.ResizeObserver) new ResizeObserver(redraw).observe(listEl);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(redraw);
+    draw();
+    return { update };
+  }
+
   function dfsToc() {
     if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') gsap.registerPlugin(ScrollTrigger);
 
@@ -7404,12 +7455,14 @@
       });
 
       listEl.querySelectorAll('[data-toc-link]').forEach(el => el.remove());
+      const rail = (root.hasAttribute('data-toc-rail') || root.classList.contains('legal_layout')) ? dfsTocRail(listEl, tocLinks) : null;
 
       // Active state tracking via ScrollTrigger
       if (typeof ScrollTrigger !== 'undefined') {
         function setActive(index) {
           tocLinks.forEach(link => link.setAttribute('data-toc-status', ''));
           if (tocLinks[index]) tocLinks[index].setAttribute('data-toc-status', 'active');
+          if (rail) rail.update();
         }
 
         headings.forEach((heading, i) => {

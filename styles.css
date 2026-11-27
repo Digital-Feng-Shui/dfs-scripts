@@ -995,7 +995,30 @@ html.dfs-night .tk_copy:hover{background-color:#c2baa7}
 .consent_button_reject span:nth-child(7),.consent_button_accept span:nth-child(7){transition-delay:0.06s}
 .consent_button_reject span:nth-child(8),.consent_button_accept span:nth-child(8){transition-delay:0.07s}
 .consent_button_accept:hover{opacity:1}
-.consent_button_prefs-submit:hover{opacity:1;background-color:var(--brand-colors--80-dark_gray);border-color:var(--brand-colors--80-dark_gray)}
+/* Save preferences: Webflow keeps a form's submit as an <input>, which can't hold letters, so its own text is clear
+   and a letter label (aria-hidden, the field still names itself) lies on top; clicks pass through to the field */
+.consent_prefs_buttons{position:relative;padding:.75rem 1rem}
+.consent_button_prefs-submit{color:transparent}
+.consent_button_prefs-submit:hover{opacity:1}
+.consent_prefs_buttons>div[aria-hidden]{position:absolute;left:1rem;right:1rem;top:50%;height:1.2em;margin-top:-.6em;display:flex;justify-content:center;overflow:hidden;pointer-events:none;font-family:var(--_typography---font-styles--mono);text-transform:uppercase;font-size:.75rem;line-height:1.2;letter-spacing:.05em;color:var(--brand-colors--light-bage)}
+.consent_prefs_buttons>div[aria-hidden] span{display:inline-block;white-space:pre;text-shadow:0 1.2em 0 currentColor;transition:transform .6s cubic-bezier(.625,.05,0,1)}
+.consent_button_prefs-submit:hover+div span{transform:translateY(-1.2em)}
+.consent_prefs_buttons>div[aria-hidden] span:nth-child(2){transition-delay:0.01s}
+.consent_prefs_buttons>div[aria-hidden] span:nth-child(3){transition-delay:0.02s}
+.consent_prefs_buttons>div[aria-hidden] span:nth-child(4){transition-delay:0.03s}
+.consent_prefs_buttons>div[aria-hidden] span:nth-child(5){transition-delay:0.04s}
+.consent_prefs_buttons>div[aria-hidden] span:nth-child(6){transition-delay:0.05s}
+.consent_prefs_buttons>div[aria-hidden] span:nth-child(7){transition-delay:0.06s}
+.consent_prefs_buttons>div[aria-hidden] span:nth-child(8){transition-delay:0.07s}
+.consent_prefs_buttons>div[aria-hidden] span:nth-child(9){transition-delay:0.08s}
+.consent_prefs_buttons>div[aria-hidden] span:nth-child(10){transition-delay:0.09s}
+.consent_prefs_buttons>div[aria-hidden] span:nth-child(11){transition-delay:0.10s}
+.consent_prefs_buttons>div[aria-hidden] span:nth-child(12){transition-delay:0.11s}
+.consent_prefs_buttons>div[aria-hidden] span:nth-child(13){transition-delay:0.12s}
+.consent_prefs_buttons>div[aria-hidden] span:nth-child(14){transition-delay:0.13s}
+.consent_prefs_buttons>div[aria-hidden] span:nth-child(15){transition-delay:0.14s}
+.consent_prefs_buttons>div[aria-hidden] span:nth-child(16){transition-delay:0.15s}
+
 /* No blue rings on click; a dashed ink ring only for keyboard users */
 .consent_button_prefs:focus,.consent_button_reject:focus,.consent_button_accept:focus,.consent_button_prefs-submit:focus,.consent_prefs_close:focus,.consent_banner_privacy-link:focus{outline:none}
 .consent_button_prefs:focus-visible,.consent_button_reject:focus-visible,.consent_button_accept:focus-visible,.consent_button_prefs-submit:focus-visible,.consent_prefs_close:focus-visible,.consent_banner_privacy-link:focus-visible{outline:1px dashed var(--brand-colors--dark_gray);outline-offset:2px}
@@ -1005,7 +1028,7 @@ html.dfs-night .tk_copy:hover{background-color:#c2baa7}
 [fs-consent-element="banner"] .consent_banner{animation:dfsConsentIn 1s cubic-bezier(.625,.05,0,1) 1.2s both}
 [fs-consent-element="preferences"] .consent_prefs_form{animation:dfsConsentPanel .55s cubic-bezier(.33,1,.68,1) both}
 [fs-consent-element="preferences"] .consent_prefs_overlay{animation:dfsConsentFade .55s cubic-bezier(.33,1,.68,1) both}
-@media (prefers-reduced-motion:reduce){.consent_button_reject:hover span,.consent_button_accept:hover span,.consent_prefs_close:hover .consent_prefs_close-icon{transform:none}[fs-consent-element="banner"] .consent_banner{animation:dfsConsentFade .3s ease 1.2s both}[fs-consent-element="preferences"] .consent_prefs_form{animation:dfsConsentFade .3s ease both}.consent_button_prefs:hover::before{transform:none}}
+@media (prefers-reduced-motion:reduce){.consent_button_reject:hover span,.consent_button_accept:hover span,.consent_button_prefs-submit:hover+div span,.consent_prefs_close:hover .consent_prefs_close-icon{transform:none}[fs-consent-element="banner"] .consent_banner{animation:dfsConsentFade .3s ease 1.2s both}[fs-consent-element="preferences"] .consent_prefs_form{animation:dfsConsentFade .3s ease both}.consent_button_prefs:hover::before{transform:none}}
 @media (max-width:479px){
   .consent_opt-in_banner{inset:auto .75rem .75rem .75rem}
   .consent_banner{max-width:none}
@@ -1029,9 +1052,13 @@ html.dfs-night .tk_copy:hover{background-color:#c2baa7}
 .consent_prefs_category-accordion{cursor:default}
 .consent_prefs_description,.consent_prefs_value,.consent_prefs_empty-message{font-size:.8125rem;line-height:1.6;color:var(--brand-colors--80-dark_gray)}
 .consent_prefs_label-active{border:1px solid var(--brand-colors--dark-bage);border-radius:.25rem;color:var(--brand-colors--80-dark_gray);font-size:.6875rem;text-transform:uppercase;padding:.25rem .5rem}
-/* Rhythms' toggle: 44x24, 4px corners, an 18px white knob with 3px corners that slides 20px, blue fades in */
-.consent_prefs_checkbox-field{width:2.75rem;height:1.5rem;padding:.1875rem;border-radius:.25rem;background-color:var(--brand-colors--dark-bage);cursor:pointer;transition:background-color .6s cubic-bezier(.625,.05,0,1),filter .3s}
-.consent_prefs_checkbox-field.is-active{background-color:var(--brand-colors--blue)}
+/* Rhythms' toggle: 44x24, 4px corners, an 18px white knob with 3px corners that slides 20px, its soft blue (lighter at
+   the top left, a touch deeper at the bottom right, matched to Rim's Rhythms screenshot) fades in */
+.consent_prefs_checkbox-field{width:2.75rem;height:1.5rem;padding:.1875rem;border-radius:.25rem;position:relative;background-color:var(--brand-colors--dark-bage);cursor:pointer;transition:filter .3s}
+.consent_prefs_checkbox-field.is-active{background-color:#3897db}
+.consent_prefs_checkbox-field::before{content:"";display:block;position:absolute;inset:0;width:auto;height:auto;grid-area:auto;border-radius:inherit;background:radial-gradient(ellipse farthest-corner at 25% 20%,#62b2ea 0%,#3897db 60%,#2a8bd3 100%);opacity:0;transition:opacity .6s cubic-bezier(.625,.05,0,1)}
+.consent_prefs_checkbox-field.is-active::before{opacity:1}
+.consent_prefs_checkbox-toggle{position:relative;z-index:1}
 .consent_prefs_checkbox-field:hover{filter:brightness(1.03)}
 .consent_prefs_checkbox-field.is-focused{outline:none}
 .consent_prefs_checkbox-field:has(:focus-visible){outline:1px dashed var(--brand-colors--dark_gray);outline-offset:2px}
